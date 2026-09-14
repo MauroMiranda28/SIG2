@@ -1,0 +1,10 @@
+{
+  "name": "sig2",
+  "private": true,
+  "workspaces": ["api", "web"],
+  "scripts": {
+    "dev": "npm run dev --workspace=api & npm run dev --workspace=web",
+    "dev:api": "npm run dev --workspace=api",
+    "dev:web": "npm run dev --workspace=web"
+  }
+}

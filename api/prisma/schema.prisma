@@ -1,0 +1,193 @@
+// Modelo de datos. Este archivo es el contrato compartido del grupo:
+// si necesitás un campo nuevo, agregalo acá y avisá en el PR.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  ALUMNO
+  DOCENTE
+  ADMIN
+}
+
+enum EstadoMateria {
+  PENDIENTE
+  EN_CURSO
+  APROBADA
+}
+
+enum DiaSemana {
+  LUNES
+  MARTES
+  MIERCOLES
+  JUEVES
+  VIERNES
+  SABADO
+}
+
+// Seg-01, Seg-04, U-01, U-02 y las dos nuevas de docente
+model Usuario {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique // institucional
+  passwordHash String
+  nombre       String
+  apellido     String
+  rol          Rol      @default(ALUMNO)
+  creadoEn     DateTime @default(now())
+
+  carreraId Int?
+  carrera   Carrera? @relation(fields: [carreraId], references: [id])
+
+  cursadas        Cursada[]
+  materiasQueDicta MateriaDocente[]
+  actividades     ActividadPersonal[]
+}
+
+// CAR-01 a CAR-09
+model Carrera {
+  id          Int     @id @default(autoincrement())
+  nombre      String
+  codigo      String  @unique
+  descripcion String?
+  vigente     Boolean @default(true)
+
+  planes   PlanEstudio[]
+  usuarios Usuario[]
+}
+
+// PE-01 a PE-08
+model PlanEstudio {
+  id       Int      @id @default(autoincrement())
+  nombre   String // ej. "Plan 2023"
+  anio     Int
+  vigente  Boolean  @default(true)
+  creadoEn DateTime @default(now())
+
+  carreraId Int
+  carrera   Carrera @relation(fields: [carreraId], references: [id])
+
+  materias Materia[]
+}
+
+// Mat-01 a Mat-07
+model Materia {
+  id             Int     @id @default(autoincrement())
+  nombre         String
+  codigo         String  @unique
+  anio           Int // año dentro del plan
+  cuatrimestre   Int?
+  cargaHoraria   Int?
+  descripcion    String?
+
+  planId Int
+  plan   PlanEstudio @relation(fields: [planId], references: [id])
+
+  programa   Programa?
+  comisiones Comision[]
+  docentes   MateriaDocente[]
+  cursadas   Cursada[]
+
+  // PE-04, PE-06: correlatividades
+  requiere   Correlatividad[] @relation("MateriaQueRequiere")
+  requeridaPor Correlatividad[] @relation("MateriaRequerida")
+}
+
+model Correlatividad {
+  id Int @id @default(autoincrement())
+
+  materiaId Int
+  materia   Materia @relation("MateriaQueRequiere", fields: [materiaId], references: [id])
+
+  requiereId Int
+  requiere   Materia @relation("MateriaRequerida", fields: [requiereId], references: [id])
+
+  @@unique([materiaId, requiereId])
+}
+
+// HU-PRO-01 a HU-PRO-09
+model Programa {
+  id           Int      @id @default(autoincrement())
+  contenidos   String
+  bibliografia String?
+  version      Int      @default(1)
+  vigente      Boolean  @default(true)
+  actualizadoEn DateTime @updatedAt
+
+  materiaId Int     @unique
+  materia   Materia @relation(fields: [materiaId], references: [id])
+}
+
+model MateriaDocente {
+  materiaId Int
+  materia   Materia @relation(fields: [materiaId], references: [id])
+  docenteId Int
+  docente   Usuario @relation(fields: [docenteId], references: [id])
+
+  @@id([materiaId, docenteId])
+}
+
+// Mat-04: estado del alumno en cada materia
+model Cursada {
+  id     Int           @id @default(autoincrement())
+  estado EstadoMateria @default(PENDIENTE)
+  nota   Float?
+
+  alumnoId Int
+  alumno   Usuario @relation(fields: [alumnoId], references: [id])
+  materiaId Int
+  materia  Materia @relation(fields: [materiaId], references: [id])
+
+  @@unique([alumnoId, materiaId])
+}
+
+model Aula {
+  id       Int    @id @default(autoincrement())
+  nombre   String @unique
+  edificio String?
+  capacidad Int?
+
+  bloques BloqueHorario[]
+}
+
+model Comision {
+  id     Int    @id @default(autoincrement())
+  nombre String // ej. "Comisión A"
+
+  materiaId Int
+  materia   Materia @relation(fields: [materiaId], references: [id])
+
+  bloques BloqueHorario[]
+}
+
+// Horarios U-01: bloque horario + aula
+model BloqueHorario {
+  id       Int       @id @default(autoincrement())
+  dia      DiaSemana
+  horaInicio String // "18:00"
+  horaFin    String // "20:00"
+
+  comisionId Int
+  comision   Comision @relation(fields: [comisionId], references: [id])
+
+  aulaId Int?
+  aula   Aula? @relation(fields: [aulaId], references: [id])
+}
+
+// ACT-01 a ACT-06
+model ActividadPersonal {
+  id        Int      @id @default(autoincrement())
+  titulo    String
+  notas     String?
+  duracion  Int? // minutos
+  etiqueta  String?
+  creadoEn  DateTime @default(now())
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+}
