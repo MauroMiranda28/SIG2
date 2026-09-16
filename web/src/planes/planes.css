@@ -1,0 +1,16 @@
+.planes { line-height: 1.5; }
+.planes .plan-formulario { display: grid; gap: 1rem; border: 1px solid #cbd5e1; border-radius: 8px; padding: 1rem; min-width: 0; }
+.planes label { display: grid; gap: .25rem; font-weight: 600; }
+.planes input:not([type=checkbox]), .planes select { box-sizing: border-box; width: 100%; padding: .6rem; border: 1px solid #94a3b8; border-radius: 4px; font: inherit; background: white; color: #172033; }
+.planes .plan-check { display: flex; align-items: center; gap: .5rem; }
+.planes button { padding: .6rem .9rem; cursor: pointer; font: inherit; }
+.planes button:disabled { cursor: wait; opacity: .65; }
+.planes .plan-primario { background: #164e83; color: white; border: 0; border-radius: 4px; }
+.planes .plan-materia { display: grid; gap: .75rem; border: 1px solid #cbd5e1; min-width: 0; }
+.planes .plan-error { color: #a11224; }
+.planes .plan-exito { background: #e8f5ed; color: #185c35; padding: 1rem; border-radius: 4px; }
+.planes .plan-tabla { overflow-x: auto; }
+.planes table { width: 100%; border-collapse: collapse; text-align: left; }
+.planes th, .planes td { padding: .65rem; border-bottom: 1px solid #dbe2ea; }
+.planes th { background: #edf2f7; }
+.planes caption { text-align: left; color: #475569; padding-bottom: .5rem; }

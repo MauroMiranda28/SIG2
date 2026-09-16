@@ -2,21 +2,17 @@ import { Router } from "express";
 import { prisma } from "../db.js";
 import { requiereAuth } from "../middleware/auth.js";
 
+import { resolverPlanAlumno } from "../services/planes.js";
+
 const router = Router();
 
 // Mat-01: materias de la carrera del alumno, con el estado de cursada de cada una
 router.get("/", requiereAuth, async (req, res, next) => {
   try {
-    const { carreraId } = await prisma.usuario.findUnique({
-      where: { id: req.usuario.id },
-      select: { carreraId: true },
-    });
-
-    // Sin carrera asignada todavía no hay plan del que sacar materias.
-    if (!carreraId) return res.json([]);
+    const planId = await resolverPlanAlumno(prisma, req.usuario.id);
 
     const materias = await prisma.materia.findMany({
-      where: { plan: { carreraId, vigente: true } },
+      where: { planId },
       include: {
         cursadas: {
           where: { alumnoId: req.usuario.id },
