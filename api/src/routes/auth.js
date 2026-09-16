@@ -4,23 +4,26 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../db.js";
 import { requiereAuth } from "../middleware/auth.js";
 
+const DOMINIOS_PERMITIDOS = ["@ucse.edu.ar", "@alumnos.ucse.edu.ar"];
 const router = Router();
+
 
 // Seg-04 / U-01: registro con correo institucional
 router.post("/registro", async (req, res, next) => {
   try {
     const { email, password, nombre, apellido, rol } = req.body;
+    const emailNormalizado = email?.trim().toLowerCase();
 
-    if (!email?.endsWith("@unse.edu.ar")) {
+    if (!emailNormalizado || !DOMINIOS_PERMITIDOS.some((d) => emailNormalizado.endsWith(d))) {
       return res.status(400).json({ error: "Usá tu correo institucional" });
     }
-    if (await prisma.usuario.findUnique({ where: { email } })) {
+    if (await prisma.usuario.findUnique({ where: { email: emailNormalizado } })) {
       return res.status(409).json({ error: "Ese correo ya está registrado" });
     }
 
     const usuario = await prisma.usuario.create({
       data: {
-        email,
+        email: emailNormalizado,
         nombre,
         apellido,
         rol: rol ?? "ALUMNO",
@@ -38,7 +41,9 @@ router.post("/registro", async (req, res, next) => {
 router.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    const usuario = await prisma.usuario.findUnique({ where: { email } });
+    const emailNormalizado = email?.trim().toLowerCase();
+
+    const usuario = await prisma.usuario.findUnique({ where: { email: emailNormalizado } });
 
     if (!usuario || !(await bcrypt.compare(password, usuario.passwordHash))) {
       return res.status(401).json({ error: "Correo o contraseña incorrectos" });
