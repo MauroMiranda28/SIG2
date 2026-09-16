@@ -5,6 +5,9 @@ import Registro from "./auth/Registro.jsx";
 import MateriasCarrera from "./materias/MateriasCarrera.jsx";
 import GrillaSemanal from "./horarios/GrillaSemanal.jsx";
 
+import CrearPlan from "./planes/CrearPlan.jsx";
+import MiPlan from "./planes/MiPlan.jsx";
+
 export default function App() {
   const [usuario, setUsuario] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -26,6 +29,7 @@ export default function App() {
     borrarToken();
     setUsuario(null);
     setVista("login");
+    setTab("materias");
   }
 
   if (cargando) return null;
@@ -51,16 +55,21 @@ export default function App() {
 
       <hr style={{ margin: "1rem 0" }} />
 
-      <nav style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
+      <nav style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginBottom: "1rem" }}>
         <button onClick={() => setTab("materias")} disabled={tab === "materias"} style={{ cursor: "pointer" }}>
           Materias
         </button>
         <button onClick={() => setTab("horario")} disabled={tab === "horario"} style={{ cursor: "pointer" }}>
           Mi horario
         </button>
+        {usuario.rol === "ADMIN" && <button onClick={() => setTab("crear-plan")} disabled={tab === "crear-plan"}>Crear plan</button>}
+        {usuario.rol === "ALUMNO" && <button onClick={() => setTab("mi-plan")} disabled={tab === "mi-plan"}>Mi plan de estudios</button>}
       </nav>
 
-      {tab === "materias" ? <MateriasCarrera /> : <GrillaSemanal />}
+      {tab === "materias" && <MateriasCarrera />}
+      {tab === "horario" && <GrillaSemanal />}
+      {tab === "crear-plan" && usuario.rol === "ADMIN" && <CrearPlan />}
+      {tab === "mi-plan" && usuario.rol === "ALUMNO" && <MiPlan />}
     </div>
   );
 }

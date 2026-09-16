@@ -44,6 +44,10 @@ model Usuario {
   carreraId Int?
   carrera   Carrera? @relation(fields: [carreraId], references: [id])
 
+  // PE: asignación explícita; null conserva compatibilidad con alumnos existentes.
+  planEstudioId Int?
+  planEstudio PlanEstudio? @relation(fields: [planEstudioId], references: [id], onDelete: Restrict)
+
   cursadas        Cursada[]
   materiasQueDicta MateriaDocente[]
   actividades     ActividadPersonal[]
@@ -74,6 +78,7 @@ model PlanEstudio {
   carrera   Carrera @relation(fields: [carreraId], references: [id])
 
   materias Materia[]
+  alumnos Usuario[]
 }
 
 // Mat-01 a Mat-07
