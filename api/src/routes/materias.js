@@ -12,6 +12,9 @@ router.get("/", requiereAuth, async (req, res, next) => {
       select: { carreraId: true },
     });
 
+    // Sin carrera asignada todavía no hay plan del que sacar materias.
+    if (!carreraId) return res.json([]);
+
     const materias = await prisma.materia.findMany({
       where: { plan: { carreraId, vigente: true } },
       include: {
@@ -83,6 +86,32 @@ router.get("/:id/programa", requiereAuth, async (req, res, next) => {
 
     const { vigente, ...programa } = materia.programa;
     res.json({ materia: { nombre: materia.nombre, codigo: materia.codigo }, programa });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Horarios U-01: comisiones de una materia con su horario, para que el
+// alumno elija cuál va a cursar.
+router.get("/:id/comisiones", requiereAuth, async (req, res, next) => {
+  try {
+    const materiaId = Number(req.params.id);
+
+    const comisiones = await prisma.comision.findMany({
+      where: { materiaId },
+      include: {
+        bloques: { include: { aula: true }, orderBy: [{ dia: "asc" }, { horaInicio: "asc" }] },
+        inscripciones: { where: { alumnoId: req.usuario.id }, select: { id: true } },
+      },
+      orderBy: { nombre: "asc" },
+    });
+
+    const conElegida = comisiones.map(({ inscripciones, ...comision }) => ({
+      ...comision,
+      elegidaPorMi: inscripciones.length > 0,
+    }));
+
+    res.json(conElegida);
   } catch (e) {
     next(e);
   }

@@ -47,6 +47,7 @@ model Usuario {
   cursadas        Cursada[]
   materiasQueDicta MateriaDocente[]
   actividades     ActividadPersonal[]
+  inscripciones   InscripcionComision[]
 }
 
 // CAR-01 a CAR-09
@@ -162,7 +163,24 @@ model Comision {
   materiaId Int
   materia   Materia @relation(fields: [materiaId], references: [id])
 
-  bloques BloqueHorario[]
+  bloques       BloqueHorario[]
+  inscripciones InscripcionComision[]
+}
+
+// Horarios U-01: la comisión que el alumno eligió cursar para una materia.
+// Solo puede haber una elegida por alumno y materia (se resuelve en la ruta:
+// elegir una nueva reemplaza la anterior de esa misma materia).
+model InscripcionComision {
+  id       Int      @id @default(autoincrement())
+  creadoEn DateTime @default(now())
+
+  alumnoId Int
+  alumno   Usuario @relation(fields: [alumnoId], references: [id])
+
+  comisionId Int
+  comision   Comision @relation(fields: [comisionId], references: [id])
+
+  @@unique([alumnoId, comisionId])
 }
 
 // Horarios U-01: bloque horario + aula

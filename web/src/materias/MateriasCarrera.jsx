@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { api } from "./api.js";
+import { api } from "../api.js";
+import MateriaDetalle from "./MateriaDetalle.jsx";
 
-// Mat-01 + HU-PRO: el alumno ve las materias de su carrera con su estado de
-// cursada, y puede abrir el programa (contenidos y bibliografía) de cualquiera.
+// Mat-01 + HU-PRO + Mat-03 + Horarios U-01: el alumno ve las materias de su
+// carrera con su estado de cursada, y puede abrir el programa (contenidos y
+// bibliografía) o la información y comisiones de cualquiera.
 
 const ETIQUETA_ESTADO = {
   PENDIENTE: "Pendiente",
@@ -17,6 +19,7 @@ export default function MateriasCarrera() {
   const [programa, setPrograma] = useState(null);
   const [errorPrograma, setErrorPrograma] = useState(null);
   const [cargandoPrograma, setCargandoPrograma] = useState(false);
+  const [detalleAbiertoId, setDetalleAbiertoId] = useState(null);
 
   useEffect(() => {
     api("/materias")
@@ -106,12 +109,27 @@ export default function MateriasCarrera() {
                   </span>
                 </div>
 
-                <button
-                  onClick={() => verPrograma(materia.id)}
-                  style={{ alignSelf: "flex-start", cursor: "pointer" }}
-                >
-                  {materiaAbiertaId === materia.id ? "Ocultar programa" : "Ver programa"}
-                </button>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button
+                    onClick={() => setDetalleAbiertoId(detalleAbiertoId === materia.id ? null : materia.id)}
+                    style={{ alignSelf: "flex-start", cursor: "pointer" }}
+                  >
+                    {detalleAbiertoId === materia.id ? "Ocultar información" : "Ver información y horarios"}
+                  </button>
+
+                  <button
+                    onClick={() => verPrograma(materia.id)}
+                    style={{ alignSelf: "flex-start", cursor: "pointer" }}
+                  >
+                    {materiaAbiertaId === materia.id ? "Ocultar programa" : "Ver programa"}
+                  </button>
+                </div>
+
+                {detalleAbiertoId === materia.id && (
+                  <div style={{ background: "#fafafa", padding: "0.75rem", borderRadius: "6px" }}>
+                    <MateriaDetalle materiaId={materia.id} />
+                  </div>
+                )}
 
                 {materiaAbiertaId === materia.id && (
                   <div style={{ background: "#fafafa", padding: "0.75rem", borderRadius: "6px" }}>

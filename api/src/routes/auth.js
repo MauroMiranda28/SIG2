@@ -4,17 +4,26 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../db.js";
 import { requiereAuth } from "../middleware/auth.js";
 
-const DOMINIOS_PERMITIDOS = ["@ucse.edu.ar", "@alumnos.ucse.edu.ar"];
 const router = Router();
 
+// Seg-04: el rol se deduce del dominio del correo, no lo elige quien se
+// registra (si no, cualquiera podría mandar rol: "ADMIN" en el body).
+// @alumnos.ucse.edu.ar -> ALUMNO, @ucse.edu.ar -> DOCENTE. En ese orden,
+// porque "alumnos.ucse.edu.ar" también termina en "ucse.edu.ar".
+function rolPorDominio(email) {
+  if (email.endsWith("@alumnos.ucse.edu.ar")) return "ALUMNO";
+  if (email.endsWith("@ucse.edu.ar")) return "DOCENTE";
+  return null;
+}
 
 // Seg-04 / U-01: registro con correo institucional
 router.post("/registro", async (req, res, next) => {
   try {
-    const { email, password, nombre, apellido, rol } = req.body;
+    const { email, password, nombre, apellido } = req.body;
     const emailNormalizado = email?.trim().toLowerCase();
+    const rol = emailNormalizado && rolPorDominio(emailNormalizado);
 
-    if (!emailNormalizado || !DOMINIOS_PERMITIDOS.some((d) => emailNormalizado.endsWith(d))) {
+    if (!rol) {
       return res.status(400).json({ error: "Usá tu correo institucional" });
     }
     if (await prisma.usuario.findUnique({ where: { email: emailNormalizado } })) {
@@ -26,7 +35,7 @@ router.post("/registro", async (req, res, next) => {
         email: emailNormalizado,
         nombre,
         apellido,
-        rol: rol ?? "ALUMNO",
+        rol,
         passwordHash: await bcrypt.hash(password, 10),
       },
     });
