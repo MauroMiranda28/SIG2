@@ -7,12 +7,22 @@ import { resolverPlanAlumno } from "../services/planes.js";
 const router = Router();
 
 // Mat-01: materias de la carrera del alumno, con el estado de cursada de cada una
+// Mat-08: búsqueda por nombre o código con ?q=
 router.get("/", requiereAuth, async (req, res, next) => {
   try {
     const planId = await resolverPlanAlumno(prisma, req.usuario.id);
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
 
     const materias = await prisma.materia.findMany({
-      where: { planId },
+      where: {
+        planId,
+        ...(q ? {
+          OR: [
+            { nombre: { contains: q, mode: "insensitive" } },
+            { codigo: { contains: q, mode: "insensitive" } },
+          ],
+        } : {}),
+      },
       include: {
         cursadas: {
           where: { alumnoId: req.usuario.id },

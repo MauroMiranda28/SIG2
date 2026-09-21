@@ -4,6 +4,8 @@ import Login from "./auth/Login.jsx";
 import Registro from "./auth/Registro.jsx";
 import MateriasCarrera from "./materias/MateriasCarrera.jsx";
 import GrillaSemanal from "./horarios/GrillaSemanal.jsx";
+import MisDatos from "./perfil/MisDatos.jsx";
+import MisNotas from "./notas/MisNotas.jsx";
 
 import CrearPlan from "./planes/CrearPlan.jsx";
 import MiPlan from "./planes/MiPlan.jsx";
@@ -64,12 +66,18 @@ export default function App() {
         </button>
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("crear-plan")} disabled={tab === "crear-plan"}>Crear plan</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("mi-plan")} disabled={tab === "mi-plan"}>Mi plan de estudios</button>}
+        {usuario.rol === "ALUMNO" && <button onClick={() => setTab("notas")} disabled={tab === "notas"}>Mis notas</button>}
+        <button onClick={() => setTab("mis-datos")} disabled={tab === "mis-datos"} style={{ cursor: "pointer" }}>
+          Mis datos
+        </button>
       </nav>
 
       {tab === "materias" && <MateriasCarrera />}
       {tab === "horario" && <GrillaSemanal />}
       {tab === "crear-plan" && usuario.rol === "ADMIN" && <CrearPlan />}
       {tab === "mi-plan" && usuario.rol === "ALUMNO" && <MiPlan />}
+      {tab === "notas" && usuario.rol === "ALUMNO" && <MisNotas />}
+      {tab === "mis-datos" && <MisDatos usuario={usuario} onActualizado={(datos) => setUsuario({ ...usuario, ...datos })} />}
     </div>
   );
 }

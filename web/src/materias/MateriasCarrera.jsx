@@ -5,6 +5,7 @@ import MateriaDetalle from "./MateriaDetalle.jsx";
 // Mat-01 + HU-PRO + Mat-03 + Horarios U-01: el alumno ve las materias de su
 // carrera con su estado de cursada, y puede abrir el programa (contenidos y
 // bibliografía) o la información y comisiones de cualquiera.
+// Mat-08: puede buscar por nombre o código.
 
 const ETIQUETA_ESTADO = {
   PENDIENTE: "Pendiente",
@@ -20,12 +21,24 @@ export default function MateriasCarrera() {
   const [errorPrograma, setErrorPrograma] = useState(null);
   const [cargandoPrograma, setCargandoPrograma] = useState(false);
   const [detalleAbiertoId, setDetalleAbiertoId] = useState(null);
+  const [busqueda, setBusqueda] = useState("");
 
   useEffect(() => {
-    api("/materias")
+    buscarMaterias("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function buscarMaterias(texto) {
+    const query = texto.trim() ? `?q=${encodeURIComponent(texto.trim())}` : "";
+    api(`/materias${query}`)
       .then(setMaterias)
       .catch((e) => setError(e.message));
-  }, []);
+  }
+
+  function handleBuscar(e) {
+    e.preventDefault();
+    buscarMaterias(busqueda);
+  }
 
   async function verPrograma(materiaId) {
     // Si ya está abierta esta misma, la cierro (toggle).
@@ -51,6 +64,21 @@ export default function MateriasCarrera() {
     }
   }
 
+  const formularioBusqueda = (
+    <form onSubmit={handleBuscar} style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+      <input
+        type="text"
+        value={busqueda}
+        onChange={(e) => setBusqueda(e.target.value)}
+        placeholder="Buscar por nombre o código..."
+        style={{ flex: 1, padding: "0.4rem" }}
+      />
+      <button type="submit" style={{ cursor: "pointer" }}>
+        Buscar
+      </button>
+    </form>
+  );
+
   if (error) {
     return (
       <p style={{ color: "#b00020" }}>
@@ -63,15 +91,21 @@ export default function MateriasCarrera() {
     return <p>Cargando materias...</p>;
   }
 
-  if (materias.length === 0) {
-    return <p>No hay materias vigentes cargadas para tu carrera todavía.</p>;
-  }
-
   const porAnio = agruparPorAnio(materias);
 
   return (
     <div style={{ fontFamily: "system-ui", maxWidth: "40rem" }}>
       <h2>Materias de mi carrera</h2>
+
+      {formularioBusqueda}
+
+      {materias.length === 0 && (
+        <p>
+          {busqueda.trim()
+            ? `No se encontraron materias que coincidan con "${busqueda.trim()}".`
+            : "No hay materias vigentes cargadas para tu carrera todavía."}
+        </p>
+      )}
 
       {Object.entries(porAnio).map(([anio, materiasDelAnio]) => (
         <section key={anio} style={{ marginBottom: "1.5rem" }}>
