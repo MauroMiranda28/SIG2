@@ -5,6 +5,7 @@ import cors from "cors";
 import authRouter from "./routes/auth.js";
 import materiasRouter from "./routes/materias.js";
 import horariosRouter from "./routes/horarios.js";
+import certificadosRouter from "./routes/certificados.js";
 
 import planesRouter from "./routes/planes.js";
 
@@ -18,6 +19,7 @@ app.get("/api/health", (req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRouter);
 app.use("/api/materias", materiasRouter);
 app.use("/api/horarios", horariosRouter);
+app.use("/api/certificados", certificadosRouter);
 app.use("/api/planes", planesRouter);
 
 // Cada módulo agrega su router acá. Un archivo por módulo en src/routes/.
