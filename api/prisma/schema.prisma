@@ -67,6 +67,7 @@ model Carrera {
 
   planes   PlanEstudio[]
   usuarios Usuario[]
+  activa      Boolean   @default(true) 
 }
 
 // PE-01 a PE-08
@@ -105,6 +106,7 @@ model Materia {
   // PE-04, PE-06: correlatividades
   requiere   Correlatividad[] @relation("MateriaQueRequiere")
   requeridaPor Correlatividad[] @relation("MateriaRequerida")
+  programaUrl String?
 }
 
 model Correlatividad {

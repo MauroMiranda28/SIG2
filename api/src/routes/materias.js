@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { prisma } from "../db.js";
-import { requiereAuth } from "../middleware/auth.js";
+import { requiereAuth, requiereRol } from "../middleware/auth.js"; // <- Agregamos requiereRol
+import multer from 'multer';
+const upload = multer({ dest: 'uploads/programas/' });
 
 import { resolverPlanAlumno } from "../services/planes.js";
 
@@ -32,8 +34,6 @@ router.get("/", requiereAuth, async (req, res, next) => {
       orderBy: [{ anio: "asc" }, { nombre: "asc" }],
     });
 
-    // Aplana la cursada del alumno (o PENDIENTE si nunca la cursó) en vez de
-    // devolver el array de relación tal cual.
     const materiasConEstado = materias.map(({ cursadas, ...materia }) => ({
       ...materia,
       estado: cursadas[0]?.estado ?? "PENDIENTE",
@@ -65,7 +65,7 @@ router.get("/:id", requiereAuth, async (req, res, next) => {
   }
 });
 
-// HU-PRO: programa de una materia (contenidos y bibliografía)
+// HU-PRO: programa de una materia (contenidos y bibliografía en texto)
 router.get("/:id/programa", requiereAuth, async (req, res, next) => {
   try {
     const materia = await prisma.materia.findUnique({
@@ -97,8 +97,7 @@ router.get("/:id/programa", requiereAuth, async (req, res, next) => {
   }
 });
 
-// Horarios U-01: comisiones de una materia con su horario, para que el
-// alumno elija cuál va a cursar.
+// Horarios U-01: comisiones de una materia con su horario
 router.get("/:id/comisiones", requiereAuth, async (req, res, next) => {
   try {
     const materiaId = Number(req.params.id);
@@ -120,6 +119,28 @@ router.get("/:id/comisiones", requiereAuth, async (req, res, next) => {
     res.json(conElegida);
   } catch (e) {
     next(e);
+  }
+});
+
+// ==========================================
+// NUEVA RUTA PARA HISTORIA DE USUARIO
+// ==========================================
+
+// POST: Cargar programa de la materia en PDF (Admin IT)
+router.post("/:id/programa", requiereAuth, requiereRol("ADMIN"), upload.single('archivo'), async (req, res) => {
+  const { id } = req.params;
+  const archivo = req.file;
+
+  if (!archivo) return res.status(400).json({ error: "No se subió ningún archivo PDF" });
+
+  try {
+    const materia = await prisma.materia.update({
+      where: { id: parseInt(id) },
+      data: { programaUrl: archivo.path }
+    });
+    res.json({ mensaje: "Programa cargado con éxito", materia });
+  } catch (error) {
+    res.status(500).json({ error: "Error al guardar el programa en la base de datos" });
   }
 });
 
