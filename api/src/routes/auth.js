@@ -94,7 +94,17 @@ router.get("/perfil", requiereAuth, async (req, res, next) => {
   try {
     const usuario = await prisma.usuario.findUnique({
       where: { id: req.usuario.id },
-      select: { id: true, email: true, nombre: true, apellido: true, rol: true, carreraId: true },
+      select: {
+        id: true,
+        email: true,
+        nombre: true,
+        apellido: true,
+        dni: true,
+        telefono: true,
+        emailPersonal: true,
+        rol: true,
+        carreraId: true,
+      },
     });
     res.json(usuario);
   } catch (e) {
@@ -104,11 +114,40 @@ router.get("/perfil", requiereAuth, async (req, res, next) => {
 
 router.patch("/perfil", requiereAuth, async (req, res, next) => {
   try {
-    const { nombre, apellido } = req.body;
+    const { nombre, apellido, telefono, emailPersonal } = req.body;
+    const data = {};
+
+    if (nombre !== undefined) data.nombre = nombre;
+    if (apellido !== undefined) data.apellido = apellido;
+
+    if (telefono !== undefined) {
+      const telefonoLimpio = String(telefono).trim() || null;
+      // Los docentes siempre deben tener un teléfono de contacto
+      if (!telefonoLimpio && req.usuario.rol === "DOCENTE") {
+        return res.status(400).json({ error: "El teléfono no puede quedar vacío" });
+      }
+      data.telefono = telefonoLimpio;
+    }
+
+    if (emailPersonal !== undefined) {
+      const emailLimpio = String(emailPersonal).trim().toLowerCase() || null;
+      if (emailLimpio && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLimpio)) {
+        return res.status(400).json({ error: "El correo personal no es válido" });
+      }
+      data.emailPersonal = emailLimpio;
+    }
+
     const usuario = await prisma.usuario.update({
       where: { id: req.usuario.id },
-      data: { nombre, apellido },
-      select: { id: true, nombre: true, apellido: true },
+      data,
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        dni: true,
+        telefono: true,
+        emailPersonal: true,
+      },
     });
     res.json(usuario);
   } catch (e) {
