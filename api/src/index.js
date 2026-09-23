@@ -8,6 +8,7 @@ import horariosRouter from "./routes/horarios.js";
 import certificadosRouter from "./routes/certificados.js";
 
 import planesRouter from "./routes/planes.js";
+import carrerasRouter from "./routes/carreras.js";
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use("/api/materias", materiasRouter);
 app.use("/api/horarios", horariosRouter);
 app.use("/api/certificados", certificadosRouter);
 app.use("/api/planes", planesRouter);
+app.use("/api/carreras", carrerasRouter);
 
 // Cada módulo agrega su router acá. Un archivo por módulo en src/routes/.
 
