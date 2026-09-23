@@ -10,13 +10,16 @@ const ETIQUETA_DIA = {
   SABADO: "Sábado",
 };
 
-// Mat-03: características de la materia + Horarios U-01: elegir comisión
 export default function MateriaDetalle({ materiaId, onCambioInscripcion }) {
   const [materia, setMateria] = useState(null);
   const [comisiones, setComisiones] = useState(null);
   const [error, setError] = useState(null);
   const [eligiendoId, setEligiendoId] = useState(null);
   const [errorEleccion, setErrorEleccion] = useState(null);
+  
+  // Estados para la subida del programa PDF
+  const [archivoPDF, setArchivoPDF] = useState(null);
+  const [estadoSubida, setEstadoSubida] = useState("");
 
   function cargar() {
     setError(null);
@@ -47,6 +50,34 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion }) {
     }
   }
 
+  // Función para manejar la subida del PDF
+  async function manejarSubidaPrograma(e) {
+    e.preventDefault();
+    if (!archivoPDF) return;
+    
+    setEstadoSubida("Subiendo archivo...");
+    const formData = new FormData();
+    formData.append("archivo", archivoPDF);
+
+    try {
+      // Usamos fetch nativo porque 'api.js' suele forzar JSON, y aquí necesitamos enviar FormData
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const res = await fetch(`/api/materias/${materiaId}/programa`, {
+        method: "POST",
+        headers: token ? { "Authorization": `Bearer ${token}` } : {},
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Error al cargar el programa. Verifica que seas Administrador.");
+      
+      setEstadoSubida("¡Programa cargado con éxito!");
+      setArchivoPDF(null);
+      cargar(); // Recargamos para que aparezca el botón de descarga
+    } catch (error) {
+      setEstadoSubida(error.message);
+    }
+  }
+
   if (error) {
     return <p style={{ color: "#b00020" }}>No se pudo cargar la materia: {error}</p>;
   }
@@ -74,6 +105,40 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion }) {
             {materia.docentes.map((d) => `${d.docente.nombre} ${d.docente.apellido}`).join(", ")}
           </p>
         )}
+
+        {/* --- HISTORIA DE USUARIO: DESCARGAR PROGRAMA (ALUMNO) --- */}
+        {materia.programaUrl && (
+          <div style={{ marginTop: "1rem" }}>
+            <a 
+              href={`/${materia.programaUrl}`} 
+              target="_blank" 
+              rel="noreferrer" 
+              style={{ padding: "0.5rem 1rem", backgroundColor: "#1976d2", color: "white", textDecoration: "none", borderRadius: "4px", display: "inline-block" }}
+            >
+              📄 Descargar Programa de Estudio (PDF)
+            </a>
+          </div>
+        )}
+
+        {/* --- HISTORIA DE USUARIO: SUBIR PROGRAMA (ADMIN IT) --- */}
+        <div style={{ marginTop: "1.5rem", padding: "1rem", backgroundColor: "#f5f5f5", borderRadius: "8px", border: "1px solid #ddd" }}>
+          <h5 style={{ margin: "0 0 0.5rem 0" }}>⚙️ Administrador: Cargar Programa</h5>
+          <form onSubmit={manejarSubidaPrograma} style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+            <input 
+              type="file" 
+              accept="application/pdf" 
+              onChange={(e) => setArchivoPDF(e.target.files[0])} 
+            />
+            <button type="submit" disabled={!archivoPDF || estadoSubida === "Subiendo archivo..."}>
+              Subir PDF
+            </button>
+          </form>
+          {estadoSubida && (
+            <small style={{ display: "block", marginTop: "0.5rem", color: estadoSubida.includes("Error") ? "#b00020" : "#2e7d32", fontWeight: "bold" }}>
+              {estadoSubida}
+            </small>
+          )}
+        </div>
       </div>
 
       <div>
