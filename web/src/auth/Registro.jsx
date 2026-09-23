@@ -6,8 +6,13 @@ export default function Registro({ onRegistrado, onIrALogin }) {
   const [password, setPassword] = useState("");
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
+  const [dni, setDni] = useState("");
+  const [telefono, setTelefono] = useState("");
   const [error, setError] = useState(null);
   const [enviando, setEnviando] = useState(false);
+
+  // Los docentes usan @ucse.edu.ar (los alumnos, @alumnos.ucse.edu.ar)
+  const esDocente = email.trim().toLowerCase().endsWith("@ucse.edu.ar");
 
   async function enviar(e) {
     e.preventDefault();
@@ -16,7 +21,13 @@ export default function Registro({ onRegistrado, onIrALogin }) {
     try {
       await api("/auth/registro", {
         method: "POST",
-        body: JSON.stringify({ email, password, nombre, apellido }),
+        body: JSON.stringify({
+          email,
+          password,
+          nombre,
+          apellido,
+          ...(esDocente && { dni, telefono }),
+        }),
       });
       onRegistrado();
     } catch (e) {
@@ -58,6 +69,34 @@ export default function Registro({ onRegistrado, onIrALogin }) {
             style={{ display: "block", width: "100%", padding: "0.5rem" }}
           />
         </label>
+
+        {esDocente && (
+          <>
+            <label>
+              DNI (sin puntos)
+              <input
+                value={dni}
+                onChange={(e) => setDni(e.target.value)}
+                required
+                inputMode="numeric"
+                pattern="\d{7,8}"
+                title="7 u 8 dígitos, sin puntos"
+                style={{ display: "block", width: "100%", padding: "0.5rem" }}
+              />
+            </label>
+            <label>
+              Teléfono
+              <input
+                type="tel"
+                value={telefono}
+                onChange={(e) => setTelefono(e.target.value)}
+                required
+                style={{ display: "block", width: "100%", padding: "0.5rem" }}
+              />
+            </label>
+          </>
+        )}
+
         <label>
           Contraseña
           <input
