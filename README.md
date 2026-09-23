@@ -118,7 +118,7 @@ api/
   prisma/seed.js          datos de prueba opcionales
   src/index.js            servidor, registra los routers
   src/middleware/auth.js  requiereAuth y requiereRol
-  src/routes/             un archivo por módulo (auth, materias, horarios, planes)
+  src/routes/             un archivo por módulo (auth, materias, horarios, planes, carreras)
   src/services/           lógica compartida entre rutas (ej. resolverPlanAlumno)
   test/                   tests con node:test, sin depender de Postgres real
 web/
@@ -128,6 +128,7 @@ web/
   src/materias/           lista de materias, detalle, elegir comisión
   src/horarios/           grilla semanal del alumno
   src/planes/             crear plan, mi plan, asignar carrera/plan (ADMIN)
+  src/carreras/           registrar y modificar carreras (ADMIN)
 ```
 
 ## Cómo trabajamos
@@ -183,6 +184,15 @@ Lo que ya está implementado, para no repetir trabajo:
 - `GET /api/planes/carreras` (ADMIN) — carreras vigentes, para los formularios.
 - `GET /api/planes/alumnos` y `PATCH /api/planes/alumnos/:id` (ADMIN) — asignar carrera y
   plan a un alumno puntual.
+
+**Carreras** (registrar y modificar)
+- `GET /api/carreras` (ADMIN) — todas las carreras, vigentes y no vigentes, con cantidad de planes.
+- `POST /api/carreras` (ADMIN) — registra una carrera (nombre, código, descripción opcional). El
+  código se guarda en mayúsculas y es único; tampoco se permite repetir el nombre. Nace vigente.
+- `PATCH /api/carreras/:id` (ADMIN) — modifica nombre, código y/o descripción; solo cambia lo que
+  se envía. Planes y alumnos quedan vinculados porque apuntan al id, no al código.
+- La vigencia (dar de baja / reactivar) no se toca desde acá: queda para su propia historia.
+- Pestaña «Carreras» en el front para el ADMIN. Tests: `node --test api/test/carreras.test.js`.
 
 Todo lo demás (correlatividades, evaluaciones, calendario, notificaciones) está sin empezar.
 
