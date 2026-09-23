@@ -19,15 +19,32 @@ function rolPorDominio(email) {
 // Seg-04 / U-01: registro con correo institucional
 router.post("/registro", async (req, res, next) => {
   try {
-    const { email, password, nombre, apellido } = req.body;
+    const { email, password, nombre, apellido, dni, telefono } = req.body;
     const emailNormalizado = email?.trim().toLowerCase();
     const rol = emailNormalizado && rolPorDominio(emailNormalizado);
 
     if (!rol) {
       return res.status(400).json({ error: "Usá tu correo institucional" });
     }
+
+    const dniLimpio = String(dni ?? "").trim() || null;
+    const telefonoLimpio = String(telefono ?? "").trim() || null;
+
+    // Los docentes deben cargar sus datos personales al registrarse
+    if (rol === "DOCENTE") {
+      if (!dniLimpio || !telefonoLimpio) {
+        return res.status(400).json({ error: "Completá tu DNI y teléfono" });
+      }
+      if (!/^\d{7,8}$/.test(dniLimpio)) {
+        return res.status(400).json({ error: "El DNI debe tener 7 u 8 dígitos, sin puntos" });
+      }
+    }
+
     if (await prisma.usuario.findUnique({ where: { email: emailNormalizado } })) {
       return res.status(409).json({ error: "Ese correo ya está registrado" });
+    }
+    if (dniLimpio && (await prisma.usuario.findUnique({ where: { dni: dniLimpio } }))) {
+      return res.status(409).json({ error: "Ese DNI ya está registrado" });
     }
 
     const usuario = await prisma.usuario.create({
@@ -35,6 +52,8 @@ router.post("/registro", async (req, res, next) => {
         email: emailNormalizado,
         nombre,
         apellido,
+        dni: dniLimpio,
+        telefono: telefonoLimpio,
         rol,
         passwordHash: await bcrypt.hash(password, 10),
       },
