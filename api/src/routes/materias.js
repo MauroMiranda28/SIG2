@@ -1,8 +1,11 @@
 import { Router } from "express";
 import { prisma } from "../db.js";
-import { requiereAuth, requiereRol } from "../middleware/auth.js"; // <- Agregamos requiereRol
-import multer from 'multer';
-const upload = multer({ dest: 'uploads/programas/' });
+import { requiereAuth, requiereRol } from "../middleware/auth.js";
+import { requiereMateriaAsignada, validarId, errorAcceso } from "../services/docentes.js";
+import {
+  subirProgramaPdf, esPdf, leerCabecera, rutaPrograma, borrarArchivo, nombreDescarga, escribirProgramaPdf,
+} from "../services/programas.js";
+import fs from "node:fs";
 
 import { resolverPlanAlumno } from "../services/planes.js";
 
@@ -122,25 +125,69 @@ router.get("/:id/comisiones", requiereAuth, async (req, res, next) => {
   }
 });
 
-// ==========================================
-// NUEVA RUTA PARA HISTORIA DE USUARIO
-// ==========================================
+// Cargar el programa de la materia en PDF.
+// ADMIN puede en cualquier materia; DOCENTE solo en las que tiene asignadas (Seg-05).
+// El acceso se verifica ANTES de recibir el archivo, así nadie sin permiso escribe en disco.
+router.post(
+  "/:id/programa",
+  requiereAuth,
+  requiereRol("DOCENTE", "ADMIN"),
+  requiereMateriaAsignada(prisma, (req) => validarId(req.params.id, "identificador de la materia")),
+  subirProgramaPdf,
+  async (req, res, next) => {
+    const archivo = req.file;
+    try {
+      if (!archivo) throw errorAcceso(400, "No se subió ningún archivo PDF.");
+      if (!esPdf(await leerCabecera(archivo.path))) throw errorAcceso(400, "El archivo no es un PDF válido.");
 
-// POST: Cargar programa de la materia en PDF (Admin IT)
-router.post("/:id/programa", requiereAuth, requiereRol("ADMIN"), upload.single('archivo'), async (req, res) => {
-  const { id } = req.params;
-  const archivo = req.file;
+      const anterior = await prisma.materia.findUnique({ where: { id: req.materia.id }, select: { programaUrl: true } });
+      const materia = await prisma.materia.update({
+        where: { id: req.materia.id },
+        data: { programaUrl: archivo.filename }, // solo el nombre, nunca la ruta
+        select: { id: true, nombre: true, codigo: true },
+      });
+      const rutaAnterior = rutaPrograma(anterior?.programaUrl);
+      if (rutaAnterior && rutaAnterior !== archivo.path) await borrarArchivo(rutaAnterior);
 
-  if (!archivo) return res.status(400).json({ error: "No se subió ningún archivo PDF" });
+      res.json({ mensaje: "Programa cargado con éxito", materia: { ...materia, tienePdf: true } });
+    } catch (e) {
+      await borrarArchivo(archivo?.path); // no dejar archivos huérfanos si algo falló
+      next(e);
+    }
+  }
+);
 
+// Descargar el programa en PDF (cualquier usuario logueado).
+// Si hay un PDF subido, se entrega ese; si no, se arma uno con el programa en texto.
+router.get("/:id/programa/pdf", requiereAuth, async (req, res, next) => {
   try {
-    const materia = await prisma.materia.update({
-      where: { id: parseInt(id) },
-      data: { programaUrl: archivo.path }
+    const id = validarId(req.params.id, "identificador de la materia");
+    const materia = await prisma.materia.findUnique({
+      where: { id },
+      select: {
+        nombre: true, codigo: true, programaUrl: true,
+        programa: { select: { contenidos: true, bibliografia: true, version: true, vigente: true, actualizadoEn: true } },
+      },
     });
-    res.json({ mensaje: "Programa cargado con éxito", materia });
-  } catch (error) {
-    res.status(500).json({ error: "Error al guardar el programa en la base de datos" });
+    if (!materia) throw errorAcceso(404, "No existe esa materia.");
+
+    const nombre = nombreDescarga(materia.codigo);
+    const ruta = rutaPrograma(materia.programaUrl);
+    if (ruta && fs.existsSync(ruta)) {
+      return res.download(ruta, nombre, { headers: { "Content-Type": "application/pdf" } }, (err) => {
+        if (err && !res.headersSent) next(err);
+      });
+    }
+
+    if (materia.programa?.vigente) {
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${nombre}"`);
+      return escribirProgramaPdf(res, materia);
+    }
+
+    throw errorAcceso(404, "Esta materia todavía no tiene un programa para descargar.");
+  } catch (e) {
+    next(e);
   }
 });
 

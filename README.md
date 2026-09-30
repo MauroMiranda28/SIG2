@@ -118,6 +118,7 @@ api/
   prisma/seed.js          datos de prueba opcionales
   src/index.js            servidor, registra los routers
   src/middleware/auth.js  requiereAuth y requiereRol
+  src/middleware/errores.js  manejador de errores (no expone detalles internos)
   src/routes/             un archivo por módulo (auth, materias, horarios, planes, carreras)
   src/services/           lógica compartida entre rutas (ej. resolverPlanAlumno)
   test/                   tests con node:test, sin depender de Postgres real
@@ -129,6 +130,7 @@ web/
   src/horarios/           grilla semanal del alumno
   src/planes/             crear plan, mi plan, asignar carrera/plan (ADMIN)
   src/carreras/           registrar y modificar carreras (ADMIN)
+  src/docentes/           mis materias: horarios y programa (DOCENTE)
 ```
 
 ## Cómo trabajamos
@@ -193,6 +195,29 @@ Lo que ya está implementado, para no repetir trabajo:
   se envía. Planes y alumnos quedan vinculados porque apuntan al id, no al código.
 - La vigencia (dar de baja / reactivar) no se toca desde acá: queda para su propia historia.
 - Pestaña «Carreras» en el front para el ADMIN. Tests: `node --test api/test/carreras.test.js`.
+
+**Docentes (Seg-05: acceso restringido a materias asignadas)**
+- `GET /api/docentes/mis-materias` (DOCENTE) — materias que dicta (tabla `MateriaDocente`), con comisiones
+  y horarios. El docente sale siempre del token.
+- `GET /api/docentes/aulas` (DOCENTE/ADMIN) — aulas para el formulario de horarios.
+- `POST /api/horarios` y `DELETE /api/horarios/bloques/:id` — un DOCENTE solo puede cargar o quitar
+  horarios de materias que tiene asignadas (403 si no). ADMIN puede en cualquiera.
+- `POST /api/materias/:id/programa` (DOCENTE asignado o ADMIN) — sube el programa en PDF (máx. 10 MB, se
+  verifica que sea un PDF real). Los archivos quedan en `api/uploads/programas/`, que no se sube a git.
+- Pestaña «Mis materias» para el DOCENTE. La asignación docente-materia todavía se carga a mano en
+  Prisma Studio (tabla `MateriaDocente`).
+
+**Programa en PDF**
+- `GET /api/materias/:id/programa/pdf` (cualquier usuario logueado) — descarga el PDF subido; si no hay,
+  arma uno con el programa cargado como texto. Botón «Descargar programa (PDF)» en el detalle de la materia.
+
+**Privacidad del seguimiento académico**
+- Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del
+  token y son solo para ALUMNO. `api/test/privacidad.test.js` lo verifica para que no se rompa.
+- Los errores internos (500) ya no muestran el mensaje de Prisma al cliente: podía incluir datos de la
+  base, como el hash de una contraseña. El detalle queda solo en la consola de la API.
+- Regla para el módulo de calendario cuando se haga: las actividades se filtran siempre por
+  `req.usuario.id`, nunca por un id que venga en la URL o el body.
 
 Todo lo demás (correlatividades, evaluaciones, calendario, notificaciones) está sin empezar.
 
