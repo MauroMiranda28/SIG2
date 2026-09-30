@@ -31,6 +31,25 @@ enum DiaSemana {
   SABADO
 }
 
+enum TipoEvaluacion {
+  PARCIAL
+  RECUPERATORIO
+  FINAL
+  TRABAJO_PRACTICO
+}
+
+enum EstadoSolicitud {
+  PENDIENTE
+  RESUELTA
+  RECHAZADA
+}
+
+enum EstadoAsistencia {
+  PRESENTE
+  AUSENTE
+  TARDE
+}
+
 // Seg-01, Seg-04, U-01, U-02 y las dos nuevas de docente
 model Usuario {
   id           Int      @id @default(autoincrement())
@@ -55,6 +74,8 @@ model Usuario {
   materiasQueDicta MateriaDocente[]
   actividades     ActividadPersonal[]
   inscripciones   InscripcionComision[]
+  solicitudesRevision SolicitudRevision[]
+  asistencias     Asistencia[]
 }
 
 // CAR-01 a CAR-09
@@ -102,6 +123,7 @@ model Materia {
   comisiones Comision[]
   docentes   MateriaDocente[]
   cursadas   Cursada[]
+  asistencias Asistencia[]
 
   // PE-04, PE-06: correlatividades
   requiere   Correlatividad[] @relation("MateriaQueRequiere")
@@ -154,7 +176,57 @@ model Cursada {
   materiaId Int
   materia  Materia @relation(fields: [materiaId], references: [id])
 
+  evaluaciones Evaluacion[]
+
   @@unique([alumnoId, materiaId])
+}
+
+// Historial de notas: cada instancia de evaluación dentro de una cursada
+// (parcial, recuperatorio, final, trabajo práctico), a diferencia de la nota
+// final única que guarda Cursada.nota.
+model Evaluacion {
+  id            Int            @id @default(autoincrement())
+  tipo          TipoEvaluacion
+  nota          Float
+  fecha         DateTime       @default(now())
+  observaciones String?
+
+  cursadaId Int
+  cursada   Cursada @relation(fields: [cursadaId], references: [id])
+
+  solicitudesRevision SolicitudRevision[]
+}
+
+// El alumno reclama formalmente una evaluación puntual si considera que hay
+// un error de calificación. La resolución (aceptar/rechazar) queda para una
+// historia de docente que todavía no existe.
+model SolicitudRevision {
+  id       Int             @id @default(autoincrement())
+  motivo   String
+  estado   EstadoSolicitud @default(PENDIENTE)
+  creadoEn DateTime        @default(now())
+
+  evaluacionId Int
+  evaluacion   Evaluacion @relation(fields: [evaluacionId], references: [id])
+
+  alumnoId Int
+  alumno   Usuario @relation(fields: [alumnoId], references: [id])
+}
+
+// El propio alumno asienta su presentismo clase por clase (no el docente).
+// Una fila por alumno, materia y fecha.
+model Asistencia {
+  id     Int              @id @default(autoincrement())
+  fecha  DateTime         @db.Date
+  estado EstadoAsistencia
+
+  alumnoId Int
+  alumno   Usuario @relation(fields: [alumnoId], references: [id])
+
+  materiaId Int
+  materia   Materia @relation(fields: [materiaId], references: [id])
+
+  @@unique([alumnoId, materiaId, fecha])
 }
 
 model Aula {
