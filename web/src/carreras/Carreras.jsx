@@ -13,6 +13,9 @@ export default function Carreras() {
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
   const primerCampo = useRef(null);
+  const [cambiandoEstado, setCambiandoEstado] = useState(null);
+  const cambioEnCurso = useRef(false);
+  const ocupado = guardando || cambiandoEstado !== null;
 
   function cargar() {
     setErrorCarga("");
@@ -47,7 +50,7 @@ export default function Carreras() {
 
   async function guardar(e) {
     e.preventDefault();
-    if (guardando) return;
+    if (ocupado || cambioEnCurso.current) return;
     setError(""); setAviso("");
 
     let peticion;
@@ -80,22 +83,30 @@ export default function Carreras() {
     }
   }
 
-  // NUEVA FUNCIÓN: Cambia el estado (vigencia) de la carrera
+  // Confirma la baja lógica y bloquea acciones mientras se guarda.
   async function cambiarEstado(carrera) {
-    setError(""); setAviso("");
+    if (ocupado || cambioEnCurso.current) return;
     const nuevoEstado = !carrera.vigente;
-    
+    const mensaje = nuevoEstado
+      ? `¿Habilitar nuevamente «${carrera.nombre}»?`
+      : `¿Deshabilitar «${carrera.nombre}»? Figurará como no vigente. Se conservarán sus datos, planes, materias y alumnos.`;
+    if (!window.confirm(mensaje)) return;
+    cambioEnCurso.current = true;
+    setCambiandoEstado(carrera.id);
+    setError(""); setAviso("");
     try {
       const actualizada = await api(`/carreras/${carrera.id}/estado`, {
         method: "PUT",
-        body: JSON.stringify({ vigente: nuevoEstado })
+        body: JSON.stringify({ vigente: nuevoEstado }),
       });
-      
-      // Actualizamos la lista localmente sin recargar la página
-      setCarreras((lista) => lista.map(c => c.id === actualizada.id ? actualizada : c));
-      setAviso(`La carrera «${actualizada.nombre}» fue ${actualizada.vigente ? 'habilitada' : 'deshabilitada'}.`);
+      setCarreras(lista => lista.map(c => c.id === actualizada.id ? actualizada : c));
+      setEditando(actual => actual?.id === actualizada.id ? actualizada : actual);
+      setAviso(`La carrera «${actualizada.nombre}» fue ${actualizada.vigente ? "habilitada" : "deshabilitada"}. Su información y sus relaciones se conservaron.`);
     } catch (e) {
-      setError(e.message || "Error al cambiar el estado de la carrera.");
+      setError(e.message || "No se pudo cambiar el estado. Intentá nuevamente.");
+    } finally {
+      cambioEnCurso.current = false;
+      setCambiandoEstado(null);
     }
   }
 
@@ -105,7 +116,7 @@ export default function Carreras() {
       <p>Cargá la oferta académica y mantené actualizados los datos de cada carrera.</p>
 
       <form onSubmit={guardar}>
-        <fieldset disabled={guardando} className="carrera-formulario">
+        <fieldset disabled={ocupado} className="carrera-formulario">
           <legend>{editando ? `Modificar «${editando.nombre}»` : "Registrar carrera"}</legend>
 
           <label>Nombre
@@ -145,6 +156,7 @@ export default function Carreras() {
       {aviso && <p role="status" className="carrera-exito">{aviso}</p>}
 
       <h3>Carreras cargadas</h3>
+      <p>Las carreras no vigentes permanecen en este listado para conservar su información.</p>
       {errorCarga ? (
         <div role="alert"><p>{errorCarga}</p><button onClick={cargar}>Reintentar</button></div>
       ) : carreras === null ? (
@@ -165,12 +177,12 @@ export default function Carreras() {
                   <td>{c.vigente ? "Vigente" : "No vigente"}</td>
                   <td>{c._count?.planes ?? 0}</td>
                   <td style={{ display: 'flex', gap: '8px' }}>
-                    <button type="button" onClick={() => empezarEdicion(c)} disabled={guardando}
+                    <button type="button" onClick={() => empezarEdicion(c)} disabled={ocupado}
                       aria-label={`Editar ${c.nombre}`}>Editar</button>
-                    {/* NUEVO BOTÓN: Deshabilitar/Habilitar */}
-                    <button type="button" onClick={() => cambiarEstado(c)} disabled={guardando}
+                    {/* Cambia solo la vigencia; no elimina la carrera. */}
+                    <button type="button" onClick={() => cambiarEstado(c)} disabled={ocupado}
                       aria-label={`${c.vigente ? 'Deshabilitar' : 'Habilitar'} ${c.nombre}`}>
-                      {c.vigente ? "Deshabilitar" : "Habilitar"}
+                      {cambiandoEstado === c.id ? "Guardando…" : c.vigente ? "Deshabilitar" : "Habilitar"}
                     </button>
                   </td>
                 </tr>

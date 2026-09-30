@@ -81,19 +81,24 @@ export function crearRouterCarreras(db = prisma) {
     }
   });
 
-  // PUT: Deshabilitar/Habilitar carrera (Admin IT)
-  router.put('/:id/estado', async (req, res) => {
-    const { id } = req.params;
-    const { vigente } = req.body; 
+  // Baja lógica: conserva la carrera y todas sus relaciones. Repetir el mismo
+  // estado es seguro; no se usa un toggle en el servidor.
+  router.put("/:id/estado", async (req, res, next) => {
     try {
+      const id = validarIdCarrera(req.params.id);
+      const body = req.body;
+      if (!body || Array.isArray(body) || typeof body.vigente !== "boolean" ||
+          Object.keys(body).some(campo => campo !== "vigente")) {
+        throw errorCarrera(400, "Enviá únicamente vigente con el valor true o false.");
+      }
       const carrera = await db.carrera.update({
-        where: { id: parseInt(id) },
-        data: { vigente },
-        select: DATOS_CARRERA
+        where: { id },
+        data: { vigente: body.vigente },
+        select: DATOS_CARRERA,
       });
       res.json(carrera);
-    } catch (error) {
-      res.status(500).json({ error: "Error al cambiar estado de la carrera" });
+    } catch (e) {
+      if (!traducirErrorPrisma(e, res)) next(e);
     }
   });
 
