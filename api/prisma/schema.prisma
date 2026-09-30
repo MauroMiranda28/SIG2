@@ -57,8 +57,8 @@ model Usuario {
   passwordHash String
   nombre       String
   apellido     String
-  dni          String  @unique
-  telefono     String
+  dni          String?  @unique
+  telefono     String?
   emailPersonal String?
   rol          Rol      @default(ALUMNO)
   creadoEn     DateTime @default(now())
