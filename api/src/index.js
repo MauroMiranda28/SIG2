@@ -13,6 +13,8 @@ import evaluacionesRouter from "./routes/evaluaciones.js";
 import revisionesRouter from "./routes/revisiones.js";
 import asistenciasRouter from "./routes/asistencias.js";
 import promedioRouter from "./routes/promedio.js";
+import docentesRouter from "./routes/docentes.js";
+import { manejarErrores } from "./middleware/errores.js";
 
 const app = express();
 
@@ -31,13 +33,12 @@ app.use("/api/evaluaciones", evaluacionesRouter);
 app.use("/api/revisiones", revisionesRouter);
 app.use("/api/asistencias", asistenciasRouter);
 app.use("/api/promedio", promedioRouter);
+app.use("/api/docentes", docentesRouter);
 
 // Cada módulo agrega su router acá. Un archivo por módulo en src/routes/.
 
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(err.status || 500).json({ error: err.message || "Error interno" });
-});
+// No expone detalles internos al cliente (ver middleware/errores.js).
+app.use(manejarErrores);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`API escuchando en http://localhost:${PORT}`));

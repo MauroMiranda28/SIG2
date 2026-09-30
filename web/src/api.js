@@ -26,3 +26,37 @@ export async function api(ruta, opciones = {}) {
 
   return res.json();
 }
+
+// Subir un archivo (multipart). No se fija Content-Type: el navegador arma el boundary.
+export async function apiArchivo(ruta, formData) {
+  const token = leerToken();
+  const res = await fetch(`/api${ruta}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({}));
+    throw new Error(error || `Error ${res.status}`);
+  }
+  return res.json();
+}
+
+// Descargar un archivo protegido: un <a href> no manda el token, por eso se baja con fetch.
+export async function descargarArchivo(ruta, nombrePorDefecto = "archivo") {
+  const token = leerToken();
+  const res = await fetch(`/api${ruta}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({}));
+    throw new Error(error || `Error ${res.status}`);
+  }
+  const nombre = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? nombrePorDefecto;
+  const url = URL.createObjectURL(await res.blob());
+  const enlace = document.createElement("a");
+  enlace.href = url;
+  enlace.download = nombre;
+  document.body.appendChild(enlace);
+  enlace.click();
+  enlace.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

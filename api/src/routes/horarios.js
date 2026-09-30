@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../db.js";
 import { requiereAuth, requiereRol } from "../middleware/auth.js";
+import { validarBloqueHorario, verificarAccesoMateria, validarId, errorAcceso } from "../services/docentes.js";
 
 const router = Router();
 
@@ -29,9 +30,18 @@ router.get("/comision/:id", requiereAuth, async (req, res, next) => {
 // gestión. Queda restringido a DOCENTE/ADMIN. Lo que sí hace el estudiante es
 // elegir con qué comisión cursa cada materia (ver POST /inscripcion), y ahí
 // se arma su grilla y se controlan las superposiciones.
+// Seg-05: un DOCENTE solo puede cargar horarios en comisiones de materias que tiene asignadas.
 router.post("/", requiereAuth, requiereRol("DOCENTE", "ADMIN"), async (req, res, next) => {
   try {
-    const { comisionId, dia, horaInicio, horaFin, aulaId } = req.body;
+    const { comisionId, dia, horaInicio, horaFin, aulaId } = validarBloqueHorario(req.body);
+
+    const comision = await prisma.comision.findUnique({ where: { id: comisionId }, select: { materiaId: true } });
+    if (!comision) throw errorAcceso(404, "No existe esa comisión.");
+    await verificarAccesoMateria(prisma, req.usuario, comision.materiaId);
+
+    if (aulaId && !(await prisma.aula.findUnique({ where: { id: aulaId }, select: { id: true } }))) {
+      throw errorAcceso(400, "El aula elegida no existe.");
+    }
 
     if (aulaId) {
       const bloquesDelAula = await prisma.bloqueHorario.findMany({ where: { aulaId } });
@@ -46,6 +56,24 @@ router.post("/", requiereAuth, requiereRol("DOCENTE", "ADMIN"), async (req, res,
     });
 
     res.status(201).json(bloque);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Quitar un bloque horario (para corregir uno mal cargado). Mismo control de acceso que al cargar.
+router.delete("/bloques/:id", requiereAuth, requiereRol("DOCENTE", "ADMIN"), async (req, res, next) => {
+  try {
+    const id = validarId(req.params.id, "identificador del bloque");
+    const bloque = await prisma.bloqueHorario.findUnique({
+      where: { id },
+      select: { id: true, comision: { select: { materiaId: true } } },
+    });
+    if (!bloque) throw errorAcceso(404, "No existe ese bloque horario.");
+    await verificarAccesoMateria(prisma, req.usuario, bloque.comision.materiaId);
+
+    await prisma.bloqueHorario.delete({ where: { id } });
+    res.json({ ok: true });
   } catch (e) {
     next(e);
   }
