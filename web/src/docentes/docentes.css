@@ -23,3 +23,17 @@
 .docente select:focus-visible, .docente input:focus-visible, .docente button:focus-visible { outline: 3px solid #7aa7d6; outline-offset: 1px; }
 .docente .docente-error { color: #a11224; margin: 0; }
 .docente .docente-exito { background: #e8f5ed; color: #185c35; padding: .75rem; border-radius: 4px; margin: 0; }
+
+/* Notas: carga por evaluación y corrección con historial. */
+.docente .docente-campo { display: grid; gap: .25rem; font-weight: 600; margin-bottom: 1rem; max-width: 24rem; }
+.docente input[type=date], .docente input[type=number], .docente input[type=text] { box-sizing: border-box; padding: .45rem; border: 1px solid #94a3b8; border-radius: 4px; font: inherit; font-weight: 400; background: white; color: #172033; }
+.docente .docente-tabla { width: 100%; border-collapse: collapse; }
+.docente .docente-tabla th { text-align: left; border-bottom: 1px solid #cbd5e1; padding: .35rem 0; }
+.docente .docente-tabla td { border-bottom: 1px solid #eef2f6; padding: .3rem 0; }
+.docente .docente-tabla input { width: 6rem; }
+.docente .docente-comision li.docente-evaluacion { display: grid; gap: .4rem; }
+.docente .docente-fila-nota { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+.docente .docente-motivo { flex: 1 1 14rem; }
+.docente .docente-cambios { display: grid; gap: .25rem; margin: .35rem 0 0; padding-left: 1rem; list-style: disc; font-size: .9rem; color: #475569; }
+.docente .docente-comision .docente-cambios li { display: list-item; }
+.docente summary { cursor: pointer; font-size: .9rem; color: #164e83; }
