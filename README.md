@@ -219,6 +219,9 @@ Lo que ya está implementado, para no repetir trabajo:
   si ese alumno ya tiene la misma evaluación en esa fecha. Si no había `Cursada`, la crea EN_CURSO.
 - `PATCH /api/notas/evaluaciones/:id` — corrige una nota ya publicada; el motivo es obligatorio. Cada corrección
   deja una fila en `CambioNota` (nota anterior, nueva, autor, fecha, motivo) que no se edita ni se borra.
+- Los **finales** cierran la cursada: con 4 o más (`NOTA_APROBACION` en `services/notas.js`) la materia pasa a
+  APROBADA con la nota del final aprobado más reciente, y se ve en «Mis notas», el certificado y el promedio.
+  Un final desaprobado no cambia nada. Corregir un final recalcula: si ya no queda uno aprobado, vuelve a EN_CURSO.
 - Schema: modelo nuevo `CambioNota` y campo `Evaluacion.cargadaPorId` (quién cargó la nota). Correr `db:push`.
 - El alumno ve las notas al instante en «Historial de notas», y si una fue corregida, el valor anterior y el motivo.
 - Pestaña «Notas» para el DOCENTE. Tests: `node --test api/test/notas.test.js`.

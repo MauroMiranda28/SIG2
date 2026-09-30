@@ -139,7 +139,10 @@ function FormCarga({ alumnos, materiaId, onCargado }) {
           ))}
         </tbody>
       </table>
-      <p className="docente-meta">Dejá vacía la nota de quien no rindió.</p>
+      <p className="docente-meta">
+        Dejá vacía la nota de quien no rindió.
+        {tipo === "FINAL" && " Con 4 o más, la materia le queda aprobada al alumno con esa nota."}
+      </p>
       <div><button className="docente-primario" type="submit" disabled={ocupado}>{ocupado ? "Publicando…" : "Publicar notas"}</button></div>
       {aviso && <p role={aviso.tipo === "error" ? "alert" : "status"} className={`docente-${aviso.tipo}`}>{aviso.texto}</p>}
     </form>

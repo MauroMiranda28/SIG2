@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import express from "express";
 import jwt from "jsonwebtoken";
 import { crearRouterNotas } from "../src/routes/notas.js";
-import { validarNota, validarFecha, validarCargaNotas, validarCorreccionNota } from "../src/services/notas.js";
+import { validarNota, validarFecha, validarCargaNotas, validarCorreccionNota, actualizarCursadaPorFinales } from "../src/services/notas.js";
 import { manejarErrores } from "../src/middleware/errores.js";
 
 // ---------- Validación (sin DB) ----------
@@ -60,8 +60,8 @@ test("validarCorreccionNota: exige nota válida y motivo", () => {
 const MATERIA = { id: 5, nombre: "Programación I", codigo: "PROG1" };
 
 // DB falsa: `asignada` decide si el docente 7 dicta la materia 5.
-function dbFalsa({ asignada = true, alumnosValidos = [2, 3], repetidas = [], evaluacion = { nota: 4, cursada: { materiaId: 5 } }, ...extra } = {}) {
-  const registro = { cursadas: [], evaluaciones: [], cambios: [], updates: [] };
+function dbFalsa({ asignada = true, alumnosValidos = [2, 3], repetidas = [], finales = [], evaluacion = { nota: 4, tipo: "PARCIAL", cursadaId: 102, cursada: { materiaId: 5 } }, ...extra } = {}) {
+  const registro = { cursadas: [], evaluaciones: [], cambios: [], updates: [], cierres: [] };
   const db = {
     registro,
     materia: { findUnique: async () => MATERIA },
@@ -69,9 +69,14 @@ function dbFalsa({ asignada = true, alumnosValidos = [2, 3], repetidas = [], eva
     usuario: {
       findMany: async ({ where }) => (where.id ? alumnosValidos.filter((id) => where.id.in.includes(id)).map((id) => ({ id })) : []),
     },
-    cursada: { upsert: async (args) => { registro.cursadas.push(args); return { id: 100 + args.where.alumnoId_materiaId.alumnoId }; } },
+    cursada: {
+      upsert: async (args) => { registro.cursadas.push(args); return { id: 100 + args.where.alumnoId_materiaId.alumnoId }; },
+      update: async (args) => { registro.cierres.push(args); return {}; },
+      updateMany: async (args) => { registro.cierres.push(args); return { count: 0 }; },
+    },
     evaluacion: {
-      findMany: async () => repetidas,
+      // Con cursadaId es la búsqueda de finales; sin él, la de cargas repetidas.
+      findMany: async ({ where }) => (where.cursadaId ? finales : repetidas),
       findUnique: async () => evaluacion,
       create: async ({ data }) => { registro.evaluaciones.push(data); return { id: registro.evaluaciones.length, ...data, cursada: { alumnoId: data.cursadaId - 100 } }; },
       update: async (args) => { registro.updates.push(args); return { id: args.where.id, nota: args.data.nota, cambios: registro.cambios }; },
@@ -184,4 +189,58 @@ test("HTTP: corrección inválida, igual a la actual o de una evaluación inexis
   await conAPI(dbFalsa({ evaluacion: null }), async (request) => {
     assert.equal((await request("PATCH", "/evaluaciones/99", "DOCENTE", { nota: 6, motivo: "Error de suma" })).status, 404);
   });
+});
+
+// ---------- Finales: cierran la cursada ----------
+
+function txFinales(finales) {
+  const llamadas = [];
+  return {
+    llamadas,
+    evaluacion: { findMany: async (args) => { llamadas.push(["findMany", args.where]); return finales; } },
+    cursada: {
+      update: async (args) => { llamadas.push(["update", args]); },
+      updateMany: async (args) => { llamadas.push(["updateMany", args]); },
+    },
+  };
+}
+
+test("finales: el aprobado más reciente aprueba la materia con su nota", async () => {
+  const tx = txFinales([{ nota: 2 }, { nota: 7 }, { nota: 9 }]); // ya vienen ordenados del más reciente al más viejo
+  await actualizarCursadaPorFinales(tx, 102);
+  assert.deepEqual(tx.llamadas[0], ["findMany", { cursadaId: 102, tipo: "FINAL" }]);
+  assert.deepEqual(tx.llamadas[1], ["update", { where: { id: 102 }, data: { estado: "APROBADA", nota: 7 } }]);
+});
+
+test("finales: con 4 aprueba; sin finales aprobados solo revierte una cursada APROBADA", async () => {
+  const conCuatro = txFinales([{ nota: 4 }]);
+  await actualizarCursadaPorFinales(conCuatro, 102);
+  assert.equal(conCuatro.llamadas[1][1].data.estado, "APROBADA");
+
+  const desaprobado = txFinales([{ nota: 3.99 }]);
+  await actualizarCursadaPorFinales(desaprobado, 102);
+  assert.deepEqual(desaprobado.llamadas[1], ["updateMany", { where: { id: 102, estado: "APROBADA" }, data: { estado: "EN_CURSO", nota: null } }]);
+});
+
+test("HTTP: cargar un final aprobado cierra la cursada; un parcial no la toca", async () => {
+  const final = dbFalsa({ finales: [{ nota: 8 }] });
+  await conAPI(final, async (request) => {
+    const r = await request("POST", "/materias/5", "DOCENTE", { ...carga(), tipo: "FINAL", notas: [{ alumnoId: 2, nota: 8 }] });
+    assert.equal(r.status, 201);
+  });
+  assert.deepEqual(final.registro.cierres, [{ where: { id: 102 }, data: { estado: "APROBADA", nota: 8 } }]);
+
+  const parcial = dbFalsa({ finales: [{ nota: 8 }] });
+  await conAPI(parcial, async (request) => {
+    assert.equal((await request("POST", "/materias/5", "DOCENTE", carga())).status, 201);
+  });
+  assert.equal(parcial.registro.cierres.length, 0);
+});
+
+test("HTTP: corregir un final hacia abajo vuelve la materia a EN_CURSO", async () => {
+  const db = dbFalsa({ evaluacion: { nota: 6, tipo: "FINAL", cursadaId: 102, cursada: { materiaId: 5 } }, finales: [{ nota: 2 }] });
+  await conAPI(db, async (request) => {
+    assert.equal((await request("PATCH", "/evaluaciones/1", "DOCENTE", { nota: 2, motivo: "Mal sumado el ejercicio 3" })).status, 200);
+  });
+  assert.deepEqual(db.registro.cierres, [{ where: { id: 102, estado: "APROBADA" }, data: { estado: "EN_CURSO", nota: null } }]);
 });

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "../db.js";
 import { requiereAuth, requiereRol } from "../middleware/auth.js";
 import { requiereMateriaAsignada, validarId, errorAcceso } from "../services/docentes.js";
-import { validarCargaNotas, validarCorreccionNota, filtroAlumnosDeMateria } from "../services/notas.js";
+import { validarCargaNotas, validarCorreccionNota, filtroAlumnosDeMateria, actualizarCursadaPorFinales } from "../services/notas.js";
 
 const DATOS_CAMBIO = {
   id: true, notaAnterior: true, notaNueva: true, motivo: true, creadoEn: true,
@@ -28,6 +28,7 @@ async function materiaDeLaEvaluacion(req, db) {
 // El docente carga y corrige las notas de las materias que tiene asignadas (Seg-05).
 // ADMIN puede en cualquiera. Los alumnos las ven en su historial (/api/evaluaciones)
 // apenas se guardan: no hay un paso de aprobación administrativa en el medio.
+// Los finales además actualizan el estado y la nota de la materia (ver actualizarCursadaPorFinales).
 export function crearRouterNotas(db = prisma) {
   const router = Router();
   router.use(requiereAuth, requiereRol("DOCENTE", "ADMIN"));
@@ -91,6 +92,7 @@ export function crearRouterNotas(db = prisma) {
             data: { tipo, fecha, nota, observaciones, cursadaId: cursada.id, cargadaPorId: req.usuario.id },
             select: { id: true, tipo: true, nota: true, fecha: true, observaciones: true, cursada: { select: { alumnoId: true } } },
           }));
+          if (tipo === "FINAL") await actualizarCursadaPorFinales(tx, cursada.id);
         }
         return resultado;
       });
@@ -107,14 +109,16 @@ export function crearRouterNotas(db = prisma) {
       const { nota, motivo } = validarCorreccionNota(req.body);
 
       const actualizada = await db.$transaction(async (tx) => {
-        const actual = await tx.evaluacion.findUnique({ where: { id }, select: { nota: true } });
+        const actual = await tx.evaluacion.findUnique({ where: { id }, select: { nota: true, tipo: true, cursadaId: true } });
         if (!actual) throw errorAcceso(404, "La evaluación no existe.");
         if (actual.nota === nota) throw errorAcceso(400, "La nota nueva es igual a la actual.");
 
         await tx.cambioNota.create({
           data: { evaluacionId: id, notaAnterior: actual.nota, notaNueva: nota, motivo, autorId: req.usuario.id },
         });
-        return tx.evaluacion.update({ where: { id }, data: { nota }, select: DATOS_EVALUACION });
+        const evaluacion = await tx.evaluacion.update({ where: { id }, data: { nota }, select: DATOS_EVALUACION });
+        if (actual.tipo === "FINAL") await actualizarCursadaPorFinales(tx, actual.cursadaId);
+        return evaluacion;
       });
 
       res.json(actualizada);

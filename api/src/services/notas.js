@@ -6,6 +6,7 @@ import { errorAcceso, validarId } from "./docentes.js";
 export const TIPOS_EVALUACION = ["PARCIAL", "RECUPERATORIO", "FINAL", "TRABAJO_PRACTICO"];
 export const NOTA_MINIMA = 0;
 export const NOTA_MAXIMA = 10;
+export const NOTA_APROBACION = 4; // nota mínima para aprobar un final
 const MAX_NOTAS_POR_CARGA = 500;
 const LARGO_OBSERVACIONES_MAXIMO = 500;
 const LARGO_MOTIVO_MINIMO = 5;
@@ -85,4 +86,22 @@ export function filtroAlumnosDeMateria(materiaId) {
       { inscripciones: { some: { comision: { materiaId } } } },
     ],
   };
+}
+
+// Un final aprobado cierra la cursada: la materia pasa a APROBADA con la nota
+// del final aprobado más reciente. Se recalcula cada vez que se carga o se corrige
+// un final, así una corrección hacia abajo (ej. 6 → 2) vuelve la materia a EN_CURSO.
+// Un final desaprobado no cambia nada: el alumno puede volver a rendir.
+export async function actualizarCursadaPorFinales(tx, cursadaId) {
+  const finales = await tx.evaluacion.findMany({
+    where: { cursadaId, tipo: "FINAL" },
+    select: { nota: true },
+    orderBy: [{ fecha: "desc" }, { id: "desc" }],
+  });
+  const aprobado = finales.find((f) => f.nota >= NOTA_APROBACION);
+  if (aprobado) {
+    await tx.cursada.update({ where: { id: cursadaId }, data: { estado: "APROBADA", nota: aprobado.nota } });
+  } else {
+    await tx.cursada.updateMany({ where: { id: cursadaId, estado: "APROBADA" }, data: { estado: "EN_CURSO", nota: null } });
+  }
 }
