@@ -130,7 +130,7 @@ web/
   src/horarios/           grilla semanal del alumno
   src/planes/             crear plan, mi plan, asignar carrera/plan (ADMIN)
   src/carreras/           registrar y modificar carreras (ADMIN)
-  src/docentes/           mis materias: horarios y programa (DOCENTE)
+  src/docentes/           mis materias (horarios y programa) y carga de notas (DOCENTE)
 ```
 
 ## Cómo trabajamos
@@ -211,6 +211,18 @@ Lo que ya está implementado, para no repetir trabajo:
 - `GET /api/materias/:id/programa/pdf` (cualquier usuario logueado) — descarga el PDF subido; si no hay,
   arma uno con el programa cargado como texto. Botón «Descargar programa (PDF)» en el detalle de la materia.
 
+**Notas cargadas por el docente (carga y corrección con registro)**
+- `GET /api/notas/materias/:id` (DOCENTE asignado o ADMIN) — alumnos de la materia (con cursada o comisión
+  elegida) y las notas que ya tienen, con el historial de correcciones de cada una.
+- `POST /api/notas/materias/:id` — publica una evaluación (tipo + fecha) con la nota de cada alumno, de 0 a 10
+  con hasta dos decimales. Todo o nada: si un alumno no cursa la materia, no se guarda ninguna. Rechaza con 409
+  si ese alumno ya tiene la misma evaluación en esa fecha. Si no había `Cursada`, la crea EN_CURSO.
+- `PATCH /api/notas/evaluaciones/:id` — corrige una nota ya publicada; el motivo es obligatorio. Cada corrección
+  deja una fila en `CambioNota` (nota anterior, nueva, autor, fecha, motivo) que no se edita ni se borra.
+- Schema: modelo nuevo `CambioNota` y campo `Evaluacion.cargadaPorId` (quién cargó la nota). Correr `db:push`.
+- El alumno ve las notas al instante en «Historial de notas», y si una fue corregida, el valor anterior y el motivo.
+- Pestaña «Notas» para el DOCENTE. Tests: `node --test api/test/notas.test.js`.
+
 **Privacidad del seguimiento académico**
 - Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del
   token y son solo para ALUMNO. `api/test/privacidad.test.js` lo verifica para que no se rompa.
@@ -219,7 +231,7 @@ Lo que ya está implementado, para no repetir trabajo:
 - Regla para el módulo de calendario cuando se haga: las actividades se filtran siempre por
   `req.usuario.id`, nunca por un id que venga en la URL o el body.
 
-Todo lo demás (correlatividades, evaluaciones, calendario, notificaciones) está sin empezar.
+Todo lo demás (correlatividades, calendario, notificaciones) está sin empezar.
 
 ## Una cosa para definir en grupo
 
