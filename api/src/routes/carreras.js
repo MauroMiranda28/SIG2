@@ -28,24 +28,17 @@ function traducirErrorPrisma(e, res) {
 export function crearRouterCarreras(db = prisma) {
   const router = Router();
 
-  // ==========================================
-  // RUTAS PARA ALUMNOS (Solo requieren Auth)
-  // ==========================================
-
-  // GET: Consultar información de la carrera del alumno
-  router.get('/mi-carrera', requiereAuth, async (req, res) => {
-    // Validamos la sesión del alumno
-    const carreraId = req.usuario?.carreraId || req.user?.carreraId; 
-    if (!carreraId) return res.status(404).json({ error: "No tienes una carrera asignada" });
-
+  // Consulta la asignación actual en DB, no un carreraId enviado por el cliente.
+  router.get("/mi-carrera", requiereAuth, requiereRol("ALUMNO"), async (req, res, next) => {
     try {
-      const carreraInfo = await db.carrera.findUnique({
-        where: { id: parseInt(carreraId) }
+      const alumno = await db.usuario.findUnique({
+        where: { id: req.usuario.id },
+        select: { carrera: { select: { id: true, nombre: true, codigo: true, descripcion: true, vigente: true } } },
       });
-      res.json(carreraInfo);
-    } catch (error) {
-      res.status(500).json({ error: "Error al obtener la información de la carrera" });
-    }
+      if (!alumno) return res.status(401).json({ error: "El usuario ya no existe. Volvé a iniciar sesión." });
+      if (!alumno.carrera) return res.status(404).json({ error: "Todavía no tenés una carrera asignada. Consultá a administración." });
+      res.json(alumno.carrera);
+    } catch (e) { next(e); }
   });
 
   // ==========================================

@@ -1,0 +1,7 @@
+.mi-carrera { line-height: 1.6; overflow-wrap: anywhere; }
+.mi-carrera dl { padding: 1rem; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; }
+.mi-carrera dt { font-weight: 600; }
+.mi-carrera dd { margin: 0 0 .75rem; }
+.mi-carrera dd:last-child { margin-bottom: 0; }
+.mi-carrera-descripcion { white-space: pre-wrap; }
+.mi-carrera button { padding: .6rem .9rem; font: inherit; cursor: pointer; }

@@ -16,6 +16,9 @@ import MiPlan from "./planes/MiPlan.jsx";
 import Carreras from "./carreras/Carreras.jsx";
 import MisMaterias from "./docentes/MisMaterias.jsx";
 
+import MiCarrera from "./carreras/MiCarrera.jsx";
+import CargarPrograma from "./programas/CargarPrograma.jsx";
+
 export default function App() {
   const [usuario, setUsuario] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -82,6 +85,8 @@ export default function App() {
         <button onClick={() => setTab("mis-datos")} disabled={tab === "mis-datos"} style={{ cursor: "pointer" }}>
           Mis datos
         </button>
+        {usuario.rol === "ADMIN" && <button onClick={() => setTab("cargar-programa")} disabled={tab === "cargar-programa"}>Cargar programa</button>}
+        {usuario.rol === "ALUMNO" && <button onClick={() => setTab("mi-carrera")} disabled={tab === "mi-carrera"}>Mi carrera</button>}
       </nav>
 
       {tab === "materias" && <MateriasCarrera />}
@@ -95,6 +100,8 @@ export default function App() {
       {tab === "revision-nota" && usuario.rol === "ALUMNO" && <SolicitarRevision />}
       {tab === "asistencia" && usuario.rol === "ALUMNO" && <MiAsistencia />}
       {tab === "simular-promedio" && usuario.rol === "ALUMNO" && <SimularPromedio />}
+      {tab === "cargar-programa" && usuario.rol === "ADMIN" && <CargarPrograma />}
+      {tab === "mi-carrera" && usuario.rol === "ALUMNO" && <MiCarrera />}
       {tab === "mis-datos" && <MisDatos usuario={usuario} onActualizado={(datos) => setUsuario({ ...usuario, ...datos })} />}
     </div>
   );
