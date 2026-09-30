@@ -2,16 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import "./carreras.css";
 
-// Registrar y modificar carreras (ADMIN). El mismo formulario sirve para las dos cosas:
-// vacío registra una carrera nueva; al tocar «Editar» en el listado, se precarga y guarda cambios.
-
 const vacio = { nombre: "", codigo: "", descripcion: "" };
 
 export default function Carreras() {
   const [carreras, setCarreras] = useState(null);
   const [errorCarga, setErrorCarga] = useState("");
   const [form, setForm] = useState(vacio);
-  const [editando, setEditando] = useState(null); // carrera original mientras se edita
+  const [editando, setEditando] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
@@ -40,7 +37,6 @@ export default function Carreras() {
     setEditando(null); setForm(vacio); setError("");
   }
 
-  // Al modificar se mandan solo los campos que cambiaron.
   function cambiosRespectoDe(original) {
     const cambios = {};
     if (form.nombre.trim() !== original.nombre) cambios.nombre = form.nombre;
@@ -81,6 +77,25 @@ export default function Carreras() {
       setError(e.message);
     } finally {
       setGuardando(false);
+    }
+  }
+
+  // NUEVA FUNCIÓN: Cambia el estado (vigencia) de la carrera
+  async function cambiarEstado(carrera) {
+    setError(""); setAviso("");
+    const nuevoEstado = !carrera.vigente;
+    
+    try {
+      const actualizada = await api(`/carreras/${carrera.id}/estado`, {
+        method: "PUT",
+        body: JSON.stringify({ vigente: nuevoEstado })
+      });
+      
+      // Actualizamos la lista localmente sin recargar la página
+      setCarreras((lista) => lista.map(c => c.id === actualizada.id ? actualizada : c));
+      setAviso(`La carrera «${actualizada.nombre}» fue ${actualizada.vigente ? 'habilitada' : 'deshabilitada'}.`);
+    } catch (e) {
+      setError(e.message || "Error al cambiar el estado de la carrera.");
     }
   }
 
@@ -149,9 +164,14 @@ export default function Carreras() {
                   <td className="carrera-codigo">{c.codigo}</td>
                   <td>{c.vigente ? "Vigente" : "No vigente"}</td>
                   <td>{c._count?.planes ?? 0}</td>
-                  <td>
+                  <td style={{ display: 'flex', gap: '8px' }}>
                     <button type="button" onClick={() => empezarEdicion(c)} disabled={guardando}
                       aria-label={`Editar ${c.nombre}`}>Editar</button>
+                    {/* NUEVO BOTÓN: Deshabilitar/Habilitar */}
+                    <button type="button" onClick={() => cambiarEstado(c)} disabled={guardando}
+                      aria-label={`${c.vigente ? 'Deshabilitar' : 'Habilitar'} ${c.nombre}`}>
+                      {c.vigente ? "Deshabilitar" : "Habilitar"}
+                    </button>
                   </td>
                 </tr>
               ))}
