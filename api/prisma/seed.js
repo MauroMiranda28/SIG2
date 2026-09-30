@@ -95,6 +95,21 @@ async function main() {
     },
   });
 
+  // Programa con bibliografía (una obra por renglón) para la pestaña «Bibliografía».
+  await prisma.programa.upsert({
+    where: { materiaId: programacion.id },
+    update: {},
+    create: {
+      materiaId: programacion.id,
+      contenidos: "Algoritmos, estructuras de control, funciones, arreglos y punteros.",
+      bibliografia: [
+        "- Deitel, P. y Deitel, H. Cómo programar en C. Pearson.",
+        "- Kernighan, B. y Ritchie, D. El lenguaje de programación C. Prentice Hall.",
+        "- Joyanes Aguilar, L. Fundamentos de programación. McGraw-Hill.",
+      ].join("\n"),
+    },
+  });
+
   console.log("Seed listo:", { carrera: carrera.nombre, materias: [programacion.codigo, basesDeDatos.codigo] });
 }
 

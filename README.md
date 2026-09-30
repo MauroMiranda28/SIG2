@@ -170,6 +170,9 @@ Lo que ya está implementado, para no repetir trabajo:
 - `GET /api/materias/:id` — características, carrera/plan y docentes.
 - `GET /api/materias/:id/comisiones` — comisiones con horario y aula, y cuál eligió el alumno.
 - `GET /api/materias/:id/programa` (HU-PRO) — contenidos y bibliografía.
+- `GET /api/materias/bibliografia` (ALUMNO) — bibliografía del programa vigente de cada materia de su plan,
+  una obra por renglón (se sacan viñetas y numeración). Pestaña «Bibliografía» con buscador por materia,
+  título o autor. Tests: `node --test api/test/bibliografia.test.js`.
 
 **Horarios (Horarios U-01)**
 - `GET /api/horarios/comision/:id` — grilla de una comisión puntual.

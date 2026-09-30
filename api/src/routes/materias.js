@@ -8,6 +8,7 @@ import {
 import fs from "node:fs";
 
 import { resolverPlanAlumno } from "../services/planes.js";
+import { bibliografiaDelAlumno } from "../services/bibliografia.js";
 
 const router = Router();
 
@@ -44,6 +45,16 @@ router.get("/", requiereAuth, async (req, res, next) => {
     }));
 
     res.json(materiasConEstado);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Bibliografía recomendada de todas las materias del plan del alumno.
+// Va antes de "/:id" para que Express no tome "bibliografia" como un id.
+router.get("/bibliografia", requiereAuth, requiereRol("ALUMNO"), async (req, res, next) => {
+  try {
+    res.json(await bibliografiaDelAlumno(prisma, req.usuario.id));
   } catch (e) {
     next(e);
   }
