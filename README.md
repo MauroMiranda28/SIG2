@@ -130,7 +130,7 @@ web/
   src/horarios/           grilla semanal del alumno
   src/planes/             crear plan, mi plan, asignar carrera/plan (ADMIN)
   src/carreras/           registrar y modificar carreras (ADMIN)
-  src/docentes/           mis materias (horarios y programa) y carga de notas (DOCENTE)
+  src/docentes/           mis materias (horarios y programa), consulta de materias y carga de notas (DOCENTE)
 ```
 
 ## Cómo trabajamos
@@ -210,6 +210,19 @@ Lo que ya está implementado, para no repetir trabajo:
 - Pestaña «Mis materias» para el DOCENTE. La asignación docente-materia todavía se carga a mano en
   Prisma Studio (tabla `MateriaDocente`).
 
+**Consulta de materias y registro de cambios (DOCENTE)**
+- `GET /api/docentes/materias/:id` (DOCENTE/ADMIN) — información académica de cualquier materia: datos, plan y carrera,
+  docentes, programa, comisiones y horarios. Es de solo lectura (la misma información que ya es visible para cualquier
+  usuario en `GET /api/materias/:id`); `esMia` y `puedeModificar` indican si el docente la dicta.
+- `GET /api/docentes/materias/:id/relacionadas` — correlativas previas y posteriores de la materia dentro del plan,
+  marcando cuáles dicta el docente.
+- `GET /api/docentes/materias/:id/historial` (docente asignado o ADMIN) — quién modificó los horarios o el programa de
+  la materia y cuándo (tabla `CambioMateria`, últimos 200). Un horario agregado o quitado y una subida de programa dejan
+  su registro en la misma transacción que el cambio, así que no puede haber uno sin el otro; el registro no se edita ni
+  se borra.
+- Pestaña «Consultar materias» para el DOCENTE. Las correlatividades (tabla `Correlatividad`) todavía no se cargan desde
+  ninguna pantalla: hoy se agregan a mano en Prisma Studio o con `api/prisma/seed.js`.
+
 **Programa en PDF**
 - `GET /api/materias/:id/programa/pdf` (cualquier usuario logueado) — descarga el PDF subido; si no hay,
   arma uno con el programa cargado como texto. Botón «Descargar programa (PDF)» en el detalle de la materia.
@@ -237,7 +250,7 @@ Lo que ya está implementado, para no repetir trabajo:
 - Regla para el módulo de calendario cuando se haga: las actividades se filtran siempre por
   `req.usuario.id`, nunca por un id que venga en la URL o el body.
 
-Todo lo demás (correlatividades, calendario, notificaciones) está sin empezar.
+Todo lo demás (carga de correlatividades, calendario, notificaciones) está sin empezar.
 
 ## Una cosa para definir en grupo
 

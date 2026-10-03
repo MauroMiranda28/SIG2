@@ -37,3 +37,13 @@
 .docente .docente-cambios { display: grid; gap: .25rem; margin: .35rem 0 0; padding-left: 1rem; list-style: disc; font-size: .9rem; color: #475569; }
 .docente .docente-comision .docente-cambios li { display: list-item; }
 .docente summary { cursor: pointer; font-size: .9rem; color: #164e83; }
+
+/* Consulta de materias: datos, materias relacionadas e historial de cambios. */
+.docente .docente-datos { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .5rem 1rem; margin: 0 0 .75rem; }
+.docente .docente-datos dt { font-size: .85rem; color: #475569; }
+.docente .docente-datos dd { margin: 0; font-weight: 600; }
+.docente .docente-texto { white-space: pre-line; }
+.docente .docente-lista { list-style: none; padding: 0; margin: 0; display: grid; gap: .4rem; }
+.docente .docente-lista li { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.docente .docente-etiqueta { margin-left: .5rem; padding: .05rem .45rem; border-radius: 999px; background: #e2ebf5; color: #164e83; font-size: .8rem; font-weight: 600; white-space: nowrap; }
+.docente .docente-tabla td, .docente .docente-tabla th { padding-right: .6rem; vertical-align: top; }
