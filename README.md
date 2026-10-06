@@ -130,7 +130,8 @@ web/
   src/horarios/           grilla semanal del alumno
   src/planes/             crear plan, mi plan, asignar carrera/plan (ADMIN)
   src/carreras/           registrar y modificar carreras (ADMIN)
-  src/docentes/           mis materias (horarios y programa), consulta de materias y carga de notas (DOCENTE)
+  src/docentes/           mis materias (horarios y programa), consulta de materias, carga de notas, avisos,
+                          fechas de examen y tareas (DOCENTE)
   src/correlatividades/   consulta del alumno y carga del ADMIN
   src/notificaciones/     historial de notificaciones del alumno
 ```
@@ -349,7 +350,8 @@ Lo que ya está implementado, para no repetir trabajo:
 - Regla para el módulo de calendario cuando se haga: las actividades se filtran siempre por
   `req.usuario.id`, nunca por un id que venga en la URL o el body.
 
-Todo lo demás (calendario y el resto de las notificaciones) está sin empezar.
+Las notificaciones (historial, avisos del docente, cambio de horario, calificaciones, fechas de examen y
+recordatorio de entregas) están completas. Todo lo demás (calendario) está sin empezar.
 
 ## Una cosa para definir en grupo
 
