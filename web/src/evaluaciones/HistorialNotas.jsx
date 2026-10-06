@@ -56,7 +56,7 @@ export default function HistorialNotas() {
                 </td>
                 <td>
                   {ETIQUETA_TIPO[ev.tipo] ?? ev.tipo}
-                  {ev.condicion && ` · ${ev.condicion === "PROMOCIONADO" ? "Promocionado" : "Regular"}`}
+                  {ev.condicion && ` · ${{ REGULAR: "Regular", PROMOCIONADO: "Promocionado", LIBRE: "Libre" }[ev.condicion]}`}
                 </td>
                 <td>
                   {ev.nota}

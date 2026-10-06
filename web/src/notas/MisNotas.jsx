@@ -1,16 +1,11 @@
 import { useEffect, useState } from "react";
 import { api, leerToken } from "../api.js";
 import { formatFecha } from "../formatFecha.js";
+import { estadoVisible, detalleEstado, ETIQUETA_ESTADO } from "../materias/estadoMateria.js";
 
 // Mat-09: el alumno ve el estado de sus materias y puede descargar un
 // certificado en PDF con las que ya aprobó, para trámites externos.
 
-const ETIQUETA_ESTADO = {
-  PENDIENTE: "Pendiente",
-  EN_CURSO: "En curso",
-  REGULAR: "Regular",
-  APROBADA: "Aprobada",
-};
 
 export default function MisNotas() {
   const [materias, setMaterias] = useState(null);
@@ -85,11 +80,17 @@ export default function MisNotas() {
               <td style={{ padding: "0.4rem 0" }}>{materia.codigo}</td>
               <td>{materia.nombre}</td>
               <td>
-                {ETIQUETA_ESTADO[materia.estado] ?? materia.estado}
-                {materia.estado === "REGULAR" && materia.venceRegularidad && (
-                  <div style={{ fontSize: "0.8rem", color: "#777" }}>
-                    {materia.intentosFinal} de 3 intentos de final usados · vence el {formatFecha(materia.venceRegularidad)}
-                  </div>
+                {ETIQUETA_ESTADO[estadoVisible(materia)]}
+                {detalleEstado(materia) && (
+                  <div style={{ fontSize: "0.8rem", color: "#777" }}>{detalleEstado(materia)}</div>
+                )}
+                {/* Cada intento de examen final queda registrado con su nota */}
+                {materia.intentos?.length > 0 && (
+                  <ol style={{ fontSize: "0.8rem", color: "#555", margin: "0.25rem 0 0 0", paddingLeft: "1.2rem" }}>
+                    {materia.intentos.map((intento) => (
+                      <li key={intento.id}>Final del {formatFecha(intento.fecha)}: {intento.nota}</li>
+                    ))}
+                  </ol>
                 )}
               </td>
               <td>{materia.nota ?? "-"}</td>

@@ -117,13 +117,13 @@ export function crearRouterNotas(db = prisma) {
             update: {},
             select: { id: true, estado: true, regularDesde: true },
           });
-          if (cierraCursada) verificarCarga({ tipo, condicion, nota, fecha }, { cursada, materia, nombre: nombres.get(alumnoId) });
+          verificarCarga({ tipo, condicion, nota, fecha }, { cursada, materia, nombre: nombres.get(alumnoId) });
 
           resultado.push(await tx.evaluacion.create({
             data: { tipo, condicion, fecha, nota, observaciones, cursadaId: cursada.id, cargadaPorId: req.usuario.id },
             select: { id: true, tipo: true, condicion: true, nota: true, fecha: true, observaciones: true, cursada: { select: { alumnoId: true } } },
           }));
-          if (cierraCursada) await recalcularCursada(tx, cursada.id, materia);
+          if (cierraCursada) await recalcularCursada(tx, { id: cursada.id, alumnoId, materiaId }, materia);
         }
         return resultado;
       });
@@ -143,14 +143,17 @@ export function crearRouterNotas(db = prisma) {
       const actualizada = await db.$transaction(async (tx) => {
         const actual = await tx.evaluacion.findUnique({
           where: { id },
-          select: { nota: true, tipo: true, condicion: true, cursadaId: true, cursada: { select: { materia: { select: CONDICION_MATERIA } } } },
+          select: {
+            nota: true, tipo: true, condicion: true, cursadaId: true,
+            cursada: { select: { alumnoId: true, materiaId: true, materia: { select: CONDICION_MATERIA } } },
+          },
         });
         if (!actual) throw errorAcceso(404, "La evaluación no existe.");
         if (actual.nota === nota) throw errorAcceso(400, "La nota nueva es igual a la actual.");
 
         const materia = actual.cursada.materia;
         if (actual.tipo === "CONDICION_FINAL") {
-          const minimo = actual.condicion === "PROMOCIONADO" ? materia.notaPromocion : materia.notaRegularizacion;
+          const minimo = { PROMOCIONADO: materia.notaPromocion, REGULAR: materia.notaRegularizacion }[actual.condicion];
           if (minimo != null && nota < minimo) {
             const para = actual.condicion === "PROMOCIONADO" ? "promocionar" : "regularizar";
             throw errorAcceso(400, `Para ${para} hace falta ${minimo} o más.`);
@@ -161,7 +164,9 @@ export function crearRouterNotas(db = prisma) {
           data: { evaluacionId: id, notaAnterior: actual.nota, notaNueva: nota, motivo, autorId: req.usuario.id },
         });
         const evaluacion = await tx.evaluacion.update({ where: { id }, data: { nota }, select: DATOS_EVALUACION });
-        if (actual.tipo === "CONDICION_FINAL" || actual.tipo === "FINAL") await recalcularCursada(tx, actual.cursadaId, materia);
+        if (actual.tipo === "CONDICION_FINAL" || actual.tipo === "FINAL") {
+          await recalcularCursada(tx, { id: actual.cursadaId, alumnoId: actual.cursada.alumnoId, materiaId: actual.cursada.materiaId }, materia);
+        }
         return evaluacion;
       });
 

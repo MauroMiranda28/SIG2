@@ -1,18 +1,12 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import MateriaDetalle from "./MateriaDetalle.jsx";
+import { estadoVisible, ETIQUETA_ESTADO, COLOR_ESTADO } from "./estadoMateria.js";
 
 // Mat-01 + HU-PRO + Mat-03 + Horarios U-01: el alumno ve las materias de su
 // carrera con su estado de cursada, y puede abrir el programa (contenidos y
 // bibliografía) o la información y comisiones de cualquiera.
 // Mat-08: puede buscar por nombre o código.
-
-const ETIQUETA_ESTADO = {
-  PENDIENTE: "Pendiente",
-  EN_CURSO: "En curso",
-  REGULAR: "Regular",
-  APROBADA: "Aprobada",
-};
 
 export default function MateriasCarrera() {
   const [materias, setMaterias] = useState(null);
@@ -136,11 +130,11 @@ export default function MateriasCarrera() {
                       fontSize: "0.85rem",
                       padding: "0.15rem 0.5rem",
                       borderRadius: "999px",
-                      background: colorEstado(materia.estado),
+                      background: COLOR_ESTADO[estadoVisible(materia)],
                       color: "#fff",
                     }}
                   >
-                    {ETIQUETA_ESTADO[materia.estado] ?? materia.estado}
+                    {ETIQUETA_ESTADO[estadoVisible(materia)]}
                   </span>
                 </div>
 
@@ -212,11 +206,4 @@ function agruparPorAnio(materias) {
     grupos[clave].push(materia);
     return grupos;
   }, {});
-}
-
-function colorEstado(estado) {
-  if (estado === "APROBADA") return "#2e7d32";
-  if (estado === "EN_CURSO") return "#f9a825";
-  if (estado === "REGULAR") return "#1565c0";
-  return "#9e9e9e";
 }

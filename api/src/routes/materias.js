@@ -9,7 +9,7 @@ import fs from "node:fs";
 
 import { resolverPlanAlumno } from "../services/planes.js";
 import { bibliografiaDelAlumno } from "../services/bibliografia.js";
-import { vencimientoRegularidad } from "../services/notas.js";
+import { vencimientoRegularidad, estadoDeCursada } from "../services/notas.js";
 
 const router = Router();
 
@@ -33,20 +33,33 @@ router.get("/", requiereAuth, async (req, res, next) => {
       include: {
         cursadas: {
           where: { alumnoId: req.usuario.id },
-          select: { estado: true, nota: true, regularDesde: true, intentosFinal: true },
+          select: {
+            estado: true, nota: true, regularDesde: true, intentosFinal: true,
+            evaluaciones: {
+              where: { tipo: { in: ["CONDICION_FINAL", "FINAL"] } },
+              select: { id: true, tipo: true, condicion: true, nota: true, fecha: true },
+            },
+          },
         },
+        // Si eligió una comisión de la materia, la está cursando aunque todavía no tenga notas.
+        comisiones: { where: { inscripciones: { some: { alumnoId: req.usuario.id } } }, select: { id: true } },
       },
       orderBy: [{ anio: "asc" }, { nombre: "asc" }],
     });
 
-    const materiasConEstado = materias.map(({ cursadas, ...materia }) => ({
-      ...materia,
-      estado: cursadas[0]?.estado ?? "PENDIENTE",
-      nota: cursadas[0]?.nota ?? null,
-      // Regularidad: plazo para aprobar el final e intentos usados (máx. 3).
-      venceRegularidad: cursadas[0]?.estado === "REGULAR" ? vencimientoRegularidad(cursadas[0].regularDesde) : null,
-      intentosFinal: cursadas[0]?.intentosFinal ?? 0,
-    }));
+    const materiasConEstado = materias.map(({ cursadas, comisiones, ...materia }) => {
+      const cursada = cursadas[0];
+      return {
+        ...materia,
+        estado: cursada?.estado ?? "PENDIENTE",
+        nota: cursada?.nota ?? null,
+        inscripto: comisiones.length > 0,
+        // Regularidad: plazo para aprobar el final e intentos usados (máx. 3) con la nota de cada uno.
+        venceRegularidad: cursada?.estado === "REGULAR" ? vencimientoRegularidad(cursada.regularDesde) : null,
+        intentosFinal: cursada?.intentosFinal ?? 0,
+        intentos: cursada ? (estadoDeCursada(cursada.evaluaciones, materia)?.intentos ?? []) : [],
+      };
+    });
 
     res.json(materiasConEstado);
   } catch (e) {

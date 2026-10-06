@@ -88,6 +88,14 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion }) {
             {materia.docentes.map((d) => `${d.docente.nombre} ${d.docente.apellido}`).join(", ")}
           </p>
         )}
+        {/* Condición: la define el docente en «Mis materias» */}
+        {materia.notaRegularizacion != null && (
+          <p style={{ margin: "0.25rem 0 0 0" }}>
+            <strong>Condición</strong> Se regulariza con {materia.notaRegularizacion}
+            {materia.esPromocional ? ` · se promociona con ${materia.notaPromocion}` : " · no es promocional"}
+            {" "}· el final se aprueba con {materia.notaAprobacionFinal}
+          </p>
+        )}
 
         {/* Descargar el programa para consultarlo después */}
         {(materia.programaUrl || materia.programa?.vigente) && (

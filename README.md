@@ -225,15 +225,19 @@ Lo que ya está implementado, para no repetir trabajo:
 - **Condición de la materia** (`PUT /api/docentes/materias/:id/condicion`, bloque «Condición» en «Mis materias»):
   el docente define si es promocional y con cuánto se regulariza, se promociona y se aprueba el final.
   Sin esto configurado no se pueden cargar condiciones finales ni exámenes finales.
-- **Condición final** (tipo `CONDICION_FINAL`): el docente elige por alumno *Regular* o *Promocionado* y el sistema
-  valida la nota contra la condición de la materia. Promocionado → APROBADA con esa nota. Regular → estado nuevo
-  `REGULAR`, desde esa fecha corren 2 años y 3 intentos de final.
+- **Condición final** (tipo `CONDICION_FINAL`): el docente elige por alumno *Regular*, *Promocionado* o *Libre* y el
+  sistema valida la nota contra la condición de la materia. Promocionado → APROBADA con esa nota. Regular → estado
+  nuevo `REGULAR`, desde esa fecha corren 2 años y 3 intentos de final. Libre → estado nuevo `LIBRE`.
 - **Examen final** (tipo `FINAL`): solo para regulares vigentes; cada uno es un intento. Con la nota de aprobación del
-  final → APROBADA. Desaprobado el 3.º intento → PENDIENTE (pierde la regularidad y recursa). Fuera de los 2 años se
-  rechaza. El estado se recalcula desde las evaluaciones (`estadoDeCursada` en `services/notas.js`) cada vez que se
+  final → APROBADA. Desaprobado el 3.º intento → `LIBRE`. Fuera de los 2 años se rechaza (y se muestra como libre).
+- **Libre**: deja de cursar. Se le quita la comisión de esa materia (sale de «Mi horario») y no se le cargan más notas
+  hasta que vuelva a inscribirse (la inscripción a materias queda para otra historia).
+- El alumno ve la condición de la materia en «Ver información y horarios», y en «Mis notas» el estado (Pendiente,
+  Cursando, Regular, Libre, Aprobada) con la nota de cada intento de final. «Cursando» = cursada en curso o comisión
+  elegida (`inscripto` en `GET /api/materias`); el `estado` que devuelve la API no cambia, así «Mi asistencia» sigue igual. El estado se recalcula desde las evaluaciones (`estadoDeCursada` en `services/notas.js`) cada vez que se
   carga o corrige una condición final o un final.
 - Schema: modelo nuevo `CambioNota` y campo `Evaluacion.cargadaPorId` (quién cargó la nota). Correr `db:push`.
-- Schema (condición final): estado `REGULAR` en `EstadoMateria`, tipo `CONDICION_FINAL` y enum `CondicionFinal`,
+- Schema (condición final): estados `REGULAR` y `LIBRE` en `EstadoMateria`, tipo `CONDICION_FINAL` y enum `CondicionFinal`,
   `Evaluacion.condicion`, `Cursada.regularDesde` e `intentosFinal`, y en `Materia` `esPromocional`,
   `notaRegularizacion`, `notaPromocion` y `notaAprobacionFinal`.
 - El alumno ve las notas al instante en «Historial de notas», y si una fue corregida, el valor anterior y el motivo.

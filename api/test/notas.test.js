@@ -95,6 +95,7 @@ function dbFalsa({
       update: async (args) => { registro.updates.push(args); return { id: args.where.id, nota: args.data.nota, cambios: registro.cambios }; },
     },
     cambioNota: { create: async ({ data }) => { registro.cambios.push(data); return data; } },
+    inscripcionComision: { deleteMany: async (args) => { registro.bajas = [...(registro.bajas ?? []), args.where]; return { count: 1 }; } },
     ...extra,
   };
   db.$transaction = async (fn) => fn(db);
@@ -219,11 +220,12 @@ test("validarCondicionMateria: rechaza datos faltantes o inconsistentes", () => 
   for (const body of casos) assert.throws(() => validarCondicionMateria(body), (e) => e.status === 400, JSON.stringify(body));
 });
 
-test("validarCargaNotas: la condición final exige regular o promocionado por alumno", () => {
+test("validarCargaNotas: la condición final exige regular, promocionado o libre por alumno", () => {
   const condicionFinal = { tipo: "CONDICION_FINAL", fecha: "2026-07-01", notas: [{ alumnoId: 2, nota: 8, condicion: "PROMOCIONADO" }] };
   assert.equal(validarCargaNotas(condicionFinal).notas[0].condicion, "PROMOCIONADO");
   assert.throws(() => validarCargaNotas({ ...condicionFinal, notas: [{ alumnoId: 2, nota: 8 }] }), (e) => e.status === 400);
-  assert.throws(() => validarCargaNotas({ ...condicionFinal, notas: [{ alumnoId: 2, nota: 8, condicion: "LIBRE" }] }), (e) => e.status === 400);
+  assert.throws(() => validarCargaNotas({ ...condicionFinal, notas: [{ alumnoId: 2, nota: 8, condicion: "OTRA" }] }), (e) => e.status === 400);
+  assert.equal(validarCargaNotas({ ...condicionFinal, notas: [{ alumnoId: 2, nota: 2, condicion: "LIBRE" }] }).notas[0].condicion, "LIBRE");
   assert.equal(validarCargaNotas(carga()).notas[0].condicion, null, "en un parcial se ignora");
 });
 
@@ -238,7 +240,7 @@ test("estado: sin condición ni finales no toca la cursada", () => {
 
 test("estado: promocionado aprueba con la nota de promoción", () => {
   assert.deepEqual(estadoDeCursada([ev(1, "CONDICION_FINAL", "2026-07-01", 8, "PROMOCIONADO")], CONDICION),
-    { estado: "APROBADA", nota: 8, regularDesde: null, intentosFinal: 0 });
+    { estado: "APROBADA", nota: 8, regularDesde: null, intentosFinal: 0, intentos: [] });
 });
 
 test("estado: regular queda REGULAR desde esa fecha y se vence a los 2 años", () => {
@@ -257,9 +259,11 @@ test("estado: el final aprobado (según la materia) aprueba; los desaprobados su
   assert.deepEqual([aprobada.estado, aprobada.nota, aprobada.intentosFinal], ["APROBADA", 6, 2]);
 });
 
-test("estado: desaprobado el tercer final pierde la regularidad (PENDIENTE) y puede volver a regularizar", () => {
+test("estado: desaprobado el tercer final queda LIBRE con sus 3 intentos; al recursar, los intentos arrancan de cero", () => {
   const tres = [regular(), ev(2, "FINAL", "2026-08-01", 2), ev(3, "FINAL", "2026-12-01", 3), ev(4, "FINAL", "2027-03-01", 1)];
-  assert.deepEqual(estadoDeCursada(tres, CONDICION), { estado: "PENDIENTE", nota: null, regularDesde: null, intentosFinal: 0 });
+  const libre = estadoDeCursada(tres, CONDICION);
+  assert.deepEqual([libre.estado, libre.nota, libre.regularDesde, libre.intentosFinal], ["LIBRE", null, null, 3]);
+  assert.deepEqual(libre.intentos.map((i) => i.nota), [2, 3, 1], "quedan registradas las notas de cada intento");
 
   const recurso = estadoDeCursada([...tres, ev(5, "CONDICION_FINAL", "2027-12-01", 6, "REGULAR"), ev(6, "FINAL", "2028-02-01", 2)], CONDICION);
   assert.deepEqual([recurso.estado, recurso.intentosFinal], ["REGULAR", 1], "los intentos arrancan de cero");
@@ -286,8 +290,10 @@ test("verificarCarga: condición final según la configuración de la materia", 
   assert.throws(() => verificarCarga(cf("PROMOCIONADO", 9), contexto(undefined, { ...CONDICION, esPromocional: false })), /no es promocional/);
   assert.throws(() => verificarCarga(cf("REGULAR", 5), contexto({ estado: "APROBADA" })), (e) => e.status === 409);
   assert.throws(() => verificarCarga(cf("REGULAR", 5), contexto({ estado: "REGULAR", regularDesde: new Date() })), /ya está regular/);
-  // Regularidad vencida: puede volver a regularizar.
-  verificarCarga(cf("REGULAR", 5), contexto({ estado: "REGULAR", regularDesde: fecha("2020-01-01") }));
+  verificarCarga(cf("LIBRE", 2), contexto()); // libre no exige nota mínima
+  // Libre o con la regularidad vencida: no se le carga nada hasta que vuelva a inscribirse.
+  assert.throws(() => verificarCarga(cf("REGULAR", 5), contexto({ estado: "REGULAR", regularDesde: fecha("2020-01-01") })), /está libre/);
+  assert.throws(() => verificarCarga({ tipo: "PARCIAL", nota: 8, fecha: fecha("2026-05-01") }, contexto({ estado: "LIBRE" })), /está libre/);
 });
 
 test("verificarCarga: el examen final solo para regulares y dentro del plazo", () => {
@@ -347,4 +353,37 @@ test("HTTP: corregir una condición final por debajo del mínimo se rechaza; un 
   });
   assert.equal(final.registro.cierres[0].data.estado, "REGULAR");
   assert.equal(final.registro.cierres[0].data.intentosFinal, 1);
+});
+
+test("estado: libre por la condición final (desaprobó la cursada)", () => {
+  assert.equal(estadoDeCursada([ev(1, "CONDICION_FINAL", "2026-07-01", 2, "LIBRE")], CONDICION).estado, "LIBRE");
+  assert.equal(estadoDeCursada([ev(1, "CONDICION_FINAL", "2026-07-01", 2, "LIBRE"), ev(2, "FINAL", "2026-08-01", 9)], CONDICION).estado,
+    "LIBRE", "un libre no puede aprobar con un final");
+});
+
+test("HTTP: al quedar libre se le quita la comisión de esa materia; si no, no", async () => {
+  const libre = dbFalsa({ finales: [ev(1, "CONDICION_FINAL", "2026-07-01", 2, "LIBRE")] });
+  await conAPI(libre, async (request) => {
+    const r = await request("POST", "/materias/5", "DOCENTE", { tipo: "CONDICION_FINAL", fecha: "2026-07-01", notas: [{ alumnoId: 2, nota: 2, condicion: "LIBRE" }] });
+    assert.equal(r.status, 201);
+  });
+  assert.equal(libre.registro.cierres[0].data.estado, "LIBRE");
+  assert.equal("intentos" in libre.registro.cierres[0].data, false, "la lista de intentos no se guarda en Cursada");
+  assert.deepEqual(libre.registro.bajas, [{ alumnoId: 2, comision: { materiaId: 5 } }]);
+
+  const regularizo = dbFalsa({ finales: [regular()] });
+  await conAPI(regularizo, async (request) => {
+    await request("POST", "/materias/5", "DOCENTE", { tipo: "CONDICION_FINAL", fecha: "2026-07-01", notas: [{ alumnoId: 2, nota: 5, condicion: "REGULAR" }] });
+  });
+  assert.equal(regularizo.registro.bajas, undefined);
+});
+
+test("HTTP: a un alumno libre no se le cargan más notas", async () => {
+  const db = dbFalsa({ cursada: { estado: "LIBRE", regularDesde: null } });
+  await conAPI(db, async (request) => {
+    const r = await request("POST", "/materias/5", "DOCENTE", { ...carga(), notas: [{ alumnoId: 2, nota: 8 }] });
+    assert.equal(r.status, 400);
+    assert.match((await r.json()).error, /Ana Díaz está libre/);
+  });
+  assert.equal(db.registro.evaluaciones.length, 0);
 });

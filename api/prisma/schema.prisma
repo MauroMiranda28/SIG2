@@ -21,6 +21,7 @@ enum EstadoMateria {
   EN_CURSO
   REGULAR // cursada aprobada, falta el examen final (ver Cursada.regularDesde)
   APROBADA
+  LIBRE // no regularizó o desaprobó los 3 finales: deja de cursar y tiene que volver a inscribirse
 }
 
 enum DiaSemana {
@@ -43,6 +44,7 @@ enum TipoEvaluacion {
 enum CondicionFinal {
   REGULAR
   PROMOCIONADO
+  LIBRE // desaprobó la cursada
 }
 
 enum EstadoSolicitud {

@@ -13,11 +13,13 @@ const TIPOS = [
   ["CONDICION_FINAL", "Condición final"], ["FINAL", "Examen final"],
 ];
 const NOMBRE_TIPO = Object.fromEntries(TIPOS);
-const NOMBRE_CONDICION = { REGULAR: "Regular", PROMOCIONADO: "Promocionado" };
+const NOMBRE_CONDICION = { REGULAR: "Regular", PROMOCIONADO: "Promocionado", LIBRE: "Libre" };
 const MAX_INTENTOS_FINAL = 3;
 const hoy = () => new Date().toLocaleDateString("en-CA"); // AAAA-MM-DD en hora local
 
 const esRegularVigente = (a) => a.estado === "REGULAR" && a.venceRegularidad && new Date(a.venceRegularidad) >= new Date(`${hoy()}T00:00:00Z`);
+// Libre: no sigue cursando (no se le cargan más notas hasta que vuelva a inscribirse).
+const esLibre = (a) => a.estado === "LIBRE" || (a.estado === "REGULAR" && !esRegularVigente(a));
 
 // Cómo está el alumno en la materia, para el docente.
 function estadoAlumno(a) {
@@ -25,9 +27,12 @@ function estadoAlumno(a) {
   if (a.estado === "REGULAR") {
     return esRegularVigente(a)
       ? `Regular · ${a.intentosFinal} de ${MAX_INTENTOS_FINAL} intentos de final usados · vence el ${formatFecha(a.venceRegularidad)}`
-      : `Regularidad vencida el ${formatFecha(a.venceRegularidad)}: tiene que volver a cursar`;
+      : `Libre: se le venció la regularidad el ${formatFecha(a.venceRegularidad)}`;
   }
-  return a.estado === "EN_CURSO" ? "En curso" : "Pendiente";
+  if (a.estado === "LIBRE") {
+    return a.intentosFinal >= MAX_INTENTOS_FINAL ? `Libre: desaprobó los ${MAX_INTENTOS_FINAL} intentos de final` : "Libre: no regularizó la cursada";
+  }
+  return "Cursando";
 }
 
 export default function NotasDocente() {
@@ -114,10 +119,11 @@ function FormCarga({ alumnos, materia, onCargado }) {
   const cierraCursada = tipo === "CONDICION_FINAL" || tipo === "FINAL";
   const sinCondicion = cierraCursada && !materia.condicionConfigurada;
 
-  // Condición final: a quien todavía no aprobó ni está regular. Examen final: solo a los regulares vigentes.
+  // Condición final: a quien sigue cursando. Examen final: solo a los regulares vigentes.
+  // A los libres no se les carga nada: tienen que volver a inscribirse.
   const lista = tipo === "CONDICION_FINAL"
-    ? alumnos.filter((a) => a.estado !== "APROBADA" && !esRegularVigente(a))
-    : tipo === "FINAL" ? alumnos.filter(esRegularVigente) : alumnos;
+    ? alumnos.filter((a) => !["APROBADA", "REGULAR", "LIBRE"].includes(a.estado))
+    : tipo === "FINAL" ? alumnos.filter(esRegularVigente) : alumnos.filter((a) => !esLibre(a));
   const condicionDe = (id) => condiciones[id] ?? "REGULAR";
 
   function cambiarTipo(nuevo) {
@@ -153,10 +159,11 @@ function FormCarga({ alumnos, materia, onCargado }) {
   let ayuda = "Dejá vacía la nota de quien no rindió.";
   if (tipo === "CONDICION_FINAL" && !sinCondicion) {
     ayuda = `Regular: se regulariza con ${materia.notaRegularizacion} o más y tiene ${MAX_INTENTOS_FINAL} intentos de final en 2 años.`
-      + (materia.esPromocional ? ` Promocionado: con ${materia.notaPromocion} o más aprueba la materia con esa nota.` : " Esta materia no es promocional.");
+      + (materia.esPromocional ? ` Promocionado: con ${materia.notaPromocion} o más aprueba la materia con esa nota.` : " Esta materia no es promocional.")
+      + " Libre: no regularizó; deja de cursar y se le quita la comisión.";
   }
   if (tipo === "FINAL" && !sinCondicion) {
-    ayuda = `Con ${materia.notaAprobacionFinal} o más aprueba la materia. Desaprobado el intento ${MAX_INTENTOS_FINAL}, pierde la regularidad. Dejá vacía la nota de quien no se presentó.`;
+    ayuda = `Con ${materia.notaAprobacionFinal} o más aprueba la materia. Desaprobado el intento ${MAX_INTENTOS_FINAL}, queda libre y se le quita la comisión. Dejá vacía la nota de quien no se presentó.`;
   }
 
   return (
@@ -178,7 +185,8 @@ function FormCarga({ alumnos, materia, onCargado }) {
         </p>
       ) : !lista.length ? (
         <p className="docente-aviso">
-          {tipo === "FINAL" ? "No hay alumnos regulares en esta materia." : "Todos los alumnos ya están regulares o aprobaron la materia."}
+          {tipo === "FINAL" ? "No hay alumnos regulares en esta materia."
+            : tipo === "CONDICION_FINAL" ? "Todos los alumnos ya tienen su condición final cargada." : "No hay alumnos cursando esta materia."}
         </p>
       ) : (
         <>
@@ -203,6 +211,7 @@ function FormCarga({ alumnos, materia, onCargado }) {
                         onChange={(e) => setCondiciones({ ...condiciones, [a.id]: e.target.value })}>
                         <option value="REGULAR">Regular</option>
                         {materia.esPromocional && <option value="PROMOCIONADO">Promocionado</option>}
+                        <option value="LIBRE">Libre</option>
                       </select>
                     </td>
                   )}
