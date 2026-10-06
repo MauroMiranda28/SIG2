@@ -9,6 +9,7 @@ import fs from "node:fs";
 
 import { resolverPlanAlumno } from "../services/planes.js";
 import { bibliografiaDelAlumno } from "../services/bibliografia.js";
+import { vencimientoRegularidad } from "../services/notas.js";
 
 const router = Router();
 
@@ -32,7 +33,7 @@ router.get("/", requiereAuth, async (req, res, next) => {
       include: {
         cursadas: {
           where: { alumnoId: req.usuario.id },
-          select: { estado: true, nota: true },
+          select: { estado: true, nota: true, regularDesde: true, intentosFinal: true },
         },
       },
       orderBy: [{ anio: "asc" }, { nombre: "asc" }],
@@ -42,6 +43,9 @@ router.get("/", requiereAuth, async (req, res, next) => {
       ...materia,
       estado: cursadas[0]?.estado ?? "PENDIENTE",
       nota: cursadas[0]?.nota ?? null,
+      // Regularidad: plazo para aprobar el final e intentos usados (máx. 3).
+      venceRegularidad: cursadas[0]?.estado === "REGULAR" ? vencimientoRegularidad(cursadas[0].regularDesde) : null,
+      intentosFinal: cursadas[0]?.intentosFinal ?? 0,
     }));
 
     res.json(materiasConEstado);

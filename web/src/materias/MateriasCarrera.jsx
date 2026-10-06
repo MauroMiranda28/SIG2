@@ -10,6 +10,7 @@ import MateriaDetalle from "./MateriaDetalle.jsx";
 const ETIQUETA_ESTADO = {
   PENDIENTE: "Pendiente",
   EN_CURSO: "En curso",
+  REGULAR: "Regular",
   APROBADA: "Aprobada",
 };
 
@@ -216,5 +217,6 @@ function agruparPorAnio(materias) {
 function colorEstado(estado) {
   if (estado === "APROBADA") return "#2e7d32";
   if (estado === "EN_CURSO") return "#f9a825";
+  if (estado === "REGULAR") return "#1565c0";
   return "#9e9e9e";
 }

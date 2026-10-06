@@ -37,3 +37,9 @@
 .docente .docente-cambios { display: grid; gap: .25rem; margin: .35rem 0 0; padding-left: 1rem; list-style: disc; font-size: .9rem; color: #475569; }
 .docente .docente-comision .docente-cambios li { display: list-item; }
 .docente summary { cursor: pointer; font-size: .9rem; color: #164e83; }
+
+/* Condición de la materia y condición final. */
+.docente .docente-horario .docente-check { display: flex; align-items: center; gap: .4rem; align-self: center; }
+.docente .docente-horario input[type=number] { width: 6rem; }
+.docente .docente-tabla select { box-sizing: border-box; padding: .35rem; }
+.docente .docente-aviso { background: #fff7e6; color: #7a4b00; padding: .6rem .75rem; border-radius: 4px; margin: 0; }
