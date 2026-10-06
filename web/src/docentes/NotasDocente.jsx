@@ -5,13 +5,35 @@ import "./docentes.css";
 
 // El docente carga las notas de sus evaluaciones y las corrige dejando registro.
 // Lo que se guarda acá le aparece al alumno en «Historial de notas» en el momento.
+// «Condición final» cierra la cursada (regular o promocionado) y «Examen final» es
+// cada intento de un alumno regular; las dos usan la condición configurada en «Mis materias».
 
 const TIPOS = [
-  ["PARCIAL", "Parcial"], ["RECUPERATORIO", "Recuperatorio"],
-  ["FINAL", "Final"], ["TRABAJO_PRACTICO", "Trabajo práctico"],
+  ["PARCIAL", "Parcial"], ["RECUPERATORIO", "Recuperatorio"], ["TRABAJO_PRACTICO", "Trabajo práctico"],
+  ["CONDICION_FINAL", "Condición final"], ["FINAL", "Examen final"],
 ];
 const NOMBRE_TIPO = Object.fromEntries(TIPOS);
+const NOMBRE_CONDICION = { REGULAR: "Regular", PROMOCIONADO: "Promocionado", LIBRE: "Libre" };
+const MAX_INTENTOS_FINAL = 3;
 const hoy = () => new Date().toLocaleDateString("en-CA"); // AAAA-MM-DD en hora local
+
+const esRegularVigente = (a) => a.estado === "REGULAR" && a.venceRegularidad && new Date(a.venceRegularidad) >= new Date(`${hoy()}T00:00:00Z`);
+// Libre: no sigue cursando (no se le cargan más notas hasta que vuelva a inscribirse).
+const esLibre = (a) => a.estado === "LIBRE" || (a.estado === "REGULAR" && !esRegularVigente(a));
+
+// Cómo está el alumno en la materia, para el docente.
+function estadoAlumno(a) {
+  if (a.estado === "APROBADA") return `Aprobada con ${a.nota}`;
+  if (a.estado === "REGULAR") {
+    return esRegularVigente(a)
+      ? `Regular · ${a.intentosFinal} de ${MAX_INTENTOS_FINAL} intentos de final usados · vence el ${formatFecha(a.venceRegularidad)}`
+      : `Libre: se le venció la regularidad el ${formatFecha(a.venceRegularidad)}`;
+  }
+  if (a.estado === "LIBRE") {
+    return a.intentosFinal >= MAX_INTENTOS_FINAL ? `Libre: desaprobó los ${MAX_INTENTOS_FINAL} intentos de final` : "Libre: no regularizó la cursada";
+  }
+  return "Cursando";
+}
 
 export default function NotasDocente() {
   const [materias, setMaterias] = useState(null);
@@ -69,12 +91,13 @@ function NotasMateria({ materiaId }) {
 
   return (
     <>
-      <FormCarga alumnos={datos.alumnos} materiaId={materiaId} onCargado={cargar} />
+      <FormCarga alumnos={datos.alumnos} materia={datos.materia} onCargado={cargar} />
       <div className="docente-materia">
         <h3>Notas publicadas</h3>
         {datos.alumnos.map((a) => (
           <div className="docente-comision" key={a.id}>
             <h5>{a.apellido}, {a.nombre} <span className="docente-meta">{a.email}</span></h5>
+            <p className="docente-meta">{estadoAlumno(a)}</p>
             {!a.evaluaciones.length ? <p>Sin notas cargadas.</p> : (
               <ul>{a.evaluaciones.map((ev) => <FilaEvaluacion key={ev.id} evaluacion={ev} onCorregida={cargar} />)}</ul>
             )}
@@ -85,26 +108,45 @@ function NotasMateria({ materiaId }) {
   );
 }
 
-function FormCarga({ alumnos, materiaId, onCargado }) {
+function FormCarga({ alumnos, materia, onCargado }) {
   const [tipo, setTipo] = useState("PARCIAL");
   const [fecha, setFecha] = useState(hoy());
   const [notas, setNotas] = useState({}); // alumnoId -> texto
+  const [condiciones, setCondiciones] = useState({}); // alumnoId -> REGULAR | PROMOCIONADO
   const [aviso, setAviso] = useState(null);
   const [ocupado, setOcupado] = useState(false);
+
+  const cierraCursada = tipo === "CONDICION_FINAL" || tipo === "FINAL";
+  const sinCondicion = cierraCursada && !materia.condicionConfigurada;
+
+  // Condición final: a quien sigue cursando. Examen final: solo a los regulares vigentes.
+  // A los libres no se les carga nada: tienen que volver a inscribirse.
+  const lista = tipo === "CONDICION_FINAL"
+    ? alumnos.filter((a) => !["APROBADA", "REGULAR", "LIBRE"].includes(a.estado))
+    : tipo === "FINAL" ? alumnos.filter(esRegularVigente) : alumnos.filter((a) => !esLibre(a));
+  const condicionDe = (id) => condiciones[id] ?? "REGULAR";
+
+  function cambiarTipo(nuevo) {
+    setTipo(nuevo);
+    setNotas({});
+    setCondiciones({});
+    setAviso(null);
+  }
 
   async function guardar(e) {
     e.preventDefault();
     // Solo se mandan los alumnos con nota escrita: el resto queda para otra carga.
-    const cargadas = alumnos
+    const cargadas = lista
       .filter((a) => (notas[a.id] ?? "").trim())
-      .map((a) => ({ alumnoId: a.id, nota: notas[a.id].trim() }));
+      .map((a) => ({ alumnoId: a.id, nota: notas[a.id].trim(), ...(tipo === "CONDICION_FINAL" ? { condicion: condicionDe(a.id) } : {}) }));
     if (!cargadas.length) return setAviso({ tipo: "error", texto: "Escribí la nota de al menos un alumno." });
 
     setAviso(null);
     setOcupado(true);
     try {
-      await api(`/notas/materias/${materiaId}`, { method: "POST", body: JSON.stringify({ tipo, fecha, notas: cargadas }) });
+      await api(`/notas/materias/${materia.id}`, { method: "POST", body: JSON.stringify({ tipo, fecha, notas: cargadas }) });
       setNotas({});
+      setCondiciones({});
       setAviso({ tipo: "exito", texto: `Se publicaron ${cargadas.length} nota(s). Los alumnos ya pueden verlas.` });
       await onCargado();
     } catch (err) {
@@ -114,36 +156,80 @@ function FormCarga({ alumnos, materiaId, onCargado }) {
     }
   }
 
+  let ayuda = "Dejá vacía la nota de quien no rindió.";
+  if (tipo === "CONDICION_FINAL" && !sinCondicion) {
+    ayuda = `Regular: se regulariza con ${materia.notaRegularizacion} o más y tiene ${MAX_INTENTOS_FINAL} intentos de final en 2 años.`
+      + (materia.esPromocional ? ` Promocionado: con ${materia.notaPromocion} o más aprueba la materia con esa nota.` : " Esta materia no es promocional.")
+      + " Libre: no regularizó; deja de cursar y se le quita la comisión.";
+  }
+  if (tipo === "FINAL" && !sinCondicion) {
+    ayuda = `Con ${materia.notaAprobacionFinal} o más aprueba la materia. Desaprobado el intento ${MAX_INTENTOS_FINAL}, queda libre y se le quita la comisión. Dejá vacía la nota de quien no se presentó.`;
+  }
+
   return (
     <form className="docente-materia" onSubmit={guardar} aria-label="Cargar notas de una evaluación">
       <h3>Cargar notas</h3>
       <div className="docente-horario">
         <label>Evaluación
-          <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
+          <select value={tipo} onChange={(e) => cambiarTipo(e.target.value)}>
             {TIPOS.map(([valor, texto]) => <option key={valor} value={valor}>{texto}</option>)}
           </select>
         </label>
         <label>Fecha<input type="date" required value={fecha} onChange={(e) => setFecha(e.target.value)} /></label>
       </div>
-      <table className="docente-tabla">
-        <thead><tr><th>Alumno</th><th>Nota (0 a 10)</th></tr></thead>
-        <tbody>
-          {alumnos.map((a) => (
-            <tr key={a.id}>
-              <td><label htmlFor={`nota-${a.id}`}>{a.apellido}, {a.nombre}</label></td>
-              <td>
-                <input id={`nota-${a.id}`} type="number" min="0" max="10" step="0.01" inputMode="decimal"
-                  value={notas[a.id] ?? ""} onChange={(e) => setNotas({ ...notas, [a.id]: e.target.value })} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="docente-meta">
-        Dejá vacía la nota de quien no rindió.
-        {tipo === "FINAL" && " Con 4 o más, la materia le queda aprobada al alumno con esa nota."}
-      </p>
-      <div><button className="docente-primario" type="submit" disabled={ocupado}>{ocupado ? "Publicando…" : "Publicar notas"}</button></div>
+
+      {sinCondicion ? (
+        <p className="docente-aviso">
+          Para cargar {NOMBRE_TIPO[tipo].toLowerCase()} primero configurá la condición de la materia
+          (con cuánto se regulariza, se promociona y se aprueba el final) en «Mis materias».
+        </p>
+      ) : !lista.length ? (
+        <p className="docente-aviso">
+          {tipo === "FINAL" ? "No hay alumnos regulares en esta materia."
+            : tipo === "CONDICION_FINAL" ? "Todos los alumnos ya tienen su condición final cargada." : "No hay alumnos cursando esta materia."}
+        </p>
+      ) : (
+        <>
+          <table className="docente-tabla">
+            <thead>
+              <tr>
+                <th>Alumno</th>
+                {tipo === "CONDICION_FINAL" && <th>Condición</th>}
+                {tipo === "FINAL" && <th>Intento</th>}
+                <th>
+                  {tipo === "CONDICION_FINAL" ? "Nota de cursada" : tipo === "FINAL" ? "Nota del final" : "Nota (0 a 10)"}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {lista.map((a) => (
+                <tr key={a.id}>
+                  <td><label htmlFor={`nota-${a.id}`}>{a.apellido}, {a.nombre}</label></td>
+                  {tipo === "CONDICION_FINAL" && (
+                    <td>
+                      <select value={condicionDe(a.id)} aria-label={`Condición de ${a.apellido}, ${a.nombre}`}
+                        onChange={(e) => setCondiciones({ ...condiciones, [a.id]: e.target.value })}>
+                        <option value="REGULAR">Regular</option>
+                        {materia.esPromocional && <option value="PROMOCIONADO">Promocionado</option>}
+                        <option value="LIBRE">Libre</option>
+                      </select>
+                    </td>
+                  )}
+                  {tipo === "FINAL" && (
+                    <td>{a.intentosFinal + 1} de {MAX_INTENTOS_FINAL} <span className="docente-meta">(vence {formatFecha(a.venceRegularidad)})</span></td>
+                  )}
+                  <td>
+                    <input id={`nota-${a.id}`} type="number" min="0" max="10" step="0.01" inputMode="decimal"
+                      value={notas[a.id] ?? ""} onChange={(e) => setNotas({ ...notas, [a.id]: e.target.value })} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="docente-meta">{ayuda}</p>
+          <div><button className="docente-primario" type="submit" disabled={ocupado}>{ocupado ? "Publicando…" : "Publicar notas"}</button></div>
+        </>
+      )}
       {aviso && <p role={aviso.tipo === "error" ? "alert" : "status"} className={`docente-${aviso.tipo}`}>{aviso.texto}</p>}
     </form>
   );
@@ -172,7 +258,8 @@ function FilaEvaluacion({ evaluacion, onCorregida }) {
     }
   }
 
-  const titulo = `${NOMBRE_TIPO[evaluacion.tipo] ?? evaluacion.tipo} del ${formatFecha(evaluacion.fecha)}`;
+  const condicion = evaluacion.condicion ? ` (${NOMBRE_CONDICION[evaluacion.condicion]})` : "";
+  const titulo = `${NOMBRE_TIPO[evaluacion.tipo] ?? evaluacion.tipo}${condicion} del ${formatFecha(evaluacion.fecha)}`;
 
   return (
     <li className="docente-evaluacion">

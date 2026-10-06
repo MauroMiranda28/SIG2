@@ -19,7 +19,9 @@ enum Rol {
 enum EstadoMateria {
   PENDIENTE
   EN_CURSO
+  REGULAR // cursada aprobada, falta el examen final (ver Cursada.regularDesde)
   APROBADA
+  LIBRE // no regularizó o desaprobó los 3 finales: deja de cursar y tiene que volver a inscribirse
 }
 
 enum DiaSemana {
@@ -34,8 +36,15 @@ enum DiaSemana {
 enum TipoEvaluacion {
   PARCIAL
   RECUPERATORIO
-  FINAL
+  FINAL // examen final de un alumno regular (cada uno es un intento)
   TRABAJO_PRACTICO
+  CONDICION_FINAL // cierre de la cursada: regular o promocionado (ver Evaluacion.condicion)
+}
+
+enum CondicionFinal {
+  REGULAR
+  PROMOCIONADO
+  LIBRE // desaprobó la cursada
 }
 
 enum EstadoSolicitud {
@@ -131,6 +140,13 @@ model Materia {
   requiere   Correlatividad[] @relation("MateriaQueRequiere")
   requeridaPor Correlatividad[] @relation("MateriaRequerida")
   programaUrl String?
+
+  // Condición de la materia: la define el docente en «Mis materias».
+  // Mientras notaRegularizacion sea null, la materia no tiene la condición configurada.
+  esPromocional       Boolean @default(false)
+  notaRegularizacion  Float?
+  notaPromocion       Float? // solo si esPromocional
+  notaAprobacionFinal Float?
 }
 
 model Correlatividad {
@@ -173,6 +189,11 @@ model Cursada {
   estado EstadoMateria @default(PENDIENTE)
   nota   Float?
 
+  // Regularidad: fecha en que regularizó (corren 2 años) e intentos de examen final usados (máx. 3).
+  // Se recalculan desde las evaluaciones cada vez que se carga o corrige una condición final o un final.
+  regularDesde  DateTime?
+  intentosFinal Int       @default(0)
+
   alumnoId Int
   alumno   Usuario @relation(fields: [alumnoId], references: [id])
   materiaId Int
@@ -192,6 +213,7 @@ model Evaluacion {
   nota          Float
   fecha         DateTime       @default(now())
   observaciones String?
+  condicion     CondicionFinal? // solo en CONDICION_FINAL
 
   cursadaId Int
   cursada   Cursada @relation(fields: [cursadaId], references: [id])

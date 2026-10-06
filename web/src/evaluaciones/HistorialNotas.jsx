@@ -8,7 +8,8 @@ import { formatFecha } from "../formatFecha.js";
 const ETIQUETA_TIPO = {
   PARCIAL: "Parcial",
   RECUPERATORIO: "Recuperatorio",
-  FINAL: "Final",
+  FINAL: "Examen final",
+  CONDICION_FINAL: "Condición final",
   TRABAJO_PRACTICO: "Trabajo práctico",
 };
 
@@ -53,7 +54,10 @@ export default function HistorialNotas() {
                 <td>
                   {ev.materia.nombre} <span style={{ color: "#777" }}>({ev.materia.codigo})</span>
                 </td>
-                <td>{ETIQUETA_TIPO[ev.tipo] ?? ev.tipo}</td>
+                <td>
+                  {ETIQUETA_TIPO[ev.tipo] ?? ev.tipo}
+                  {ev.condicion && ` · ${{ REGULAR: "Regular", PROMOCIONADO: "Promocionado", LIBRE: "Libre" }[ev.condicion]}`}
+                </td>
                 <td>
                   {ev.nota}
                   {ev.cambios?.length > 0 && (

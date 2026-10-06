@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { prisma } from "../db.js";
 import { requiereAuth, requiereRol } from "../middleware/auth.js";
+import { requiereMateriaAsignada, validarId } from "../services/docentes.js";
+import { validarCondicionMateria } from "../services/notas.js";
 
 // Inyección de DB para probar el contrato HTTP sin credenciales reales (igual que planes/carreras).
 export function crearRouterDocentes(db = prisma) {
@@ -16,6 +18,7 @@ export function crearRouterDocentes(db = prisma) {
         select: {
           id: true, nombre: true, codigo: true, anio: true, cuatrimestre: true, cargaHoraria: true,
           programaUrl: true,
+          esPromocional: true, notaRegularizacion: true, notaPromocion: true, notaAprobacionFinal: true,
           programa: { select: { vigente: true } },
           plan: { select: { nombre: true, carrera: { select: { nombre: true, codigo: true } } } },
           comisiones: {
@@ -40,6 +43,25 @@ export function crearRouterDocentes(db = prisma) {
       })));
     } catch (e) { next(e); }
   });
+
+  // Condición de la materia: si es promocional y con cuánto se regulariza, se promociona
+  // y se aprueba el final. Solo el docente asignado o ADMIN (Seg-05).
+  // No recalcula las notas ya cargadas: rige para las próximas cargas.
+  router.put(
+    "/materias/:id/condicion",
+    requiereRol("DOCENTE", "ADMIN"),
+    requiereMateriaAsignada(db, (req) => validarId(req.params.id, "identificador de la materia")),
+    async (req, res, next) => {
+      try {
+        const datos = validarCondicionMateria(req.body);
+        res.json(await db.materia.update({
+          where: { id: req.materia.id },
+          data: datos,
+          select: { id: true, esPromocional: true, notaRegularizacion: true, notaPromocion: true, notaAprobacionFinal: true },
+        }));
+      } catch (e) { next(e); }
+    }
+  );
 
   // Aulas disponibles para el formulario de horarios.
   router.get("/aulas", requiereRol("DOCENTE", "ADMIN"), async (req, res, next) => {

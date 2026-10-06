@@ -67,8 +67,10 @@ async function conAPI(db, fn) {
   const app = express(); app.use(express.json()); app.use("/api/docentes", crearRouterDocentes(db)); app.use(manejarErrores);
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
-  const request = (ruta, rol, id = 7) => fetch(`http://127.0.0.1:${server.address().port}/api/docentes${ruta}`, {
-    headers: rol ? { Authorization: `Bearer ${jwt.sign({ id, rol }, process.env.JWT_SECRET)}` } : {},
+  const request = (ruta, rol, id = 7, metodo = "GET", body) => fetch(`http://127.0.0.1:${server.address().port}/api/docentes${ruta}`, {
+    method: metodo,
+    headers: { "Content-Type": "application/json", ...(rol ? { Authorization: `Bearer ${jwt.sign({ id, rol }, process.env.JWT_SECRET)}` } : {}) },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   try { await fn(request); } finally { await new Promise((resolve) => server.close(resolve)); }
 }
@@ -109,4 +111,23 @@ test("HTTP: un error interno no filtra detalles al cliente", async () => {
       assert.doesNotMatch(error, /prisma|passwordHash|\$2a\$/);
     });
   } finally { console.error = original; }
+});
+
+// ---------- HTTP: PUT /api/docentes/materias/:id/condicion ----------
+
+test("HTTP: el docente asignado configura la condición de su materia; otro docente o un alumno no", async () => {
+  const condicion = { esPromocional: true, notaRegularizacion: 4, notaPromocion: 7, notaAprobacionFinal: 4 };
+  let guardado;
+  const db = {
+    materia: { findUnique: async () => ({ id: 5, nombre: "Programación I", codigo: "PROG1" }), update: async (args) => { guardado = args; return { id: 5, ...args.data }; } },
+    materiaDocente: { findUnique: async ({ where }) => (where.materiaId_docenteId.docenteId === 7 ? { materiaId: 5 } : null) },
+  };
+  await conAPI(db, async (request) => {
+    assert.equal((await request("/materias/5/condicion", "ALUMNO", 2, "PUT", condicion)).status, 403);
+    assert.equal((await request("/materias/5/condicion", "DOCENTE", 8, "PUT", condicion)).status, 403, "docente no asignado");
+    assert.equal((await request("/materias/5/condicion", "DOCENTE", 7, "PUT", { ...condicion, notaPromocion: 3 })).status, 400);
+    const r = await request("/materias/5/condicion", "DOCENTE", 7, "PUT", condicion);
+    assert.equal(r.status, 200);
+  });
+  assert.deepEqual(guardado, { where: { id: 5 }, data: condicion, select: { id: true, esPromocional: true, notaRegularizacion: true, notaPromocion: true, notaAprobacionFinal: true } });
 });

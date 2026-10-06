@@ -113,6 +113,9 @@ function TarjetaMateria({ materia, aulas, onCambio }) {
         </form>
       </div>
 
+      <FormCondicion materia={materia} deshabilitado={ocupado}
+        onGuardar={(datos) => ejecutar(() => api(`/docentes/materias/${materia.id}/condicion`, { method: "PUT", body: JSON.stringify(datos) }), "Se guardó la condición de la materia.")} />
+
       <div className="docente-bloque">
         <h4>Horarios</h4>
         {!materia.comisiones.length && <p>Esta materia todavía no tiene comisiones.</p>}
@@ -142,6 +145,46 @@ function TarjetaMateria({ materia, aulas, onCambio }) {
         <p role={aviso.tipo === "error" ? "alert" : "status"} className={`docente-${aviso.tipo}`}>{aviso.texto}</p>
       )}
     </article>
+  );
+}
+
+// Condición de la materia: con cuánto se regulariza, se promociona (si es promocional) y se aprueba el final.
+// Rige para las próximas cargas de «Condición final» y «Examen final» en la pestaña «Notas».
+function FormCondicion({ materia, deshabilitado, onGuardar }) {
+  const texto = (v) => (v == null ? "" : String(v));
+  const [esPromocional, setEsPromocional] = useState(materia.esPromocional);
+  const [notaRegularizacion, setNotaRegularizacion] = useState(texto(materia.notaRegularizacion));
+  const [notaPromocion, setNotaPromocion] = useState(texto(materia.notaPromocion));
+  const [notaAprobacionFinal, setNotaAprobacionFinal] = useState(texto(materia.notaAprobacionFinal));
+  const configurada = materia.notaRegularizacion != null;
+
+  function enviar(e) {
+    e.preventDefault();
+    onGuardar({ esPromocional, notaRegularizacion, notaPromocion: esPromocional ? notaPromocion : null, notaAprobacionFinal });
+  }
+
+  const nota = (valor, setValor) => (
+    <input type="number" min="0" max="10" step="0.01" required value={valor} onChange={(e) => setValor(e.target.value)} />
+  );
+
+  return (
+    <div className="docente-bloque">
+      <h4>Condición</h4>
+      <p>
+        {configurada
+          ? `Se regulariza con ${materia.notaRegularizacion}${materia.esPromocional ? `, se promociona con ${materia.notaPromocion}` : " (no es promocional)"} y el final se aprueba con ${materia.notaAprobacionFinal}.`
+          : "Todavía no está configurada: hace falta para cargar condiciones finales y exámenes finales."}
+      </p>
+      <form className="docente-horario" onSubmit={enviar} aria-label={`Condición de ${materia.nombre}`}>
+        <label className="docente-check">
+          <input type="checkbox" checked={esPromocional} onChange={(e) => setEsPromocional(e.target.checked)} /> Es promocional
+        </label>
+        <label>Se regulariza con{nota(notaRegularizacion, setNotaRegularizacion)}</label>
+        {esPromocional && <label>Se promociona con{nota(notaPromocion, setNotaPromocion)}</label>}
+        <label>El final se aprueba con{nota(notaAprobacionFinal, setNotaAprobacionFinal)}</label>
+        <button type="submit" disabled={deshabilitado}>Guardar condición</button>
+      </form>
+    </div>
   );
 }
 

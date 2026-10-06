@@ -3,10 +3,12 @@
 
 import { errorAcceso, validarId } from "./docentes.js";
 
-export const TIPOS_EVALUACION = ["PARCIAL", "RECUPERATORIO", "FINAL", "TRABAJO_PRACTICO"];
+export const TIPOS_EVALUACION = ["PARCIAL", "RECUPERATORIO", "TRABAJO_PRACTICO", "CONDICION_FINAL", "FINAL"];
+export const CONDICIONES = ["REGULAR", "PROMOCIONADO", "LIBRE"];
 export const NOTA_MINIMA = 0;
 export const NOTA_MAXIMA = 10;
-export const NOTA_APROBACION = 4; // nota mínima para aprobar un final
+export const MAX_INTENTOS_FINAL = 3; // desaprobado el tercero, pierde la regularidad
+export const ANIOS_REGULARIDAD = 2; // plazo para aprobar el final desde que regulariza
 const MAX_NOTAS_POR_CARGA = 500;
 const LARGO_OBSERVACIONES_MAXIMO = 500;
 const LARGO_MOTIVO_MINIMO = 5;
@@ -60,7 +62,12 @@ export function validarCargaNotas(body) {
         throw errorAcceso(400, `Las observaciones pueden tener hasta ${LARGO_OBSERVACIONES_MAXIMO} caracteres.`);
       }
     }
-    return { alumnoId, nota: validarNota(item.nota), observaciones };
+    let condicion = null;
+    if (tipo === "CONDICION_FINAL") {
+      if (!CONDICIONES.includes(item.condicion)) throw errorAcceso(400, "Elegí si cada alumno quedó regular, promocionado o libre.");
+      condicion = item.condicion;
+    }
+    return { alumnoId, nota: validarNota(item.nota), observaciones, condicion };
   });
 
   return { tipo, fecha: fechaValida, notas: normalizadas };
@@ -88,20 +95,127 @@ export function filtroAlumnosDeMateria(materiaId) {
   };
 }
 
-// Un final aprobado cierra la cursada: la materia pasa a APROBADA con la nota
-// del final aprobado más reciente. Se recalcula cada vez que se carga o se corrige
-// un final, así una corrección hacia abajo (ej. 6 → 2) vuelve la materia a EN_CURSO.
-// Un final desaprobado no cambia nada: el alumno puede volver a rendir.
-export async function actualizarCursadaPorFinales(tx, cursadaId) {
-  const finales = await tx.evaluacion.findMany({
-    where: { cursadaId, tipo: "FINAL" },
-    select: { nota: true },
-    orderBy: [{ fecha: "desc" }, { id: "desc" }],
+// ---------- Condición de la materia (la define el docente) ----------
+
+// Cuerpo de PUT /api/docentes/materias/:id/condicion.
+export function validarCondicionMateria(body) {
+  if (!esObjeto(body)) throw errorAcceso(400, "Faltan los datos de la condición.");
+  if (typeof body.esPromocional !== "boolean") throw errorAcceso(400, "Indicá si la materia es promocional.");
+  const notaRegularizacion = validarNotaDeCampo(body.notaRegularizacion, "regularizar");
+  const notaAprobacionFinal = validarNotaDeCampo(body.notaAprobacionFinal, "aprobar el final");
+  let notaPromocion = null;
+  if (body.esPromocional) {
+    notaPromocion = validarNotaDeCampo(body.notaPromocion, "promocionar");
+    if (notaPromocion <= notaRegularizacion) throw errorAcceso(400, "La nota de promoción tiene que ser mayor que la de regularización.");
+  }
+  return { esPromocional: body.esPromocional, notaRegularizacion, notaPromocion, notaAprobacionFinal };
+}
+
+function validarNotaDeCampo(valor, para) {
+  if (valor == null || valor === "") throw errorAcceso(400, `Indicá con cuánto se puede ${para}.`);
+  try { return validarNota(valor); } catch { throw errorAcceso(400, `La nota para ${para} tiene que ser un número entre ${NOTA_MINIMA} y ${NOTA_MAXIMA}.`); }
+}
+
+export const condicionConfigurada = (materia) => materia?.notaRegularizacion != null && materia?.notaAprobacionFinal != null;
+
+// ---------- Regularidad ----------
+
+export function vencimientoRegularidad(regularDesde) {
+  if (!regularDesde) return null;
+  const vence = new Date(regularDesde);
+  vence.setUTCFullYear(vence.getUTCFullYear() + ANIOS_REGULARIDAD);
+  return vence;
+}
+
+export const regularidadVigente = (cursada, ahora = new Date()) =>
+  cursada?.estado === "REGULAR" && cursada.regularDesde != null && ahora <= vencimientoRegularidad(cursada.regularDesde);
+
+// Libre: no regularizó, desaprobó los 3 finales o se le venció la regularidad.
+// No sigue cursando: tiene que volver a inscribirse.
+export const estaLibre = (cursada, ahora = new Date()) =>
+  cursada?.estado === "LIBRE" || (cursada?.estado === "REGULAR" && !regularidadVigente(cursada, ahora));
+
+// Calcula el estado de la cursada a partir de sus condiciones finales y exámenes finales,
+// en orden cronológico. Es pura (sin DB) para poder probar todas las reglas:
+// - Promocionado: aprueba la materia con esa nota.
+// - Libre: desaprobó la cursada.
+// - Regular: la materia queda REGULAR desde esa fecha; los intentos arrancan de cero.
+// - Examen final (solo si está regular y dentro del plazo): cada uno es un intento.
+//   Con la nota de aprobación del final, aprueba con esa nota; desaprobado el tercero, queda LIBRE.
+// `intentos` son los finales de la última regularidad (fecha y nota), para mostrárselos al alumno.
+// Devuelve null si no hay condiciones ni finales: entonces no se toca la cursada.
+export function estadoDeCursada(evaluaciones, materia) {
+  const relevantes = evaluaciones.filter((e) => e.tipo === "CONDICION_FINAL" || e.tipo === "FINAL");
+  if (!relevantes.length) return null;
+  const ordenadas = [...relevantes].sort((a, b) => new Date(a.fecha) - new Date(b.fecha) || a.id - b.id);
+  const inicial = (estado, extra = {}) => ({ estado, nota: null, regularDesde: null, intentosFinal: 0, intentos: [], ...extra });
+
+  let estado = inicial("EN_CURSO");
+  for (const ev of ordenadas) {
+    if (estado.estado === "APROBADA") break;
+    const fecha = new Date(ev.fecha);
+    if (ev.tipo === "CONDICION_FINAL") {
+      if (ev.condicion === "PROMOCIONADO") estado = inicial("APROBADA", { nota: ev.nota });
+      else if (ev.condicion === "LIBRE") estado = inicial("LIBRE");
+      else estado = inicial("REGULAR", { regularDesde: fecha });
+      continue;
+    }
+    // Examen final: no cuenta si no estaba regular o si lo rindió fuera del plazo.
+    if (estado.estado !== "REGULAR" || fecha < estado.regularDesde || fecha > vencimientoRegularidad(estado.regularDesde)) continue;
+    const intentosFinal = estado.intentosFinal + 1;
+    const intentos = [...estado.intentos, { id: ev.id, fecha: ev.fecha, nota: ev.nota }];
+    if (materia.notaAprobacionFinal != null && ev.nota >= materia.notaAprobacionFinal) {
+      estado = { ...estado, estado: "APROBADA", nota: ev.nota, intentosFinal, intentos };
+    } else if (intentosFinal >= MAX_INTENTOS_FINAL) {
+      estado = inicial("LIBRE", { intentosFinal, intentos });
+    } else {
+      estado = { ...estado, intentosFinal, intentos };
+    }
+  }
+  return estado;
+}
+
+// `cursada` trae id, alumnoId y materiaId. Si queda LIBRE, se le quita la comisión elegida:
+// deja de cursar (sale de «Mi horario») hasta que vuelva a inscribirse.
+export async function recalcularCursada(tx, cursada, materia) {
+  const evaluaciones = await tx.evaluacion.findMany({
+    where: { cursadaId: cursada.id, tipo: { in: ["CONDICION_FINAL", "FINAL"] } },
+    select: { id: true, tipo: true, condicion: true, nota: true, fecha: true },
   });
-  const aprobado = finales.find((f) => f.nota >= NOTA_APROBACION);
-  if (aprobado) {
-    await tx.cursada.update({ where: { id: cursadaId }, data: { estado: "APROBADA", nota: aprobado.nota } });
-  } else {
-    await tx.cursada.updateMany({ where: { id: cursadaId, estado: "APROBADA" }, data: { estado: "EN_CURSO", nota: null } });
+  const calculado = estadoDeCursada(evaluaciones, materia);
+  if (!calculado) return;
+  const { intentos, ...estado } = calculado;
+  await tx.cursada.update({ where: { id: cursada.id }, data: estado });
+  if (estado.estado === "LIBRE") {
+    await tx.inscripcionComision.deleteMany({ where: { alumnoId: cursada.alumnoId, comision: { materiaId: cursada.materiaId } } });
   }
 }
+
+// Antes de guardar, rechaza lo que no corresponde con un mensaje que nombra al alumno.
+// `cursada` es el estado actual (estado, regularDesde); `materia` trae la condición configurada.
+export function verificarCarga({ tipo, condicion, nota, fecha }, { cursada, materia, nombre }, ahora = new Date()) {
+  if (estaLibre(cursada, ahora)) {
+    throw errorAcceso(400, `${nombre} está libre: tiene que volver a inscribirse para cursar la materia.`);
+  }
+  if (tipo === "CONDICION_FINAL") {
+    if (cursada?.estado === "APROBADA") throw errorAcceso(409, `${nombre} ya aprobó la materia.`);
+    if (regularidadVigente(cursada, ahora)) {
+      throw errorAcceso(409, `${nombre} ya está regular (vence el ${formatoFecha(vencimientoRegularidad(cursada.regularDesde))}).`);
+    }
+    if (condicion === "PROMOCIONADO") {
+      if (!materia.esPromocional) throw errorAcceso(400, "Esta materia no es promocional: no se puede cargar la condición promocionado.");
+      if (nota < materia.notaPromocion) throw errorAcceso(400, `Para promocionar hace falta ${materia.notaPromocion} o más (${nombre} tiene ${nota}).`);
+    } else if (condicion === "REGULAR" && nota < materia.notaRegularizacion) {
+      throw errorAcceso(400, `Para regularizar hace falta ${materia.notaRegularizacion} o más (${nombre} tiene ${nota}). Si no regularizó, cargalo como libre.`);
+    }
+  }
+  if (tipo === "FINAL") {
+    if (cursada?.estado !== "REGULAR" || !cursada.regularDesde) throw errorAcceso(400, `${nombre} no está regular: no puede rendir el examen final.`);
+    if (fecha < new Date(cursada.regularDesde)) throw errorAcceso(400, `La fecha del final es anterior a la regularización de ${nombre}.`);
+    const vence = vencimientoRegularidad(cursada.regularDesde);
+    if (fecha > vence) throw errorAcceso(400, `La regularidad de ${nombre} venció el ${formatoFecha(vence)}: tiene que volver a cursar.`);
+  }
+}
+
+// Las fechas de calendario se guardan a medianoche UTC.
+const formatoFecha = (fecha) => new Date(fecha).toLocaleDateString("es-AR", { timeZone: "UTC" });

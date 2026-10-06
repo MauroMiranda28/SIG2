@@ -8,7 +8,8 @@ import { formatFecha } from "../formatFecha.js";
 const ETIQUETA_TIPO = {
   PARCIAL: "Parcial",
   RECUPERATORIO: "Recuperatorio",
-  FINAL: "Final",
+  FINAL: "Examen final",
+  CONDICION_FINAL: "Condición final",
   TRABAJO_PRACTICO: "Trabajo práctico",
 };
 
