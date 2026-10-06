@@ -175,13 +175,13 @@ export default function MateriasCarrera() {
 
                     {programa && (
                       <>
-                        <p style={{ margin: "0 0 0.5rem 0" }}>
+                        <p style={{ margin: "0 0 0.5rem 0", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
                           <strong>Contenidos</strong>
                           <br />
                           {programa.programa.contenidos}
                         </p>
                         {programa.programa.bibliografia && (
-                          <p style={{ margin: "0 0 0.5rem 0" }}>
+                          <p style={{ margin: "0 0 0.5rem 0", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
                             <strong>Bibliografía</strong>
                             <br />
                             {programa.programa.bibliografia}

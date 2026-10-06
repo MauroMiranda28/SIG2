@@ -1,0 +1,12 @@
+.programas { line-height: 1.5; }
+.programas fieldset { display: grid; gap: .75rem; min-width: 0; border: 1px solid #cbd5e1; border-radius: 8px; padding: 1rem; }
+.programas label { display: grid; gap: .35rem; font-weight: 600; }
+.programas select, .programas textarea { width: 100%; min-width: 0; box-sizing: border-box; font: inherit; padding: .6rem; border: 1px solid #94a3b8; border-radius: 4px; background: white; color: #172033; }
+.programas textarea { resize: vertical; }
+.programas small { color: #475569; }
+.programas button { font: inherit; padding: .6rem .9rem; cursor: pointer; }
+.programas button[type=submit] { background: #164e83; color: white; border: 0; border-radius: 4px; }
+.programas button:disabled { opacity: .65; cursor: default; }
+.programas-error { color: #a11224; }
+.programas-exito { background: #e8f5ed; color: #185c35; padding: 1rem; border-radius: 4px; }
+.programas-texto { white-space: pre-wrap; overflow-wrap: anywhere; }
