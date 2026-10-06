@@ -71,6 +71,15 @@ enum AccionMateria {
   PROGRAMA_SUBIDO
 }
 
+// Qué originó la notificación. Cada historia de notificaciones suma su emisor.
+enum TipoNotificacion {
+  AVISO_DOCENTE // el docente avisa algo a los alumnos de su materia
+  HORARIO_MODIFICADO // cambió el horario o el aula de una clase
+  CALIFICACION_PUBLICADA // se publicó una nota
+  FECHA_EXAMEN // fecha de un parcial o final
+  RECORDATORIO_ENTREGA // se acerca la entrega de una tarea
+}
+
 // Seg-01, Seg-04, U-01, U-02 y las dos nuevas de docente
 model Usuario {
   id           Int      @id @default(autoincrement())
@@ -100,6 +109,7 @@ model Usuario {
   evaluacionesCargadas Evaluacion[]
   cambiosDeNota   CambioNota[]
   cambiosDeMateria CambioMateria[]
+  notificaciones  Notificacion[]
 }
 
 // CAR-01 a CAR-09
@@ -149,6 +159,7 @@ model Materia {
   cursadas   Cursada[]
   asistencias Asistencia[]
   cambios     CambioMateria[]
+  notificaciones Notificacion[]
 
   // PE-04, PE-06: correlatividades
   requiere   Correlatividad[] @relation("MateriaQueRequiere")
@@ -180,6 +191,26 @@ model CambioMateria {
   autor   Usuario @relation(fields: [autorId], references: [id])
 
   @@index([materiaId, creadoEn])
+}
+
+// Una fila por destinatario: cada usuario tiene su propio historial y marca como leídas
+// solo las suyas. Se conservan después de leídas (el historial no se borra).
+model Notificacion {
+  id       Int              @id @default(autoincrement())
+  tipo     TipoNotificacion
+  titulo   String
+  mensaje  String
+  creadoEn DateTime         @default(now())
+  leidaEn  DateTime? // null mientras no la leyó
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+  // Materia a la que se refiere, si corresponde.
+  materiaId Int?
+  materia   Materia? @relation(fields: [materiaId], references: [id])
+
+  @@index([usuarioId, id])
 }
 
 // Para cursar `materia` hace falta `requiere`, regular (DEBIL) o aprobada (FUERTE).

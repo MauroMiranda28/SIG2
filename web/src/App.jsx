@@ -13,6 +13,7 @@ import HistorialNotas from "./evaluaciones/HistorialNotas.jsx";
 import SolicitarRevision from "./revisiones/SolicitarRevision.jsx";
 import MiAsistencia from "./asistencia/MiAsistencia.jsx";
 import SimularPromedio from "./promedio/SimularPromedio.jsx";
+import Notificaciones from "./notificaciones/Notificaciones.jsx";
 
 import CrearPlan from "./planes/CrearPlan.jsx";
 import MiPlan from "./planes/MiPlan.jsx";
@@ -29,6 +30,7 @@ export default function App() {
   const [cargando, setCargando] = useState(true);
   const [vista, setVista] = useState("login");
   const [tab, setTab] = useState("materias");
+  const [noLeidas, setNoLeidas] = useState(0);
 
   useEffect(() => {
     if (!leerToken()) {
@@ -41,8 +43,15 @@ export default function App() {
       .finally(() => setCargando(false));
   }, []);
 
+  // El número de notificaciones sin leer del menú (solo alumnos).
+  useEffect(() => {
+    if (usuario?.rol !== "ALUMNO") return;
+    api("/notificaciones?limite=1&soloNoLeidas=true").then((d) => setNoLeidas(d.noLeidas)).catch(() => {});
+  }, [usuario]);
+
   function cerrarSesion() {
     borrarToken();
+    setNoLeidas(0);
     setUsuario(null);
     setVista("login");
     setTab("materias");
@@ -92,6 +101,7 @@ export default function App() {
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("revision-nota")} disabled={tab === "revision-nota"}>Solicitar revisión</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("asistencia")} disabled={tab === "asistencia"}>Mi asistencia</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("simular-promedio")} disabled={tab === "simular-promedio"}>Simular promedio</button>}
+        {usuario.rol === "ALUMNO" && <button onClick={() => setTab("notificaciones")} disabled={tab === "notificaciones"}>Notificaciones{noLeidas > 0 ? ` (${noLeidas})` : ""}</button>}
         <button onClick={() => setTab("mis-datos")} disabled={tab === "mis-datos"} style={{ cursor: "pointer" }}>
           Mis datos
         </button>
@@ -115,6 +125,7 @@ export default function App() {
       {tab === "revision-nota" && usuario.rol === "ALUMNO" && <SolicitarRevision />}
       {tab === "asistencia" && usuario.rol === "ALUMNO" && <MiAsistencia />}
       {tab === "simular-promedio" && usuario.rol === "ALUMNO" && <SimularPromedio />}
+      {tab === "notificaciones" && usuario.rol === "ALUMNO" && <Notificaciones onCambioNoLeidas={setNoLeidas} />}
       {tab === "cargar-programa" && usuario.rol === "ADMIN" && <CargarPrograma />}
       {tab === "mi-carrera" && usuario.rol === "ALUMNO" && <MiCarrera />}
       {tab === "mis-datos" && <MisDatos usuario={usuario} onActualizado={(datos) => setUsuario({ ...usuario, ...datos })} />}
