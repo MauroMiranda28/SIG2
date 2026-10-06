@@ -120,6 +120,7 @@ model Usuario {
   notificaciones  Notificacion[] @relation("DestinatarioNotificacion")
   avisosEnviados  Notificacion[] @relation("AutorNotificacion")
   examenesProgramados FechaExamen[]
+  tareasCreadas   Tarea[]
 }
 
 // CAR-01 a CAR-09
@@ -169,6 +170,7 @@ model Materia {
   cursadas   Cursada[]
   asistencias Asistencia[]
   examenes    FechaExamen[]
+  tareas      Tarea[]
   cambios     CambioMateria[]
   notificaciones Notificacion[]
 
@@ -225,7 +227,31 @@ model Notificacion {
   materiaId Int?
   materia   Materia? @relation(fields: [materiaId], references: [id])
 
+  // Evita repetir un aviso que el sistema genera solo (ej. el recordatorio de una entrega):
+  // el mismo usuario no puede tener dos con la misma clave. Null en las demás.
+  clave String?
+
+  @@unique([usuarioId, clave])
   @@index([usuarioId, id])
+}
+
+// Tarea que el docente pide en su materia, con fecha de entrega. Cuando se acerca la fecha, los
+// alumnos de la materia reciben un recordatorio (notificación RECORDATORIO_ENTREGA).
+model Tarea {
+  id           Int      @id @default(autoincrement())
+  titulo       String
+  descripcion  String?
+  fechaEntrega DateTime @db.Date
+  creadaEn     DateTime @default(now())
+
+  materiaId Int
+  materia   Materia @relation(fields: [materiaId], references: [id])
+
+  // Docente de la materia o ADMIN que la cargó.
+  creadaPorId Int
+  creadaPor   Usuario @relation(fields: [creadaPorId], references: [id])
+
+  @@index([materiaId, fechaEntrega])
 }
 
 // Para cursar `materia` hace falta `requiere`, regular (DEBIL) o aprobada (FUERTE).

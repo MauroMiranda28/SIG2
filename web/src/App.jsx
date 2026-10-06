@@ -23,6 +23,7 @@ import ConsultaMaterias from "./docentes/ConsultaMaterias.jsx";
 import NotasDocente from "./docentes/NotasDocente.jsx";
 import EnviarAviso from "./docentes/EnviarAviso.jsx";
 import FechasExamen from "./docentes/FechasExamen.jsx";
+import Tareas from "./docentes/Tareas.jsx";
 
 import MiCarrera from "./carreras/MiCarrera.jsx";
 import CargarPrograma from "./programas/CargarPrograma.jsx";
@@ -94,6 +95,7 @@ export default function App() {
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("notas-docente")} disabled={tab === "notas-docente"}>Notas</button>}
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("enviar-aviso")} disabled={tab === "enviar-aviso"}>Enviar aviso</button>}
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("fechas-examen")} disabled={tab === "fechas-examen"}>Fechas de examen</button>}
+        {usuario.rol === "DOCENTE" && <button onClick={() => setTab("tareas")} disabled={tab === "tareas"}>Tareas</button>}
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("carreras")} disabled={tab === "carreras"}>Carreras</button>}
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("crear-plan")} disabled={tab === "crear-plan"}>Crear plan</button>}
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("correlatividades-admin")} disabled={tab === "correlatividades-admin"}>Correlatividades</button>}
@@ -120,6 +122,7 @@ export default function App() {
       {tab === "notas-docente" && usuario.rol === "DOCENTE" && <NotasDocente />}
       {tab === "enviar-aviso" && usuario.rol === "DOCENTE" && <EnviarAviso />}
       {tab === "fechas-examen" && usuario.rol === "DOCENTE" && <FechasExamen />}
+      {tab === "tareas" && usuario.rol === "DOCENTE" && <Tareas />}
       {tab === "carreras" && usuario.rol === "ADMIN" && <Carreras />}
       {tab === "crear-plan" && usuario.rol === "ADMIN" && <CrearPlan />}
       {tab === "correlatividades-admin" && usuario.rol === "ADMIN" && <CargarCorrelatividades />}

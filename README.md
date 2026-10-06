@@ -326,6 +326,21 @@ Lo que ya está implementado, para no repetir trabajo:
 - Pestaña «Fechas de examen» del DOCENTE (programar, reprogramar, cancelar).
 - Schema: modelo `FechaExamen` y enum `TipoExamen`. Correr `db:push`. Tests: `node --test api/test/examenes.test.js`.
 
+**Notificaciones: recordatorio de entrega de tareas**
+- El DOCENTE asignado (o ADMIN) carga las tareas de su materia con fecha de entrega: `GET /api/tareas/materias/:id`,
+  `POST /api/tareas/materias/:id` (`titulo`, `descripcion` opcional, `fechaEntrega`), `PATCH /api/tareas/:id` y
+  `DELETE /api/tareas/:id`. La entrega no puede ser anterior a hoy (fecha de Argentina). Un docente no asignado recibe 403.
+- Cuando se acerca la entrega (de hoy a **3 días antes**, `DIAS_ANTICIPACION`), los alumnos de la materia reciben una
+  notificación `RECORDATORIO_ENTREGA` (ej. «La entrega de «TP 1» (Programación I) vence mañana: miércoles, 7/10/2026.»).
+- No hay un proceso programado: el recordatorio se genera cuando el alumno abre su historial (`GET /api/notificaciones`,
+  primera página). Se manda **una sola vez** por alumno, tarea y fecha de entrega (clave única en `Notificacion.clave`),
+  aunque consulte muchas veces o a la vez. Si el docente cambia la fecha, se vuelve a avisar con la nueva.
+  Si falla la generación, el historial igual se muestra.
+- Pestaña «Tareas» del DOCENTE.
+- Schema: modelo `Tarea` y `Notificacion.clave` con restricción única `[usuarioId, clave]`. Correr
+  `db:push --accept-data-loss`: Prisma avisa por la restricción nueva, pero es seguro porque las notificaciones existentes
+  quedan con `clave` nula y los nulos no cuentan como duplicados. Tests: `node --test api/test/tareas.test.js`.
+
 **Privacidad del seguimiento académico**
 - Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del
   token y son solo para ALUMNO. `api/test/privacidad.test.js` lo verifica para que no se rompa.
