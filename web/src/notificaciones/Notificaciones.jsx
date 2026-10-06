@@ -119,6 +119,7 @@ export default function Notificaciones({ onCambioNoLeidas }) {
                 <span>
                   {ETIQUETA_TIPO[n.tipo] ?? n.tipo}
                   {n.materia ? ` · ${n.materia.nombre}` : ""}
+                  {n.autor ? ` · ${n.autor.nombre} ${n.autor.apellido}` : ""}
                 </span>
                 <span>{formatFechaHora(n.creadoEn)}</span>
               </div>

@@ -283,6 +283,16 @@ Lo que ya está implementado, para no repetir trabajo:
 - Schema: modelo nuevo `Notificacion` y enum `TipoNotificacion`. Correr `db:push`.
   Tests: `node --test api/test/notificaciones.test.js`.
 
+**Notificaciones: avisos del docente**
+- `POST /api/docentes/materias/:id/avisos` (DOCENTE asignado o ADMIN) con `{ titulo, mensaje }` — le envía una
+  notificación `AVISO_DOCENTE` a cada alumno de la materia (los que tienen cursada o eligieron una de sus comisiones).
+  Responde `{ materia, enviadas }`; con 409 si la materia todavía no tiene alumnos.
+- Los destinatarios, la materia y el autor los arma el servidor: el cuerpo no acepta una lista de alumnos ni ids.
+  Título hasta 120 caracteres y mensaje hasta 1000. Un docente no asignado recibe 403 y no se envía nada.
+- El alumno ve el aviso en su historial con la materia y quién lo envió. Pestaña «Enviar aviso» del DOCENTE.
+- Schema: `Notificacion.autorId` (quién la envió; null en las que genera el sistema). Correr `db:push`.
+  Tests: `node --test api/test/avisos-docente.test.js`.
+
 **Privacidad del seguimiento académico**
 - Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del
   token y son solo para ALUMNO. `api/test/privacidad.test.js` lo verifica para que no se rompa.

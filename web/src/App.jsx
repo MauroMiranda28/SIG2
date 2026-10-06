@@ -21,6 +21,7 @@ import Carreras from "./carreras/Carreras.jsx";
 import MisMaterias from "./docentes/MisMaterias.jsx";
 import ConsultaMaterias from "./docentes/ConsultaMaterias.jsx";
 import NotasDocente from "./docentes/NotasDocente.jsx";
+import EnviarAviso from "./docentes/EnviarAviso.jsx";
 
 import MiCarrera from "./carreras/MiCarrera.jsx";
 import CargarPrograma from "./programas/CargarPrograma.jsx";
@@ -90,6 +91,7 @@ export default function App() {
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("mis-materias")} disabled={tab === "mis-materias"}>Mis materias</button>}
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("consultar-materias")} disabled={tab === "consultar-materias"}>Consultar materias</button>}
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("notas-docente")} disabled={tab === "notas-docente"}>Notas</button>}
+        {usuario.rol === "DOCENTE" && <button onClick={() => setTab("enviar-aviso")} disabled={tab === "enviar-aviso"}>Enviar aviso</button>}
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("carreras")} disabled={tab === "carreras"}>Carreras</button>}
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("crear-plan")} disabled={tab === "crear-plan"}>Crear plan</button>}
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("correlatividades-admin")} disabled={tab === "correlatividades-admin"}>Correlatividades</button>}
@@ -114,6 +116,7 @@ export default function App() {
       {tab === "mis-materias" && usuario.rol === "DOCENTE" && <MisMaterias />}
       {tab === "consultar-materias" && usuario.rol === "DOCENTE" && <ConsultaMaterias />}
       {tab === "notas-docente" && usuario.rol === "DOCENTE" && <NotasDocente />}
+      {tab === "enviar-aviso" && usuario.rol === "DOCENTE" && <EnviarAviso />}
       {tab === "carreras" && usuario.rol === "ADMIN" && <Carreras />}
       {tab === "crear-plan" && usuario.rol === "ADMIN" && <CrearPlan />}
       {tab === "correlatividades-admin" && usuario.rol === "ADMIN" && <CargarCorrelatividades />}
