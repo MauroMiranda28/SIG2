@@ -6,6 +6,7 @@ import {
   validarCargaNotas, validarCorreccionNota, filtroAlumnosDeMateria, condicionConfigurada,
   verificarCarga, recalcularCursada, vencimientoRegularidad,
 } from "../services/notas.js";
+import { avisoCalificacion, avisoCorreccion, crearNotificacionesIndividuales } from "../services/notificaciones.js";
 
 const DATOS_CAMBIO = {
   id: true, notaAnterior: true, notaNueva: true, motivo: true, creadoEn: true,
@@ -109,6 +110,7 @@ export function crearRouterNotas(db = prisma) {
         }
 
         const resultado = [];
+        const avisos = []; // una notificación por alumno, con su propia nota
         for (const item of notas) {
           const { alumnoId, nota, observaciones, condicion } = item;
           const cursada = await tx.cursada.upsert({
@@ -124,7 +126,13 @@ export function crearRouterNotas(db = prisma) {
             select: { id: true, tipo: true, condicion: true, nota: true, fecha: true, observaciones: true, cursada: { select: { alumnoId: true } } },
           }));
           if (cierraCursada) await recalcularCursada(tx, { id: cursada.id, alumnoId, materiaId }, materia);
+          avisos.push({
+            usuarioId: alumnoId, tipo: "CALIFICACION_PUBLICADA", materiaId, autorId: req.usuario.id,
+            ...avisoCalificacion({ materiaNombre: req.materia.nombre, tipo, condicion, nota, fecha }),
+          });
         }
+        // El alumno se entera apenas se publica; si algo falla antes, no se guarda ni la nota ni el aviso.
+        await crearNotificacionesIndividuales(tx, avisos);
         return resultado;
       });
 
@@ -167,6 +175,10 @@ export function crearRouterNotas(db = prisma) {
         if (actual.tipo === "CONDICION_FINAL" || actual.tipo === "FINAL") {
           await recalcularCursada(tx, { id: actual.cursadaId, alumnoId: actual.cursada.alumnoId, materiaId: actual.cursada.materiaId }, materia);
         }
+        await crearNotificacionesIndividuales(tx, [{
+          usuarioId: actual.cursada.alumnoId, tipo: "CALIFICACION_PUBLICADA", materiaId: actual.cursada.materiaId, autorId: req.usuario.id,
+          ...avisoCorreccion({ materiaNombre: req.materia.nombre, tipo: actual.tipo, notaAnterior: actual.nota, notaNueva: nota }),
+        }]);
         return evaluacion;
       });
 

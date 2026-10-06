@@ -81,6 +81,53 @@ export async function avisarCambioHorario(db, { comisionId, materiaId, materiaNo
   });
 }
 
+// ---------- Calificaciones ----------
+
+const ETIQUETA_EVALUACION = {
+  PARCIAL: "Parcial", RECUPERATORIO: "Recuperatorio", FINAL: "Examen final",
+  TRABAJO_PRACTICO: "Trabajo práctico", CONDICION_FINAL: "Condición final",
+};
+const ETIQUETA_CONDICION = { REGULAR: "Regular", PROMOCIONADO: "Promocionado", LIBRE: "Libre" };
+
+const formatoNota = (nota) => String(nota).replace(".", ",");
+// Las fechas de calendario se guardan a medianoche UTC.
+const formatoFecha = (fecha) => new Date(fecha).toLocaleDateString("es-AR", { timeZone: "UTC" });
+
+// Texto del aviso cuando se publica una nota. Es un aviso personal: lleva la nota del propio alumno.
+export function avisoCalificacion({ materiaNombre, tipo, condicion, nota, fecha }) {
+  const etiqueta = ETIQUETA_EVALUACION[tipo] ?? "Evaluación";
+  const resultado = tipo === "CONDICION_FINAL" && condicion ? `${ETIQUETA_CONDICION[condicion] ?? condicion} (nota ${formatoNota(nota)})` : `nota ${formatoNota(nota)}`;
+  return {
+    titulo: `Nueva calificación en ${materiaNombre}`,
+    mensaje: `${etiqueta} del ${formatoFecha(fecha)}: ${resultado}.`,
+  };
+}
+
+// Texto del aviso cuando se corrige una nota que ya estaba publicada.
+export function avisoCorreccion({ materiaNombre, tipo, notaAnterior, notaNueva }) {
+  const etiqueta = ETIQUETA_EVALUACION[tipo] ?? "Evaluación";
+  return {
+    titulo: `Se corrigió una calificación de ${materiaNombre}`,
+    mensaje: `${etiqueta}: la nota pasó de ${formatoNota(notaAnterior)} a ${formatoNota(notaNueva)}.`,
+  };
+}
+
+// Crea varias notificaciones con texto distinto para cada destinatario, de una sola vez.
+// Cada fila: { usuarioId, tipo, titulo, mensaje, materiaId, autorId }. Como pasa con las demás
+// notificaciones generadas por el sistema, un texto largo se acorta y nunca hace fallar el cambio.
+export async function crearNotificacionesIndividuales(db, filas) {
+  if (!filas.length) return { creadas: 0 };
+  const data = filas.map((f) => {
+    if (!TIPOS_NOTIFICACION.includes(f.tipo)) throw errorAcceso(400, "El tipo de notificación no es válido.");
+    return {
+      usuarioId: f.usuarioId, tipo: f.tipo, materiaId: f.materiaId ?? null, autorId: f.autorId ?? null,
+      titulo: acortar(f.titulo, LARGO_TITULO_MAXIMO), mensaje: acortar(f.mensaje, LARGO_MENSAJE_MAXIMO),
+    };
+  });
+  const { count } = await db.notificacion.createMany({ data });
+  return { creadas: count };
+}
+
 // Cuerpo de POST /api/docentes/materias/:id/avisos: título y mensaje del aviso.
 export function validarAviso(body) {
   if (body == null || typeof body !== "object" || Array.isArray(body)) throw errorAcceso(400, "Faltan los datos del aviso.");
