@@ -131,6 +131,7 @@ web/
   src/planes/             crear plan, mi plan, asignar carrera/plan (ADMIN)
   src/carreras/           registrar y modificar carreras (ADMIN)
   src/docentes/           mis materias (horarios y programa) y carga de notas (DOCENTE)
+  src/correlatividades/   consulta del alumno y carga del ADMIN
 ```
 
 ## Cómo trabajamos
@@ -243,6 +244,17 @@ Lo que ya está implementado, para no repetir trabajo:
 - El alumno ve las notas al instante en «Historial de notas», y si una fue corregida, el valor anterior y el motivo.
 - Pestaña «Notas» para el DOCENTE. Tests: `node --test api/test/notas.test.js`.
 
+**Correlatividades**
+- `GET /api/correlatividades` (ALUMNO) — cada materia de su plan con sus correlativas, si las cumple y si puede
+  cursarla. **Fuerte**: la requerida tiene que estar APROBADA. **Débil**: alcanza con REGULAR vigente (o aprobada).
+  Una materia puede tener de los dos tipos. Pestaña «Correlatividades» del alumno.
+- ADMIN (pestaña «Correlatividades»): `GET /api/correlatividades/planes`, `GET /api/correlatividades/plan/:id`,
+  `POST /api/correlatividades` (`materiaId`, `requiereId`, `tipo`), `PATCH /:id` (cambia el tipo) y `DELETE /:id`.
+  Las dos materias tienen que ser del mismo plan y no se permiten ciclos (A necesita B y B necesita A).
+- Schema: enum `TipoCorrelatividad` y `Correlatividad.tipo` (las que ya existían quedan como FUERTE).
+- Solo informa: todavía no bloquea elegir comisión si no se cumplen (eso va con la historia de inscripción).
+  Tests: `node --test api/test/correlatividades.test.js`.
+
 **Privacidad del seguimiento académico**
 - Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del
   token y son solo para ALUMNO. `api/test/privacidad.test.js` lo verifica para que no se rompa.
@@ -251,7 +263,7 @@ Lo que ya está implementado, para no repetir trabajo:
 - Regla para el módulo de calendario cuando se haga: las actividades se filtran siempre por
   `req.usuario.id`, nunca por un id que venga en la URL o el body.
 
-Todo lo demás (correlatividades, calendario, notificaciones) está sin empezar.
+Todo lo demás (calendario, notificaciones) está sin empezar.
 
 ## Una cosa para definir en grupo
 

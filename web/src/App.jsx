@@ -4,6 +4,8 @@ import Login from "./auth/Login.jsx";
 import Registro from "./auth/Registro.jsx";
 import MateriasCarrera from "./materias/MateriasCarrera.jsx";
 import Bibliografia from "./materias/Bibliografia.jsx";
+import Correlatividades from "./correlatividades/Correlatividades.jsx";
+import CargarCorrelatividades from "./correlatividades/CargarCorrelatividades.jsx";
 import GrillaSemanal from "./horarios/GrillaSemanal.jsx";
 import MisDatos from "./perfil/MisDatos.jsx";
 import MisNotas from "./notas/MisNotas.jsx";
@@ -76,8 +78,10 @@ export default function App() {
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("notas-docente")} disabled={tab === "notas-docente"}>Notas</button>}
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("carreras")} disabled={tab === "carreras"}>Carreras</button>}
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("crear-plan")} disabled={tab === "crear-plan"}>Crear plan</button>}
+        {usuario.rol === "ADMIN" && <button onClick={() => setTab("correlatividades-admin")} disabled={tab === "correlatividades-admin"}>Correlatividades</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("mi-plan")} disabled={tab === "mi-plan"}>Mi plan de estudios</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("bibliografia")} disabled={tab === "bibliografia"}>Bibliografía</button>}
+        {usuario.rol === "ALUMNO" && <button onClick={() => setTab("correlatividades")} disabled={tab === "correlatividades"}>Correlatividades</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("notas")} disabled={tab === "notas"}>Mis notas</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("historial-notas")} disabled={tab === "historial-notas"}>Historial de notas</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("revision-nota")} disabled={tab === "revision-nota"}>Solicitar revisión</button>}
@@ -94,8 +98,10 @@ export default function App() {
       {tab === "notas-docente" && usuario.rol === "DOCENTE" && <NotasDocente />}
       {tab === "carreras" && usuario.rol === "ADMIN" && <Carreras />}
       {tab === "crear-plan" && usuario.rol === "ADMIN" && <CrearPlan />}
+      {tab === "correlatividades-admin" && usuario.rol === "ADMIN" && <CargarCorrelatividades />}
       {tab === "mi-plan" && usuario.rol === "ALUMNO" && <MiPlan />}
       {tab === "bibliografia" && usuario.rol === "ALUMNO" && <Bibliografia />}
+      {tab === "correlatividades" && usuario.rol === "ALUMNO" && <Correlatividades />}
       {tab === "notas" && usuario.rol === "ALUMNO" && <MisNotas />}
       {tab === "historial-notas" && usuario.rol === "ALUMNO" && <HistorialNotas />}
       {tab === "revision-nota" && usuario.rol === "ALUMNO" && <SolicitarRevision />}
