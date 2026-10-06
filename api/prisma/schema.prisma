@@ -71,6 +71,14 @@ enum AccionMateria {
   PROGRAMA_SUBIDO
 }
 
+// Instancias que el docente puede programar con anticipación (a diferencia de TipoEvaluacion,
+// que es la nota ya rendida).
+enum TipoExamen {
+  PARCIAL
+  RECUPERATORIO
+  FINAL
+}
+
 // Qué originó la notificación. Cada historia de notificaciones suma su emisor.
 enum TipoNotificacion {
   AVISO_DOCENTE // el docente avisa algo a los alumnos de su materia
@@ -111,6 +119,7 @@ model Usuario {
   cambiosDeMateria CambioMateria[]
   notificaciones  Notificacion[] @relation("DestinatarioNotificacion")
   avisosEnviados  Notificacion[] @relation("AutorNotificacion")
+  examenesProgramados FechaExamen[]
 }
 
 // CAR-01 a CAR-09
@@ -159,6 +168,7 @@ model Materia {
   docentes   MateriaDocente[]
   cursadas   Cursada[]
   asistencias Asistencia[]
+  examenes    FechaExamen[]
   cambios     CambioMateria[]
   notificaciones Notificacion[]
 
@@ -355,6 +365,29 @@ model Aula {
   capacidad Int?
 
   bloques BloqueHorario[]
+  examenes FechaExamen[]
+}
+
+// Fecha de un parcial, recuperatorio o final que el docente programa para su materia.
+// Al cargarla, reprogramarla o cancelarla los alumnos de la materia reciben una notificación.
+model FechaExamen {
+  id    Int        @id @default(autoincrement())
+  tipo  TipoExamen
+  fecha DateTime   @db.Date
+  hora  String? // "18:00"; null si todavía no se sabe
+  creadoEn DateTime @default(now())
+
+  materiaId Int
+  materia   Materia @relation(fields: [materiaId], references: [id])
+
+  aulaId Int?
+  aula   Aula? @relation(fields: [aulaId], references: [id])
+
+  // Docente de la materia o ADMIN que la programó.
+  creadoPorId Int
+  creadoPor   Usuario @relation(fields: [creadoPorId], references: [id])
+
+  @@index([materiaId, fecha])
 }
 
 model Comision {

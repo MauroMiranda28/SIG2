@@ -17,6 +17,7 @@ import docentesRouter from "./routes/docentes.js";
 import notasRouter from "./routes/notas.js";
 import correlatividadesRouter from "./routes/correlatividades.js";
 import notificacionesRouter from "./routes/notificaciones.js";
+import examenesRouter from "./routes/examenes.js";
 import { manejarErrores } from "./middleware/errores.js";
 
 import programasRouter from "./routes/programas.js";
@@ -43,6 +44,7 @@ app.use("/api/programas", programasRouter);
 app.use("/api/notas", notasRouter);
 app.use("/api/correlatividades", correlatividadesRouter);
 app.use("/api/notificaciones", notificacionesRouter);
+app.use("/api/examenes", examenesRouter);
 
 // Cada módulo agrega su router acá. Un archivo por módulo en src/routes/.
 
