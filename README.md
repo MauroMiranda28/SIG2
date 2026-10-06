@@ -293,6 +293,17 @@ Lo que ya está implementado, para no repetir trabajo:
 - Schema: `Notificacion.autorId` (quién la envió; null en las que genera el sistema). Correr `db:push`.
   Tests: `node --test api/test/avisos-docente.test.js`.
 
+**Notificaciones: cambio de horario o aula**
+- Cuando un DOCENTE (o ADMIN) agrega o quita un horario de una comisión (`POST /api/horarios` y
+  `DELETE /api/horarios/bloques/:id`), los alumnos **inscriptos en esa comisión** reciben una notificación
+  `HORARIO_MODIFICADO` con la materia, quién lo cambió y el horario o aula afectado
+  (ej. «Se agregó este horario: Comisión A: Jueves 08:00–10:00 · Aula 1»).
+- El aviso se guarda en la misma transacción que el cambio y su registro (`CambioMateria`): si falla uno, no queda ninguno.
+  Los alumnos de otras comisiones o de otras materias no reciben nada.
+- Cambiar el aula o el día de un bloque existente se hace quitándolo y volviéndolo a cargar, así que el alumno recibe
+  dos avisos: el del horario viejo que se quitó y el del nuevo.
+- Sin cambios de schema. Tests: `node --test api/test/auditoriaMateria.test.js`.
+
 **Privacidad del seguimiento académico**
 - Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del
   token y son solo para ALUMNO. `api/test/privacidad.test.js` lo verifica para que no se rompa.

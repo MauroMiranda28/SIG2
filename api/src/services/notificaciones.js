@@ -59,6 +59,28 @@ export function limpiarTexto(valor, nombre, maximo) {
   return texto;
 }
 
+// Para los avisos que genera el sistema: un texto largo se acorta, no se rechaza,
+// así una notificación nunca puede hacer fallar el cambio que la origina.
+export function acortar(texto, maximo) {
+  const limpio = String(texto ?? "").trim().replace(/[ \t]+/g, " ");
+  return limpio.length > maximo ? `${limpio.slice(0, maximo - 1)}…` : limpio;
+}
+
+// Avisa a los alumnos inscriptos en la comisión que cambió su horario (se agregó o se quitó un bloque).
+// Recibe la transacción del cambio: el aviso se guarda junto con él o no se guarda ninguno de los dos.
+// `detalle` es el mismo texto del registro de cambios (ej. «Comisión A: Lunes 18:00–20:00 · Aula 1»).
+export async function avisarCambioHorario(db, { comisionId, materiaId, materiaNombre, accion, detalle, autorId }) {
+  const inscriptos = await db.inscripcionComision.findMany({ where: { comisionId }, select: { alumnoId: true } });
+  const agregado = accion === "HORARIO_AGREGADO";
+  return crearNotificaciones(db, inscriptos.map((i) => i.alumnoId), {
+    tipo: "HORARIO_MODIFICADO",
+    titulo: acortar(`Cambió el horario de ${materiaNombre}`, LARGO_TITULO_MAXIMO),
+    mensaje: acortar(`${agregado ? "Se agregó este horario" : "Se quitó este horario"}: ${detalle}`, LARGO_MENSAJE_MAXIMO),
+    materiaId,
+    autorId,
+  });
+}
+
 // Cuerpo de POST /api/docentes/materias/:id/avisos: título y mensaje del aviso.
 export function validarAviso(body) {
   if (body == null || typeof body !== "object" || Array.isArray(body)) throw errorAcceso(400, "Faltan los datos del aviso.");

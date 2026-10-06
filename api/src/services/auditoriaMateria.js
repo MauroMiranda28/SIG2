@@ -1,6 +1,9 @@
 // Registro de quién modificó los horarios o el material de una materia.
 // Cada cambio y su registro se escriben en la MISMA transacción: no puede quedar
 // un cambio sin registro ni un registro de un cambio que no se hizo.
+// Los cambios de horario además avisan a los alumnos de la comisión en esa misma transacción.
+
+import { avisarCambioHorario } from "./notificaciones.js";
 
 const NOMBRE_DIA = {
   LUNES: "Lunes", MARTES: "Martes", MIERCOLES: "Miércoles",
@@ -38,30 +41,28 @@ export function registrarCambio(db, { materiaId, autorId, accion, detalle }) {
   return db.cambioMateria.create({ data: { materiaId, autorId, accion, detalle } });
 }
 
-// Agrega el bloque y deja el registro, todo o nada.
-export function crearBloqueConRegistro(db, { bloque, comisionNombre, aulaNombre, materiaId, autorId }) {
+// Agrega el bloque, deja el registro y avisa a los alumnos de la comisión, todo o nada.
+export function crearBloqueConRegistro(db, { bloque, comisionNombre, aulaNombre, materiaId, materiaNombre, autorId }) {
   return db.$transaction(async (tx) => {
     const creado = await tx.bloqueHorario.create({ data: bloque });
-    await registrarCambio(tx, {
-      materiaId, autorId, accion: "HORARIO_AGREGADO",
-      detalle: describirBloque({ comisionNombre, aulaNombre, ...bloque }),
-    });
+    const detalle = describirBloque({ comisionNombre, aulaNombre, ...bloque });
+    await registrarCambio(tx, { materiaId, autorId, accion: "HORARIO_AGREGADO", detalle });
+    await avisarCambioHorario(tx, { comisionId: bloque.comisionId, materiaId, materiaNombre, accion: "HORARIO_AGREGADO", detalle, autorId });
     return creado;
   });
 }
 
-// Quita el bloque y deja el registro, todo o nada. El detalle se arma con los
-// datos que tenía el bloque, porque después de borrarlo ya no hay de dónde sacarlos.
-export function quitarBloqueConRegistro(db, { bloque, materiaId, autorId }) {
+// Quita el bloque, deja el registro y avisa a los alumnos de la comisión, todo o nada. El detalle se
+// arma con los datos que tenía el bloque, porque después de borrarlo ya no hay de dónde sacarlos.
+export function quitarBloqueConRegistro(db, { bloque, materiaId, materiaNombre, autorId }) {
   return db.$transaction(async (tx) => {
     await tx.bloqueHorario.delete({ where: { id: bloque.id } });
-    await registrarCambio(tx, {
-      materiaId, autorId, accion: "HORARIO_QUITADO",
-      detalle: describirBloque({
-        comisionNombre: bloque.comision.nombre, dia: bloque.dia, horaInicio: bloque.horaInicio,
-        horaFin: bloque.horaFin, aulaNombre: bloque.aula?.nombre,
-      }),
+    const detalle = describirBloque({
+      comisionNombre: bloque.comision.nombre, dia: bloque.dia, horaInicio: bloque.horaInicio,
+      horaFin: bloque.horaFin, aulaNombre: bloque.aula?.nombre,
     });
+    await registrarCambio(tx, { materiaId, autorId, accion: "HORARIO_QUITADO", detalle });
+    await avisarCambioHorario(tx, { comisionId: bloque.comisionId, materiaId, materiaNombre, accion: "HORARIO_QUITADO", detalle, autorId });
   });
 }
 
