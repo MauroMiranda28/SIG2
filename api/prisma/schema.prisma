@@ -109,7 +109,8 @@ model Usuario {
   evaluacionesCargadas Evaluacion[]
   cambiosDeNota   CambioNota[]
   cambiosDeMateria CambioMateria[]
-  notificaciones  Notificacion[]
+  notificaciones  Notificacion[] @relation("DestinatarioNotificacion")
+  avisosEnviados  Notificacion[] @relation("AutorNotificacion")
 }
 
 // CAR-01 a CAR-09
@@ -204,7 +205,11 @@ model Notificacion {
   leidaEn  DateTime? // null mientras no la leyó
 
   usuarioId Int
-  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+  usuario   Usuario @relation("DestinatarioNotificacion", fields: [usuarioId], references: [id])
+
+  // Quién la envió (docente o ADMIN); null en las que genera el sistema.
+  autorId Int?
+  autor   Usuario? @relation("AutorNotificacion", fields: [autorId], references: [id])
 
   // Materia a la que se refiere, si corresponde.
   materiaId Int?

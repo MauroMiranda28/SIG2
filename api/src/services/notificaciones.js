@@ -16,6 +16,7 @@ export const LARGO_MENSAJE_MAXIMO = 1000;
 export const DATOS_NOTIFICACION = {
   id: true, tipo: true, titulo: true, mensaje: true, creadoEn: true, leidaEn: true,
   materia: { select: { id: true, nombre: true, codigo: true } },
+  autor: { select: { nombre: true, apellido: true } }, // quién lo envió; null si lo generó el sistema
 };
 
 // Cuántas notificaciones devolver por pedido (entero de 1 a LIMITE_MAXIMO).
@@ -58,15 +59,25 @@ export function limpiarTexto(valor, nombre, maximo) {
   return texto;
 }
 
+// Cuerpo de POST /api/docentes/materias/:id/avisos: título y mensaje del aviso.
+export function validarAviso(body) {
+  if (body == null || typeof body !== "object" || Array.isArray(body)) throw errorAcceso(400, "Faltan los datos del aviso.");
+  return {
+    titulo: limpiarTexto(body.titulo, "título", LARGO_TITULO_MAXIMO),
+    mensaje: limpiarTexto(body.mensaje, "mensaje", LARGO_MENSAJE_MAXIMO),
+  };
+}
+
 // Crea la misma notificación para cada destinatario (una fila por persona, sin repetidos).
 // Recibe `db` o una transacción: así quien la usa puede hacerlo junto con su propio cambio.
-export async function crearNotificaciones(db, destinatarioIds, { tipo, titulo, mensaje, materiaId = null }) {
+export async function crearNotificaciones(db, destinatarioIds, { tipo, titulo, mensaje, materiaId = null, autorId = null }) {
   if (!TIPOS_NOTIFICACION.includes(tipo)) throw errorAcceso(400, "El tipo de notificación no es válido.");
   const datos = {
     tipo,
     titulo: limpiarTexto(titulo, "título", LARGO_TITULO_MAXIMO),
     mensaje: limpiarTexto(mensaje, "mensaje", LARGO_MENSAJE_MAXIMO),
     materiaId,
+    autorId,
   };
   const destinatarios = [...new Set(destinatarioIds)];
   if (!destinatarios.length) return { creadas: 0 };

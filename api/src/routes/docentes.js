@@ -2,7 +2,8 @@ import { Router } from "express";
 import { prisma } from "../db.js";
 import { requiereAuth, requiereRol } from "../middleware/auth.js";
 import { errorAcceso, requiereMateriaAsignada, validarId } from "../services/docentes.js";
-import { validarCondicionMateria } from "../services/notas.js";
+import { filtroAlumnosDeMateria, validarCondicionMateria } from "../services/notas.js";
+import { crearNotificaciones, validarAviso } from "../services/notificaciones.js";
 import { DATOS_INFO_MATERIA, armarInfoMateria, armarRelacionadas, datosMateriaRelacionada } from "../services/consultaMaterias.js";
 import { DATOS_CAMBIO_MATERIA, MAX_CAMBIOS_POR_CONSULTA } from "../services/auditoriaMateria.js";
 
@@ -115,6 +116,22 @@ export function crearRouterDocentes(db = prisma) {
         take: MAX_CAMBIOS_POR_CONSULTA,
       });
       res.json({ materia: req.materia, cambios });
+    } catch (e) { next(e); }
+  });
+
+  // Aviso del docente a los alumnos de su materia (los que tienen cursada o eligieron una comisión).
+  // Llega a cada uno como una notificación AVISO_DOCENTE en su historial. Los destinatarios los
+  // arma el servidor: el docente no manda una lista de alumnos, solo el título y el mensaje.
+  router.post("/materias/:id/avisos", requiereRol("DOCENTE", "ADMIN"), requiereMateriaAsignada(db, materiaDelParametro), async (req, res, next) => {
+    try {
+      const { titulo, mensaje } = validarAviso(req.body);
+      const alumnos = await db.usuario.findMany({ where: filtroAlumnosDeMateria(req.materia.id), select: { id: true } });
+      if (!alumnos.length) throw errorAcceso(409, "La materia todavía no tiene alumnos a quienes avisar.");
+
+      const { creadas } = await crearNotificaciones(db, alumnos.map((a) => a.id), {
+        tipo: "AVISO_DOCENTE", titulo, mensaje, materiaId: req.materia.id, autorId: req.usuario.id,
+      });
+      res.status(201).json({ materia: req.materia, enviadas: creadas });
     } catch (e) { next(e); }
   });
 
