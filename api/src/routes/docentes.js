@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { prisma } from "../db.js";
 import { requiereAuth, requiereRol } from "../middleware/auth.js";
-import { requiereMateriaAsignada, validarId } from "../services/docentes.js";
+import { errorAcceso, requiereMateriaAsignada, validarId } from "../services/docentes.js";
 import { validarCondicionMateria } from "../services/notas.js";
+import { DATOS_INFO_MATERIA, armarInfoMateria, armarRelacionadas, datosMateriaRelacionada } from "../services/consultaMaterias.js";
+import { DATOS_CAMBIO_MATERIA, MAX_CAMBIOS_POR_CONSULTA } from "../services/auditoriaMateria.js";
 
 // Inyección de DB para probar el contrato HTTP sin credenciales reales (igual que planes/carreras).
 export function crearRouterDocentes(db = prisma) {
@@ -67,6 +69,52 @@ export function crearRouterDocentes(db = prisma) {
   router.get("/aulas", requiereRol("DOCENTE", "ADMIN"), async (req, res, next) => {
     try {
       res.json(await db.aula.findMany({ select: { id: true, nombre: true, edificio: true, capacidad: true }, orderBy: { nombre: "asc" } }));
+    } catch (e) { next(e); }
+  });
+
+  const materiaDelParametro = (req) => validarId(req.params.id, "identificador de la materia");
+
+  // Información académica de una materia. Es de solo lectura y no exige que el docente la dicte:
+  // sirve también para consultar las materias relacionadas con la suya (y es la misma
+  // información que ya ve cualquier usuario en GET /api/materias/:id).
+  router.get("/materias/:id", requiereRol("DOCENTE", "ADMIN"), async (req, res, next) => {
+    try {
+      const id = materiaDelParametro(req);
+      const materia = await db.materia.findUnique({ where: { id }, select: DATOS_INFO_MATERIA });
+      if (!materia) throw errorAcceso(404, "La materia no existe.");
+      res.json(armarInfoMateria(materia, req.usuario));
+    } catch (e) { next(e); }
+  });
+
+  // Materias relacionadas dentro del plan: correlativas previas y posteriores.
+  router.get("/materias/:id/relacionadas", requiereRol("DOCENTE", "ADMIN"), async (req, res, next) => {
+    try {
+      const id = materiaDelParametro(req);
+      const datos = datosMateriaRelacionada(req.usuario.id);
+      const materia = await db.materia.findUnique({
+        where: { id },
+        select: {
+          id: true, nombre: true, codigo: true,
+          requiere: { select: { requiere: { select: datos } } },
+          requeridaPor: { select: { materia: { select: datos } } },
+        },
+      });
+      if (!materia) throw errorAcceso(404, "La materia no existe.");
+      res.json({ materia: { id: materia.id, nombre: materia.nombre, codigo: materia.codigo }, ...armarRelacionadas(materia) });
+    } catch (e) { next(e); }
+  });
+
+  // Quién modificó los horarios o el programa de la materia, y cuándo. Solo el docente asignado
+  // (o ADMIN): el registro sirve para detectar errores o cambios indebidos en SU materia.
+  router.get("/materias/:id/historial", requiereRol("DOCENTE", "ADMIN"), requiereMateriaAsignada(db, materiaDelParametro), async (req, res, next) => {
+    try {
+      const cambios = await db.cambioMateria.findMany({
+        where: { materiaId: req.materia.id },
+        select: DATOS_CAMBIO_MATERIA,
+        orderBy: [{ creadoEn: "desc" }, { id: "desc" }],
+        take: MAX_CAMBIOS_POR_CONSULTA,
+      });
+      res.json({ materia: req.materia, cambios });
     } catch (e) { next(e); }
   });
 

@@ -65,6 +65,12 @@ enum EstadoAsistencia {
   TARDE
 }
 
+enum AccionMateria {
+  HORARIO_AGREGADO
+  HORARIO_QUITADO
+  PROGRAMA_SUBIDO
+}
+
 // Seg-01, Seg-04, U-01, U-02 y las dos nuevas de docente
 model Usuario {
   id           Int      @id @default(autoincrement())
@@ -93,6 +99,7 @@ model Usuario {
   asistencias     Asistencia[]
   evaluacionesCargadas Evaluacion[]
   cambiosDeNota   CambioNota[]
+  cambiosDeMateria CambioMateria[]
 }
 
 // CAR-01 a CAR-09
@@ -141,6 +148,7 @@ model Materia {
   docentes   MateriaDocente[]
   cursadas   Cursada[]
   asistencias Asistencia[]
+  cambios     CambioMateria[]
 
   // PE-04, PE-06: correlatividades
   requiere   Correlatividad[] @relation("MateriaQueRequiere")
@@ -153,6 +161,25 @@ model Materia {
   notaRegularizacion  Float?
   notaPromocion       Float? // solo si esPromocional
   notaAprobacionFinal Float?
+}
+
+// Auditoría: quién modificó los horarios o el material (programa en PDF) de una
+// materia, y cuándo. Se escribe en la misma transacción que el cambio y nunca
+// se edita ni se borra, así sirve para detectar errores o cambios indebidos.
+model CambioMateria {
+  id       Int           @id @default(autoincrement())
+  accion   AccionMateria
+  detalle  String
+  creadoEn DateTime      @default(now())
+
+  materiaId Int
+  materia   Materia @relation(fields: [materiaId], references: [id])
+
+  // Docente de la materia o ADMIN que hizo el cambio.
+  autorId Int
+  autor   Usuario @relation(fields: [autorId], references: [id])
+
+  @@index([materiaId, creadoEn])
 }
 
 // Para cursar `materia` hace falta `requiere`, regular (DEBIL) o aprobada (FUERTE).

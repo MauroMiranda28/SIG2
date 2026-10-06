@@ -95,6 +95,14 @@ async function main() {
     },
   });
 
+  // Correlatividad: para cursar Bases de Datos hay que tener Programación I.
+  // Sirve para ver las materias relacionadas desde el panel del docente.
+  await prisma.correlatividad.upsert({
+    where: { materiaId_requiereId: { materiaId: basesDeDatos.id, requiereId: programacion.id } },
+    update: {},
+    create: { materiaId: basesDeDatos.id, requiereId: programacion.id },
+  });
+
   // Programa con bibliografía (una obra por renglón) para la pestaña «Bibliografía».
   await prisma.programa.upsert({
     where: { materiaId: programacion.id },

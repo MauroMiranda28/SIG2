@@ -18,6 +18,7 @@ import CrearPlan from "./planes/CrearPlan.jsx";
 import MiPlan from "./planes/MiPlan.jsx";
 import Carreras from "./carreras/Carreras.jsx";
 import MisMaterias from "./docentes/MisMaterias.jsx";
+import ConsultaMaterias from "./docentes/ConsultaMaterias.jsx";
 import NotasDocente from "./docentes/NotasDocente.jsx";
 
 import MiCarrera from "./carreras/MiCarrera.jsx";
@@ -78,6 +79,7 @@ export default function App() {
           Mi horario
         </button>
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("mis-materias")} disabled={tab === "mis-materias"}>Mis materias</button>}
+        {usuario.rol === "DOCENTE" && <button onClick={() => setTab("consultar-materias")} disabled={tab === "consultar-materias"}>Consultar materias</button>}
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("notas-docente")} disabled={tab === "notas-docente"}>Notas</button>}
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("carreras")} disabled={tab === "carreras"}>Carreras</button>}
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("crear-plan")} disabled={tab === "crear-plan"}>Crear plan</button>}
@@ -100,6 +102,7 @@ export default function App() {
       {tab === "materias" && <MateriasCarrera />}
       {tab === "horario" && <GrillaSemanal />}
       {tab === "mis-materias" && usuario.rol === "DOCENTE" && <MisMaterias />}
+      {tab === "consultar-materias" && usuario.rol === "DOCENTE" && <ConsultaMaterias />}
       {tab === "notas-docente" && usuario.rol === "DOCENTE" && <NotasDocente />}
       {tab === "carreras" && usuario.rol === "ADMIN" && <Carreras />}
       {tab === "crear-plan" && usuario.rol === "ADMIN" && <CrearPlan />}

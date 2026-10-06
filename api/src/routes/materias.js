@@ -6,6 +6,7 @@ import {
   subirProgramaPdf, esPdf, leerCabecera, rutaPrograma, borrarArchivo, nombreDescarga, escribirProgramaPdf,
 } from "../services/programas.js";
 import fs from "node:fs";
+import { guardarProgramaConRegistro } from "../services/auditoriaMateria.js";
 
 import { resolverPlanAlumno } from "../services/planes.js";
 import { bibliografiaDelAlumno } from "../services/bibliografia.js";
@@ -169,10 +170,13 @@ router.post(
       if (!esPdf(await leerCabecera(archivo.path))) throw errorAcceso(400, "El archivo no es un PDF válido.");
 
       const anterior = await prisma.materia.findUnique({ where: { id: req.materia.id }, select: { programaUrl: true } });
-      const materia = await prisma.materia.update({
-        where: { id: req.materia.id },
-        data: { programaUrl: archivo.filename }, // solo el nombre, nunca la ruta
-        select: { id: true, nombre: true, codigo: true },
+      // Quién subió el programa queda registrado en la misma transacción (CambioMateria).
+      const materia = await guardarProgramaConRegistro(prisma, {
+        materiaId: req.materia.id,
+        archivoGuardado: archivo.filename,
+        nombreOriginal: archivo.originalname,
+        reemplaza: Boolean(anterior?.programaUrl),
+        autorId: req.usuario.id,
       });
       const rutaAnterior = rutaPrograma(anterior?.programaUrl);
       if (rutaAnterior && rutaAnterior !== archivo.path) await borrarArchivo(rutaAnterior);
