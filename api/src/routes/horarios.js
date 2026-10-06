@@ -38,7 +38,7 @@ router.post("/", requiereAuth, requiereRol("DOCENTE", "ADMIN"), async (req, res,
 
     const comision = await prisma.comision.findUnique({ where: { id: comisionId }, select: { materiaId: true, nombre: true } });
     if (!comision) throw errorAcceso(404, "No existe esa comisión.");
-    await verificarAccesoMateria(prisma, req.usuario, comision.materiaId);
+    const materia = await verificarAccesoMateria(prisma, req.usuario, comision.materiaId);
 
     const aula = aulaId ? await prisma.aula.findUnique({ where: { id: aulaId }, select: { id: true, nombre: true } }) : null;
     if (aulaId && !aula) throw errorAcceso(400, "El aula elegida no existe.");
@@ -51,12 +51,14 @@ router.post("/", requiereAuth, requiereRol("DOCENTE", "ADMIN"), async (req, res,
       }
     }
 
-    // Quién lo cargó queda registrado en la misma transacción (CambioMateria).
+    // Quién lo cargó queda registrado en la misma transacción (CambioMateria), y los alumnos
+    // inscriptos en la comisión reciben la notificación del cambio de horario.
     const bloque = await crearBloqueConRegistro(prisma, {
       bloque: { comisionId, dia, horaInicio, horaFin, aulaId },
       comisionNombre: comision.nombre,
       aulaNombre: aula?.nombre,
       materiaId: comision.materiaId,
+      materiaNombre: materia.nombre,
       autorId: req.usuario.id,
     });
 
@@ -73,15 +75,15 @@ router.delete("/bloques/:id", requiereAuth, requiereRol("DOCENTE", "ADMIN"), asy
     const bloque = await prisma.bloqueHorario.findUnique({
       where: { id },
       select: {
-        id: true, dia: true, horaInicio: true, horaFin: true,
+        id: true, comisionId: true, dia: true, horaInicio: true, horaFin: true,
         aula: { select: { nombre: true } },
         comision: { select: { nombre: true, materiaId: true } },
       },
     });
     if (!bloque) throw errorAcceso(404, "No existe ese bloque horario.");
-    await verificarAccesoMateria(prisma, req.usuario, bloque.comision.materiaId);
+    const materia = await verificarAccesoMateria(prisma, req.usuario, bloque.comision.materiaId);
 
-    await quitarBloqueConRegistro(prisma, { bloque, materiaId: bloque.comision.materiaId, autorId: req.usuario.id });
+    await quitarBloqueConRegistro(prisma, { bloque, materiaId: materia.id, materiaNombre: materia.nombre, autorId: req.usuario.id });
     res.json({ ok: true });
   } catch (e) {
     next(e);
