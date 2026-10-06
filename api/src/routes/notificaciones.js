@@ -5,6 +5,7 @@ import { errorAcceso, validarId } from "../services/docentes.js";
 import {
   DATOS_NOTIFICACION, filtroNotificaciones, validarCursor, validarLimite, validarSoloNoLeidas,
 } from "../services/notificaciones.js";
+import { generarRecordatoriosEntrega } from "../services/tareas.js";
 
 // Historial de notificaciones del usuario logueado. El usuario sale siempre del token
 // (req.usuario.id): no se acepta un id por query ni por body, así nadie lee ni marca las de otro.
@@ -19,6 +20,12 @@ export function crearRouterNotificaciones(db = prisma) {
       const limite = validarLimite(req.query.limite);
       const antesDeId = validarCursor(req.query.antesDeId);
       const soloNoLeidas = validarSoloNoLeidas(req.query.soloNoLeidas);
+
+      // Al abrir el historial (primera página), el alumno recibe los recordatorios de las entregas que
+      // se acercan. Si falla, no se rompe el historial: solo se anota en la consola de la API.
+      if (req.usuario.rol === "ALUMNO" && !antesDeId) {
+        await generarRecordatoriosEntrega(db, req.usuario.id).catch((e) => console.error("No se pudieron generar los recordatorios de entrega:", e.message));
+      }
 
       const [filas, noLeidas] = await Promise.all([
         db.notificacion.findMany({

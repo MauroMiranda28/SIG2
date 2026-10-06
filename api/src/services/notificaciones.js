@@ -113,18 +113,19 @@ export function avisoCorreccion({ materiaNombre, tipo, notaAnterior, notaNueva }
 }
 
 // Crea varias notificaciones con texto distinto para cada destinatario, de una sola vez.
-// Cada fila: { usuarioId, tipo, titulo, mensaje, materiaId, autorId }. Como pasa con las demás
+// Cada fila: { usuarioId, tipo, titulo, mensaje, materiaId, autorId, clave }. Como pasa con las demás
 // notificaciones generadas por el sistema, un texto largo se acorta y nunca hace fallar el cambio.
+// Con `clave`, el mismo usuario no recibe dos veces el mismo aviso: la repetida se ignora.
 export async function crearNotificacionesIndividuales(db, filas) {
   if (!filas.length) return { creadas: 0 };
   const data = filas.map((f) => {
     if (!TIPOS_NOTIFICACION.includes(f.tipo)) throw errorAcceso(400, "El tipo de notificación no es válido.");
     return {
-      usuarioId: f.usuarioId, tipo: f.tipo, materiaId: f.materiaId ?? null, autorId: f.autorId ?? null,
+      usuarioId: f.usuarioId, tipo: f.tipo, materiaId: f.materiaId ?? null, autorId: f.autorId ?? null, clave: f.clave ?? null,
       titulo: acortar(f.titulo, LARGO_TITULO_MAXIMO), mensaje: acortar(f.mensaje, LARGO_MENSAJE_MAXIMO),
     };
   });
-  const { count } = await db.notificacion.createMany({ data });
+  const { count } = await db.notificacion.createMany({ data, skipDuplicates: true });
   return { creadas: count };
 }
 

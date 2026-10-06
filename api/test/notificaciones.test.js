@@ -61,6 +61,7 @@ function dbEnMemoria(filas) {
     (where.id == null || (typeof where.id === "object" ? f.id < where.id.lt : f.id === where.id)) &&
     (where.leidaEn !== null || f.leidaEn == null);
   return {
+    tarea: { findMany: async () => [] }, // el alumno consulta recordatorios al abrir su historial
     notificacion: {
       findMany: async ({ where, take, select }) => filas
         .filter((f) => cumple(f, where)).sort((a, b) => b.id - a.id).slice(0, take)
