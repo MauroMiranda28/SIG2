@@ -10,6 +10,7 @@ import { crearRouterEvaluaciones } from "../src/routes/evaluaciones.js";
 import { crearRouterAsistencias } from "../src/routes/asistencias.js";
 import { crearRouterRevisiones } from "../src/routes/revisiones.js";
 import { crearRouterPromedio } from "../src/routes/promedio.js";
+import { crearRouterCorrelatividades } from "../src/routes/correlatividades.js";
 import { manejarErrores } from "../src/middleware/errores.js";
 
 const YO = 2;
@@ -44,6 +45,7 @@ const RUTAS = [
     body: { evaluacionId: 4, motivo: "Creo que el ejercicio 3 está bien resuelto.", alumnoId: OTRO } },
   { nombre: "promedio", crear: crearRouterPromedio, metodo: "GET", ruta: "/" },
   { nombre: "promedio", crear: crearRouterPromedio, metodo: "POST", ruta: "/simular", body: { materiaId: 3, nota: 8, alumnoId: OTRO } },
+  { nombre: "correlatividades", crear: crearRouterCorrelatividades, metodo: "GET", ruta: "/" },
 ];
 
 async function pedir({ crear, metodo, ruta, body }, rol, db, query = "") {

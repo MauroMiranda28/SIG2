@@ -41,6 +41,12 @@ enum TipoEvaluacion {
   CONDICION_FINAL // cierre de la cursada: regular o promocionado (ver Evaluacion.condicion)
 }
 
+// Débil: para cursar alcanza con tener la requerida regular (o aprobada). Fuerte: hay que tenerla aprobada.
+enum TipoCorrelatividad {
+  DEBIL
+  FUERTE
+}
+
 enum CondicionFinal {
   REGULAR
   PROMOCIONADO
@@ -149,8 +155,11 @@ model Materia {
   notaAprobacionFinal Float?
 }
 
+// Para cursar `materia` hace falta `requiere`, regular (DEBIL) o aprobada (FUERTE).
+// Una materia puede tener correlativas de los dos tipos; cada par aparece una sola vez.
 model Correlatividad {
-  id Int @id @default(autoincrement())
+  id   Int                @id @default(autoincrement())
+  tipo TipoCorrelatividad @default(FUERTE)
 
   materiaId Int
   materia   Materia @relation("MateriaQueRequiere", fields: [materiaId], references: [id])

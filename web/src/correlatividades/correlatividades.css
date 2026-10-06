@@ -1,0 +1,31 @@
+/* Mismos tokens visuales que docentes.css y planes.css. */
+.correl { line-height: 1.5; }
+.correl .correl-ayuda { margin-top: 0; color: #334155; }
+.correl .correl-filtro { display: flex; align-items: center; gap: .4rem; margin-bottom: 1rem; }
+.correl .correl-campo { display: grid; gap: .25rem; font-weight: 600; margin-bottom: 1rem; max-width: 26rem; }
+.correl .correl-anio { border-bottom: 1px solid #ddd; padding-bottom: .25rem; }
+.correl .correl-materia { border: 1px solid #cbd5e1; border-radius: 8px; padding: .75rem 1rem; margin-bottom: .75rem; }
+.correl .correl-materia header { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
+.correl .correl-codigo { color: #64748b; }
+.correl .correl-materia ul { list-style: none; padding: 0; margin: .5rem 0 0; display: grid; gap: .4rem; }
+.correl .correl-detalle { font-size: .85rem; color: #475569; margin: .1rem 0 0 1.3rem; }
+.correl .correl-cumple > span:first-child { color: #2e7d32; }
+.correl .correl-no-cumple > span:first-child { color: #c62828; }
+.correl .correl-tipo { font-size: .75rem; font-weight: 600; padding: .05rem .45rem; border-radius: 999px; }
+.correl .correl-tipo-fuerte { background: #fde7e7; color: #8a1c1c; }
+.correl .correl-tipo-debil { background: #e3eefc; color: #164e83; }
+.correl .correl-estado { margin-left: auto; font-size: .8rem; padding: .15rem .55rem; border-radius: 999px; color: #fff; }
+.correl .correl-puede { background: #2e7d32; }
+.correl .correl-falta { background: #c62828; }
+.correl .correl-aprobada { background: #1565c0; }
+.correl .correl-neutra { background: #9e9e9e; }
+.correl .correl-fila { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.correl .correl-fila > span { flex: 1 1 12rem; }
+.correl .correl-form { display: flex; flex-wrap: wrap; gap: .6rem; align-items: flex-end; margin-top: .75rem; padding-top: .6rem; border-top: 1px solid #e2e8f0; }
+.correl .correl-form label { display: grid; gap: .2rem; font-size: .9rem; font-weight: 600; }
+.correl select { box-sizing: border-box; padding: .4rem; border: 1px solid #94a3b8; border-radius: 4px; font: inherit; font-weight: 400; background: white; color: #172033; }
+.correl button { padding: .4rem .8rem; cursor: pointer; font: inherit; }
+.correl button:disabled { cursor: not-allowed; opacity: .6; }
+.correl select:focus-visible, .correl input:focus-visible, .correl button:focus-visible { outline: 3px solid #7aa7d6; outline-offset: 1px; }
+.correl .correl-error, .correl .correl-aviso-error { color: #a11224; margin: .5rem 0 0; }
+.correl .correl-aviso-exito { background: #e8f5ed; color: #185c35; padding: .5rem .75rem; border-radius: 4px; margin: .5rem 0 0; }
