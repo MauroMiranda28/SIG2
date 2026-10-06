@@ -314,6 +314,18 @@ Lo que ya está implementado, para no repetir trabajo:
 - El aviso se guarda en la misma transacción que la nota: si falla uno, no queda ninguno. El autor es el docente.
 - Sin cambios de schema. Tests: `node --test api/test/notas.test.js`.
 
+**Notificaciones: fechas de exámenes**
+- El DOCENTE asignado (o ADMIN) programa parciales, recuperatorios y finales de su materia:
+  `GET /api/examenes/materias/:id` (las fechas programadas), `POST /api/examenes/materias/:id`
+  (`tipo`, `fecha`, `hora` y `aulaId` opcionales), `PATCH /api/examenes/:id` (reprograma fecha, hora o aula; `null` vacía
+  hora o aula) y `DELETE /api/examenes/:id` (cancela). La fecha no puede ser anterior a hoy (fecha de Argentina).
+- Los alumnos de la materia (los que tienen cursada o eligieron una de sus comisiones) reciben una notificación
+  `FECHA_EXAMEN` cuando se carga («Fecha: martes, 20/10/2026 a las 18:00 · Aula 1.»), se reprograma (con la fecha nueva y
+  la anterior) o se cancela. Reprogramar sin cambiar nada responde 400 y no avisa.
+- El aviso se guarda en la misma transacción que el cambio: si falla uno, no queda ninguno. Un docente no asignado recibe 403.
+- Pestaña «Fechas de examen» del DOCENTE (programar, reprogramar, cancelar).
+- Schema: modelo `FechaExamen` y enum `TipoExamen`. Correr `db:push`. Tests: `node --test api/test/examenes.test.js`.
+
 **Privacidad del seguimiento académico**
 - Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del
   token y son solo para ALUMNO. `api/test/privacidad.test.js` lo verifica para que no se rompa.
