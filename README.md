@@ -133,6 +133,7 @@ web/
   src/docentes/           mis materias (horarios y programa), consulta de materias, carga de notas, avisos,
                           fechas de examen y tareas (DOCENTE)
   src/correlatividades/   consulta del alumno y carga del ADMIN
+  src/asignaciones/       asignar docentes a materias (ADMIN)
   src/notificaciones/     historial de notificaciones del alumno
 ```
 
@@ -258,6 +259,19 @@ Lo que ya está implementado, para no repetir trabajo:
   `notaRegularizacion`, `notaPromocion` y `notaAprobacionFinal`.
 - El alumno ve las notas al instante en «Historial de notas», y si una fue corregida, el valor anterior y el motivo.
 - Pestaña «Notas» para el DOCENTE. Tests: `node --test api/test/notas.test.js`.
+
+**Asignar docentes a materias (ADMIN)**
+- Hasta ahora la asignación (`MateriaDocente`) solo se podía hacer a mano en la base. Ahora el ADMIN la gestiona
+  desde la pestaña «Asignar docentes»: elige una materia, ve sus docentes y asigna o quita.
+- `GET /api/asignaciones/materias` (materias con sus docentes), `GET /api/asignaciones/docentes` (docentes con sus
+  materias), `POST /api/asignaciones` (`materiaId`, `docenteId`) y
+  `DELETE /api/asignaciones/materias/:materiaId/docentes/:docenteId`. Todo es solo para ADMIN: un docente no puede
+  asignarse materias a sí mismo.
+- Solo se asignan usuarios con rol DOCENTE (400 si no). Asignar dos veces el mismo docente responde 409; quitar una
+  asignación inexistente, 404.
+- Es lo que habilita al docente a cargar horarios, notas, avisos, fechas de examen y tareas de la materia (Seg-05):
+  al asignarlo la materia aparece en «Mis materias», y al quitarlo pierde el acceso.
+- Sin cambios de schema. Tests: `node --test api/test/asignaciones.test.js`.
 
 **Correlatividades**
 - `GET /api/correlatividades` (ALUMNO) — cada materia de su plan con sus correlativas, si las cumple y si puede

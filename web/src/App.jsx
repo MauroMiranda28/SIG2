@@ -24,6 +24,7 @@ import NotasDocente from "./docentes/NotasDocente.jsx";
 import EnviarAviso from "./docentes/EnviarAviso.jsx";
 import FechasExamen from "./docentes/FechasExamen.jsx";
 import Tareas from "./docentes/Tareas.jsx";
+import AsignarDocentes from "./asignaciones/AsignarDocentes.jsx";
 
 import MiCarrera from "./carreras/MiCarrera.jsx";
 import CargarPrograma from "./programas/CargarPrograma.jsx";
@@ -98,6 +99,7 @@ export default function App() {
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("tareas")} disabled={tab === "tareas"}>Tareas</button>}
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("carreras")} disabled={tab === "carreras"}>Carreras</button>}
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("crear-plan")} disabled={tab === "crear-plan"}>Crear plan</button>}
+        {usuario.rol === "ADMIN" && <button onClick={() => setTab("asignar-docentes")} disabled={tab === "asignar-docentes"}>Asignar docentes</button>}
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("correlatividades-admin")} disabled={tab === "correlatividades-admin"}>Correlatividades</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("mi-plan")} disabled={tab === "mi-plan"}>Mi plan de estudios</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("bibliografia")} disabled={tab === "bibliografia"}>Bibliografía</button>}
@@ -125,6 +127,7 @@ export default function App() {
       {tab === "tareas" && usuario.rol === "DOCENTE" && <Tareas />}
       {tab === "carreras" && usuario.rol === "ADMIN" && <Carreras />}
       {tab === "crear-plan" && usuario.rol === "ADMIN" && <CrearPlan />}
+      {tab === "asignar-docentes" && usuario.rol === "ADMIN" && <AsignarDocentes />}
       {tab === "correlatividades-admin" && usuario.rol === "ADMIN" && <CargarCorrelatividades />}
       {tab === "mi-plan" && usuario.rol === "ALUMNO" && <MiPlan />}
       {tab === "bibliografia" && usuario.rol === "ALUMNO" && <Bibliografia />}
