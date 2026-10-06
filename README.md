@@ -132,6 +132,7 @@ web/
   src/carreras/           registrar y modificar carreras (ADMIN)
   src/docentes/           mis materias (horarios y programa), consulta de materias y carga de notas (DOCENTE)
   src/correlatividades/   consulta del alumno y carga del ADMIN
+  src/notificaciones/     historial de notificaciones del alumno
 ```
 
 ## Cómo trabajamos
@@ -268,6 +269,20 @@ Lo que ya está implementado, para no repetir trabajo:
 - Solo informa: todavía no bloquea elegir comisión si no se cumplen (eso va con la historia de inscripción).
   Tests: `node --test api/test/correlatividades.test.js`.
 
+**Notificaciones (historial del alumno)**
+- `GET /api/notificaciones` (cualquier usuario logueado) — historial propio, de la más nueva a la más vieja, con las
+  leídas incluidas. Devuelve `{ noLeidas, hayMas, notificaciones }`. Parámetros: `soloNoLeidas=true`, `limite`
+  (1 a 100, por defecto 30) y `antesDeId` (el id de la última que ya se vio, para pedir las anteriores).
+- `POST /api/notificaciones/:id/leer` y `POST /api/notificaciones/leer-todas` — marcan como leídas. Una ajena
+  responde 404 igual que una inexistente.
+- El destinatario sale siempre del token, nunca de un id por query o body. Una fila por destinatario: cada uno
+  marca como leídas solo las suyas y el historial no se borra.
+- Pestaña «Notificaciones» del alumno, con el número de no leídas en el menú, filtro «Solo no leídas» y «Ver más antiguas».
+- Para que otras historias avisen algo: `crearNotificaciones(db, destinatarioIds, { tipo, titulo, mensaje, materiaId })`
+  en `services/notificaciones.js` (acepta una transacción, así el aviso se guarda junto con el cambio que lo origina).
+- Schema: modelo nuevo `Notificacion` y enum `TipoNotificacion`. Correr `db:push`.
+  Tests: `node --test api/test/notificaciones.test.js`.
+
 **Privacidad del seguimiento académico**
 - Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del
   token y son solo para ALUMNO. `api/test/privacidad.test.js` lo verifica para que no se rompa.
@@ -276,7 +291,7 @@ Lo que ya está implementado, para no repetir trabajo:
 - Regla para el módulo de calendario cuando se haga: las actividades se filtran siempre por
   `req.usuario.id`, nunca por un id que venga en la URL o el body.
 
-Todo lo demás (calendario, notificaciones) está sin empezar.
+Todo lo demás (calendario y el resto de las notificaciones) está sin empezar.
 
 ## Una cosa para definir en grupo
 
