@@ -76,6 +76,8 @@ model Usuario {
   inscripciones   InscripcionComision[]
   solicitudesRevision SolicitudRevision[]
   asistencias     Asistencia[]
+  evaluacionesCargadas Evaluacion[]
+  cambiosDeNota   CambioNota[]
 }
 
 // CAR-01 a CAR-09
@@ -194,7 +196,30 @@ model Evaluacion {
   cursadaId Int
   cursada   Cursada @relation(fields: [cursadaId], references: [id])
 
+  // Docente que la cargó desde el sistema (null en las cargadas a mano).
+  cargadaPorId Int?
+  cargadaPor   Usuario? @relation(fields: [cargadaPorId], references: [id])
+
   solicitudesRevision SolicitudRevision[]
+  cambios             CambioNota[]
+}
+
+// Trazabilidad: cada corrección de una nota ya publicada deja una fila con
+// el valor anterior, el nuevo, quién la cambió, cuándo y por qué.
+// Nunca se edita ni se borra: es el registro histórico.
+model CambioNota {
+  id           Int      @id @default(autoincrement())
+  notaAnterior Float
+  notaNueva    Float
+  motivo       String
+  creadoEn     DateTime @default(now())
+
+  evaluacionId Int
+  evaluacion   Evaluacion @relation(fields: [evaluacionId], references: [id])
+
+  // Quien hizo la corrección (docente de la materia o ADMIN).
+  autorId Int
+  autor   Usuario @relation(fields: [autorId], references: [id])
 }
 
 // El alumno reclama formalmente una evaluación puntual si considera que hay

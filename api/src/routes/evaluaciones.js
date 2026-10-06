@@ -13,7 +13,11 @@ export function crearRouterEvaluaciones(db = prisma) {
     try {
       const evaluaciones = await db.evaluacion.findMany({
         where: { cursada: { alumnoId: req.usuario.id } },
-        include: { cursada: { include: { materia: { select: { id: true, nombre: true, codigo: true } } } } },
+        include: {
+          cursada: { include: { materia: { select: { id: true, nombre: true, codigo: true } } } },
+          // Si el docente corrigió la nota, el alumno ve el valor anterior y el motivo.
+          cambios: { select: { notaAnterior: true, notaNueva: true, motivo: true, creadoEn: true }, orderBy: { creadoEn: "desc" } },
+        },
         orderBy: { fecha: "desc" },
       });
 

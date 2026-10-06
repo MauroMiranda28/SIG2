@@ -3,6 +3,7 @@ import { api, leerToken, borrarToken } from "./api.js";
 import Login from "./auth/Login.jsx";
 import Registro from "./auth/Registro.jsx";
 import MateriasCarrera from "./materias/MateriasCarrera.jsx";
+import Bibliografia from "./materias/Bibliografia.jsx";
 import GrillaSemanal from "./horarios/GrillaSemanal.jsx";
 import MisDatos from "./perfil/MisDatos.jsx";
 import MisNotas from "./notas/MisNotas.jsx";
@@ -15,6 +16,7 @@ import CrearPlan from "./planes/CrearPlan.jsx";
 import MiPlan from "./planes/MiPlan.jsx";
 import Carreras from "./carreras/Carreras.jsx";
 import MisMaterias from "./docentes/MisMaterias.jsx";
+import NotasDocente from "./docentes/NotasDocente.jsx";
 
 import MiCarrera from "./carreras/MiCarrera.jsx";
 import CargarPrograma from "./programas/CargarPrograma.jsx";
@@ -74,9 +76,11 @@ export default function App() {
           Mi horario
         </button>
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("mis-materias")} disabled={tab === "mis-materias"}>Mis materias</button>}
+        {usuario.rol === "DOCENTE" && <button onClick={() => setTab("notas-docente")} disabled={tab === "notas-docente"}>Notas</button>}
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("carreras")} disabled={tab === "carreras"}>Carreras</button>}
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("crear-plan")} disabled={tab === "crear-plan"}>Crear plan</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("mi-plan")} disabled={tab === "mi-plan"}>Mi plan de estudios</button>}
+        {usuario.rol === "ALUMNO" && <button onClick={() => setTab("bibliografia")} disabled={tab === "bibliografia"}>Bibliografía</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("notas")} disabled={tab === "notas"}>Mis notas</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("historial-notas")} disabled={tab === "historial-notas"}>Historial de notas</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("revision-nota")} disabled={tab === "revision-nota"}>Solicitar revisión</button>}
@@ -92,9 +96,11 @@ export default function App() {
       {tab === "materias" && <MateriasCarrera />}
       {tab === "horario" && <GrillaSemanal />}
       {tab === "mis-materias" && usuario.rol === "DOCENTE" && <MisMaterias />}
+      {tab === "notas-docente" && usuario.rol === "DOCENTE" && <NotasDocente />}
       {tab === "carreras" && usuario.rol === "ADMIN" && <Carreras />}
       {tab === "crear-plan" && usuario.rol === "ADMIN" && <CrearPlan />}
       {tab === "mi-plan" && usuario.rol === "ALUMNO" && <MiPlan />}
+      {tab === "bibliografia" && usuario.rol === "ALUMNO" && <Bibliografia />}
       {tab === "notas" && usuario.rol === "ALUMNO" && <MisNotas />}
       {tab === "historial-notas" && usuario.rol === "ALUMNO" && <HistorialNotas />}
       {tab === "revision-nota" && usuario.rol === "ALUMNO" && <SolicitarRevision />}

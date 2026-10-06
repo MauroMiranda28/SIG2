@@ -14,6 +14,7 @@ import revisionesRouter from "./routes/revisiones.js";
 import asistenciasRouter from "./routes/asistencias.js";
 import promedioRouter from "./routes/promedio.js";
 import docentesRouter from "./routes/docentes.js";
+import notasRouter from "./routes/notas.js";
 import { manejarErrores } from "./middleware/errores.js";
 
 import programasRouter from "./routes/programas.js";
@@ -37,6 +38,7 @@ app.use("/api/asistencias", asistenciasRouter);
 app.use("/api/promedio", promedioRouter);
 app.use("/api/docentes", docentesRouter);
 app.use("/api/programas", programasRouter);
+app.use("/api/notas", notasRouter);
 
 // Cada módulo agrega su router acá. Un archivo por módulo en src/routes/.
 

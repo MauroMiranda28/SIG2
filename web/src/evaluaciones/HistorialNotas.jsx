@@ -54,7 +54,14 @@ export default function HistorialNotas() {
                   {ev.materia.nombre} <span style={{ color: "#777" }}>({ev.materia.codigo})</span>
                 </td>
                 <td>{ETIQUETA_TIPO[ev.tipo] ?? ev.tipo}</td>
-                <td>{ev.nota}</td>
+                <td>
+                  {ev.nota}
+                  {ev.cambios?.length > 0 && (
+                    <div style={{ fontSize: "0.8rem", color: "#777" }}>
+                      Corregida (antes {ev.cambios[0].notaAnterior}): {ev.cambios[0].motivo}
+                    </div>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
