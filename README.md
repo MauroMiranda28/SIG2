@@ -304,6 +304,16 @@ Lo que ya está implementado, para no repetir trabajo:
   dos avisos: el del horario viejo que se quitó y el del nuevo.
 - Sin cambios de schema. Tests: `node --test api/test/auditoriaMateria.test.js`.
 
+**Notificaciones: calificación publicada**
+- Al publicar notas (`POST /api/notas/materias/:id`) cada alumno recibe una notificación `CALIFICACION_PUBLICADA`
+  **con su propia nota**, ej. «Parcial del 12/5/2026: nota 7,5.». Para la condición final avisa el resultado
+  (ej. «Condición final del 30/6/2026: Promocionado (nota 8).»).
+- Si el docente corrige una nota ya publicada (`PATCH /api/notas/evaluaciones/:id`), el alumno recibe otro aviso con la
+  nota anterior y la nueva. Una carga o corrección rechazada (alumno que no cursa, docente no asignado, nota repetida
+  o sin cambios) no avisa a nadie.
+- El aviso se guarda en la misma transacción que la nota: si falla uno, no queda ninguno. El autor es el docente.
+- Sin cambios de schema. Tests: `node --test api/test/notas.test.js`.
+
 **Privacidad del seguimiento académico**
 - Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del
   token y son solo para ALUMNO. `api/test/privacidad.test.js` lo verifica para que no se rompa.

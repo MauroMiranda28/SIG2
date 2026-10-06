@@ -72,7 +72,7 @@ function dbFalsa({
   asignada = true, alumnosValidos = [2, 3], repetidas = [], finales = [], condicion = CONDICION, cursada = { estado: "EN_CURSO", regularDesde: null },
   evaluacion = { nota: 4, tipo: "PARCIAL", condicion: null, cursadaId: 102, cursada: { materiaId: 5, materia: CONDICION } }, ...extra
 } = {}) {
-  const registro = { cursadas: [], evaluaciones: [], cambios: [], updates: [], cierres: [] };
+  const registro = { cursadas: [], evaluaciones: [], cambios: [], updates: [], cierres: [], notificaciones: [] };
   const db = {
     registro,
     materia: { findUnique: async () => ({ ...MATERIA, ...condicion }) },
@@ -95,6 +95,7 @@ function dbFalsa({
       update: async (args) => { registro.updates.push(args); return { id: args.where.id, nota: args.data.nota, cambios: registro.cambios }; },
     },
     cambioNota: { create: async ({ data }) => { registro.cambios.push(data); return data; } },
+    notificacion: { createMany: async ({ data }) => { registro.notificaciones.push(...data); return { count: data.length }; } },
     inscripcionComision: { deleteMany: async (args) => { registro.bajas = [...(registro.bajas ?? []), args.where]; return { count: 1 }; } },
     ...extra,
   };
@@ -189,6 +190,78 @@ test("HTTP: corregir una nota deja el registro del cambio con autor y motivo", a
   });
   assert.deepEqual(db.registro.cambios, [{ evaluacionId: 1, notaAnterior: 4, notaNueva: 6, motivo: "Error al sumar el ejercicio 2", autorId: 7 }]);
   assert.deepEqual(db.registro.updates[0].data, { nota: 6 }, "solo cambia la nota");
+});
+
+test("HTTP: al publicar notas cada alumno recibe SU aviso (con su nota), firmado por el docente y con la materia", async () => {
+  const db = dbFalsa();
+  await conAPI(db, async (request) => {
+    assert.equal((await request("POST", "/materias/5", "DOCENTE", carga())).status, 201);
+  });
+  const avisos = db.registro.notificaciones;
+  assert.deepEqual(avisos.map((a) => a.usuarioId), [2, 3]);
+  assert.ok(avisos.every((a) => a.tipo === "CALIFICACION_PUBLICADA" && a.materiaId === 5 && a.autorId === 7));
+  assert.equal(avisos[0].titulo, "Nueva calificación en Programación I");
+  assert.equal(avisos[0].mensaje, "Parcial del 12/5/2026: nota 7,5.");
+  assert.equal(avisos[1].mensaje, "Parcial del 12/5/2026: nota 6,25.");
+  assert.ok(!avisos[0].mensaje.includes("6,25"), "no se cuela la nota de otro alumno");
+});
+
+test("HTTP: la condición final avisa el resultado (regular, promocionado o libre)", async () => {
+  const db = dbFalsa();
+  await conAPI(db, async (request) => {
+    const body = { tipo: "CONDICION_FINAL", fecha: "2026-06-30", notas: [{ alumnoId: 2, nota: 8, condicion: "PROMOCIONADO" }, { alumnoId: 3, nota: 5, condicion: "REGULAR" }] };
+    assert.equal((await request("POST", "/materias/5", "DOCENTE", body)).status, 201);
+  });
+  assert.deepEqual(db.registro.notificaciones.map((a) => a.mensaje), [
+    "Condición final del 30/6/2026: Promocionado (nota 8).",
+    "Condición final del 30/6/2026: Regular (nota 5).",
+  ]);
+});
+
+test("HTTP: si la carga se rechaza no se avisa a nadie", async () => {
+  const sinAlumnos = dbFalsa({ alumnosValidos: [2] }); // el 3 no cursa la materia
+  await conAPI(sinAlumnos, async (request) => {
+    assert.equal((await request("POST", "/materias/5", "DOCENTE", carga())).status, 400);
+  });
+  const noAsignado = dbFalsa({ asignada: false });
+  await conAPI(noAsignado, async (request) => {
+    assert.equal((await request("POST", "/materias/5", "DOCENTE", carga())).status, 403);
+  });
+  assert.equal(sinAlumnos.registro.notificaciones.length + noAsignado.registro.notificaciones.length, 0);
+});
+
+test("HTTP: si falla el aviso no queda publicada la nota (misma transacción)", async () => {
+  const db = dbFalsa({ notificacion: { createMany: async () => { throw new Error("falla notificacion"); } } });
+  db.$transaction = async (fn) => {
+    const antes = { ...db.registro, evaluaciones: [...db.registro.evaluaciones] };
+    try { return await fn(db); } catch (e) { db.registro.evaluaciones = antes.evaluaciones; throw e; } // rollback
+  };
+  await conAPI(db, async (request) => {
+    assert.equal((await request("POST", "/materias/5", "DOCENTE", carga())).status, 500);
+  });
+  assert.equal(db.registro.evaluaciones.length, 0);
+});
+
+test("HTTP: corregir una nota avisa al alumno de esa evaluación, con la nota anterior y la nueva", async () => {
+  const db = dbFalsa({ evaluacion: { nota: 4, tipo: "PARCIAL", condicion: null, cursadaId: 102, cursada: { alumnoId: 2, materiaId: 5, materia: CONDICION } } });
+  await conAPI(db, async (request) => {
+    assert.equal((await request("PATCH", "/evaluaciones/1", "DOCENTE", { nota: 6.5, motivo: "Error al sumar el ejercicio 2" })).status, 200);
+  });
+  assert.equal(db.registro.notificaciones.length, 1);
+  const aviso = db.registro.notificaciones[0];
+  assert.equal(aviso.usuarioId, 2);
+  assert.equal(aviso.tipo, "CALIFICACION_PUBLICADA");
+  assert.equal(aviso.titulo, "Se corrigió una calificación de Programación I");
+  assert.equal(aviso.mensaje, "Parcial: la nota pasó de 4 a 6,5.");
+  assert.equal(aviso.autorId, 7);
+});
+
+test("HTTP: una corrección rechazada no avisa", async () => {
+  const db = dbFalsa();
+  await conAPI(db, async (request) => {
+    assert.equal((await request("PATCH", "/evaluaciones/1", "DOCENTE", { nota: 4, motivo: "Sin cambios reales" })).status, 400);
+  });
+  assert.equal(db.registro.notificaciones.length, 0);
 });
 
 test("HTTP: corrección inválida, igual a la actual o de una evaluación inexistente", async () => {
