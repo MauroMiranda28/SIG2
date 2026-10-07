@@ -179,6 +179,15 @@ export function crearRouterNotas(db = prisma) {
           usuarioId: actual.cursada.alumnoId, tipo: "CALIFICACION_PUBLICADA", materiaId: actual.cursada.materiaId, autorId: req.usuario.id,
           ...avisoCorreccion({ materiaNombre: req.materia.nombre, tipo: actual.tipo, notaAnterior: actual.nota, notaNueva: nota }),
         }]);
+        // Si el alumno había reclamado esta nota, corregirla es la respuesta: sus solicitudes pendientes quedan
+        // resueltas. No hace falta otro aviso: ya recibió el de la corrección de la nota.
+        await tx.solicitudRevision.updateMany({
+          where: { evaluacionId: id, estado: "PENDIENTE" },
+          data: {
+            estado: "RESUELTA", resueltaEn: new Date(), resueltaPorId: req.usuario.id,
+            respuesta: `Se corrigió la nota: pasó de ${String(actual.nota).replace(".", ",")} a ${String(nota).replace(".", ",")}. Motivo: ${motivo}`,
+          },
+        });
         return evaluacion;
       });
 

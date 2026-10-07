@@ -87,6 +87,7 @@ enum TipoNotificacion {
   FECHA_EXAMEN // fecha de un parcial o final
   RECORDATORIO_ENTREGA // se acerca la entrega de una tarea
   SOLICITUD_REVISION // un alumno pidió la revisión de una nota (le llega al docente de la materia)
+  REVISION_RESUELTA // el docente resolvió o rechazó la solicitud de revisión (le llega al alumno)
 }
 
 // Seg-01, Seg-04, U-01, U-02 y las dos nuevas de docente
@@ -113,7 +114,8 @@ model Usuario {
   materiasQueDicta MateriaDocente[]
   actividades     ActividadPersonal[]
   inscripciones   InscripcionComision[]
-  solicitudesRevision SolicitudRevision[]
+  solicitudesRevision SolicitudRevision[] @relation("AlumnoSolicitud")
+  revisionesResueltas SolicitudRevision[] @relation("ResolvedorRevision")
   asistencias     Asistencia[]
   evaluacionesCargadas Evaluacion[]
   cambiosDeNota   CambioNota[]
@@ -354,19 +356,25 @@ model CambioNota {
 }
 
 // El alumno reclama formalmente una evaluación puntual si considera que hay
-// un error de calificación. La resolución (aceptar/rechazar) queda para una
-// historia de docente que todavía no existe.
+// un error de calificación. El docente de la materia la resuelve o la rechaza con una respuesta
+// (también se resuelve sola cuando el docente corrige esa nota).
 model SolicitudRevision {
   id       Int             @id @default(autoincrement())
   motivo   String
   estado   EstadoSolicitud @default(PENDIENTE)
   creadoEn DateTime        @default(now())
 
+  // Cómo se resolvió: la respuesta al alumno, cuándo y quién. Null mientras está PENDIENTE.
+  respuesta   String?
+  resueltaEn  DateTime?
+  resueltaPorId Int?
+  resueltaPor   Usuario? @relation("ResolvedorRevision", fields: [resueltaPorId], references: [id])
+
   evaluacionId Int
   evaluacion   Evaluacion @relation(fields: [evaluacionId], references: [id])
 
   alumnoId Int
-  alumno   Usuario @relation(fields: [alumnoId], references: [id])
+  alumno   Usuario @relation("AlumnoSolicitud", fields: [alumnoId], references: [id])
 }
 
 // El propio alumno asienta su presentismo clase por clase (no el docente).

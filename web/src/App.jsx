@@ -23,6 +23,7 @@ import NotasDocente from "./docentes/NotasDocente.jsx";
 import EnviarAviso from "./docentes/EnviarAviso.jsx";
 import FechasExamen from "./docentes/FechasExamen.jsx";
 import Tareas from "./docentes/Tareas.jsx";
+import Revisiones from "./docentes/Revisiones.jsx";
 
 import MiCarrera from "./carreras/MiCarrera.jsx";
 import CargarPrograma from "./programas/CargarPrograma.jsx";
@@ -139,6 +140,7 @@ export default function App() {
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("mis-materias")} disabled={tab === "mis-materias"}>Mis materias</button>}
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("consultar-materias")} disabled={tab === "consultar-materias"}>Consultar materias</button>}
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("notas-docente")} disabled={tab === "notas-docente"}>Notas</button>}
+        {usuario.rol === "DOCENTE" && <button onClick={() => setTab("revisiones")} disabled={tab === "revisiones"}>Revisiones</button>}
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("enviar-aviso")} disabled={tab === "enviar-aviso"}>Enviar aviso</button>}
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("fechas-examen")} disabled={tab === "fechas-examen"}>Fechas de examen</button>}
         {usuario.rol === "DOCENTE" && <button onClick={() => setTab("tareas")} disabled={tab === "tareas"}>Tareas</button>}
@@ -164,6 +166,7 @@ export default function App() {
       {tab === "mis-materias" && usuario.rol === "DOCENTE" && <MisMaterias />}
       {tab === "consultar-materias" && usuario.rol === "DOCENTE" && <ConsultaMaterias />}
       {tab === "notas-docente" && usuario.rol === "DOCENTE" && <NotasDocente />}
+      {tab === "revisiones" && usuario.rol === "DOCENTE" && <Revisiones />}
       {tab === "enviar-aviso" && usuario.rol === "DOCENTE" && <EnviarAviso />}
       {tab === "fechas-examen" && usuario.rol === "DOCENTE" && <FechasExamen />}
       {tab === "tareas" && usuario.rol === "DOCENTE" && <Tareas />}

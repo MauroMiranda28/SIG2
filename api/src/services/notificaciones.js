@@ -5,7 +5,7 @@
 import { errorAcceso } from "./docentes.js";
 
 export const TIPOS_NOTIFICACION = [
-  "AVISO_DOCENTE", "HORARIO_MODIFICADO", "CALIFICACION_PUBLICADA", "FECHA_EXAMEN", "RECORDATORIO_ENTREGA", "SOLICITUD_REVISION",
+  "AVISO_DOCENTE", "HORARIO_MODIFICADO", "CALIFICACION_PUBLICADA", "FECHA_EXAMEN", "RECORDATORIO_ENTREGA", "SOLICITUD_REVISION", "REVISION_RESUELTA",
 ];
 
 export const LIMITE_POR_DEFECTO = 30;
@@ -119,6 +119,15 @@ export function avisoSolicitudRevision({ alumnoNombre, materiaNombre, tipo, nota
   return {
     titulo: `Solicitud de revisión en ${materiaNombre}`,
     mensaje: `${alumnoNombre} pidió la revisión de su ${etiqueta.toLowerCase()} del ${formatoFecha(fecha)} (nota ${formatoNota(nota)}). Motivo: ${motivo}`,
+  };
+}
+
+// Aviso para el alumno cuando el docente resuelve o rechaza su solicitud de revisión.
+export function avisoRevisionResuelta({ estado, materiaNombre, tipo, nota, fecha, respuesta }) {
+  const etiqueta = ETIQUETA_EVALUACION[tipo] ?? "evaluación";
+  return {
+    titulo: `Tu solicitud de revisión en ${materiaNombre} fue ${estado === "RECHAZADA" ? "rechazada" : "resuelta"}`,
+    mensaje: `${etiqueta} del ${formatoFecha(fecha)} (nota ${formatoNota(nota)}). Respuesta del docente: ${respuesta}`,
   };
 }
 

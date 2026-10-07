@@ -144,6 +144,14 @@ export default function SolicitarRevision() {
               <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.8rem", color: "#777" }}>
                 Enviada el {new Date(s.creadoEn).toLocaleDateString()}
               </p>
+              {s.respuesta && (
+                <p style={{ margin: "0.5rem 0 0 0", padding: "0.5rem 0.75rem", background: "#f5f7fa", borderRadius: "6px", whiteSpace: "pre-line" }}>
+                  <strong>Respuesta del docente:</strong> {s.respuesta}
+                  {s.resueltaEn && (
+                    <span style={{ fontSize: "0.8rem", color: "#777" }}> · {new Date(s.resueltaEn).toLocaleDateString()}</span>
+                  )}
+                </p>
+              )}
             </li>
           ))}
         </ul>

@@ -15,6 +15,31 @@ export function validarIdEvaluacion(valor) {
   return id;
 }
 
+export const ESTADOS_RESOLUCION = ["RESUELTA", "RECHAZADA"];
+const LARGO_RESPUESTA_MINIMO = 5;
+const LARGO_RESPUESTA_MAXIMO = 1000;
+
+// Cuerpo de PATCH /api/revisiones/:id/resolver: cómo se resuelve y qué se le responde al alumno.
+export function validarResolucion(body) {
+  if (body == null || typeof body !== "object" || Array.isArray(body)) {
+    throw errorRevision(400, "Faltan los datos de la resolución.");
+  }
+  if (!ESTADOS_RESOLUCION.includes(body.estado)) {
+    throw errorRevision(400, "Indicá si la solicitud queda resuelta o rechazada.");
+  }
+  if (typeof body.respuesta !== "string" || !body.respuesta.trim()) {
+    throw errorRevision(400, "Escribí una respuesta para el alumno.");
+  }
+  const respuesta = body.respuesta.trim().replace(/[ \t]+/g, " ");
+  if (respuesta.length < LARGO_RESPUESTA_MINIMO) {
+    throw errorRevision(400, `La respuesta debe tener al menos ${LARGO_RESPUESTA_MINIMO} caracteres.`);
+  }
+  if (respuesta.length > LARGO_RESPUESTA_MAXIMO) {
+    throw errorRevision(400, `La respuesta puede tener hasta ${LARGO_RESPUESTA_MAXIMO} caracteres.`);
+  }
+  return { estado: body.estado, respuesta };
+}
+
 export function validarSolicitudRevision(body) {
   if (body == null || typeof body !== "object" || Array.isArray(body)) {
     throw errorRevision(400, "Faltan los datos de la solicitud.");

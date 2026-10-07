@@ -39,9 +39,9 @@ async function conAPI(db, fn) {
   app.use((e, req, res, next) => res.status(e.status || 500).json({ error: e.message }));
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
-  const request = (metodo, ruta, rol, body) => fetch(`http://127.0.0.1:${server.address().port}/api/revisiones${ruta}`, {
+  const request = (metodo, ruta, rol, body, id = 2) => fetch(`http://127.0.0.1:${server.address().port}/api/revisiones${ruta}`, {
     method: metodo,
-    headers: { "Content-Type": "application/json", ...(rol ? { Authorization: `Bearer ${jwt.sign({ id: 2, rol }, process.env.JWT_SECRET)}` } : {}) },
+    headers: { "Content-Type": "application/json", ...(rol ? { Authorization: `Bearer ${jwt.sign({ id, rol }, process.env.JWT_SECRET)}` } : {}) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   try { await fn(request); } finally { await new Promise((resolve) => server.close(resolve)); }

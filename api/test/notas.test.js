@@ -96,6 +96,7 @@ function dbFalsa({
     },
     cambioNota: { create: async ({ data }) => { registro.cambios.push(data); return data; } },
     notificacion: { createMany: async ({ data }) => { registro.notificaciones.push(...data); return { count: data.length }; } },
+    solicitudRevision: { updateMany: async (args) => { registro.resoluciones = [...(registro.resoluciones ?? []), args]; return { count: 1 }; } },
     inscripcionComision: { deleteMany: async (args) => { registro.bajas = [...(registro.bajas ?? []), args.where]; return { count: 1 }; } },
     ...extra,
   };
@@ -254,6 +255,27 @@ test("HTTP: corregir una nota avisa al alumno de esa evaluación, con la nota an
   assert.equal(aviso.titulo, "Se corrigió una calificación de Programación I");
   assert.equal(aviso.mensaje, "Parcial: la nota pasó de 4 a 6,5.");
   assert.equal(aviso.autorId, 7);
+});
+
+test("HTTP: corregir la nota reclamada resuelve las solicitudes de revisión pendientes de esa evaluación", async () => {
+  const db = dbFalsa({ evaluacion: { nota: 4, tipo: "PARCIAL", condicion: null, cursadaId: 102, cursada: { alumnoId: 2, materiaId: 5, materia: CONDICION } } });
+  await conAPI(db, async (request) => {
+    assert.equal((await request("PATCH", "/evaluaciones/1", "DOCENTE", { nota: 6.5, motivo: "Error al sumar el ejercicio 2" })).status, 200);
+  });
+  const [resolucion] = db.registro.resoluciones;
+  assert.deepEqual(resolucion.where, { evaluacionId: 1, estado: "PENDIENTE" }, "solo las pendientes de ESA evaluación");
+  assert.equal(resolucion.data.estado, "RESUELTA");
+  assert.equal(resolucion.data.resueltaPorId, 7, "quién la resolvió sale del token");
+  assert.ok(resolucion.data.resueltaEn instanceof Date);
+  assert.equal(resolucion.data.respuesta, "Se corrigió la nota: pasó de 4 a 6,5. Motivo: Error al sumar el ejercicio 2");
+});
+
+test("HTTP: una corrección rechazada no resuelve ninguna solicitud", async () => {
+  const db = dbFalsa();
+  await conAPI(db, async (request) => {
+    assert.equal((await request("PATCH", "/evaluaciones/1", "DOCENTE", { nota: 4, motivo: "Sin cambios reales" })).status, 400);
+  });
+  assert.equal(db.registro.resoluciones, undefined);
 });
 
 test("HTTP: una corrección rechazada no avisa", async () => {
