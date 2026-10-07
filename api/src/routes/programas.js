@@ -2,6 +2,9 @@ import { Router } from "express";
 import { prisma } from "../db.js";
 import { requiereAuth, requiereRol } from "../middleware/auth.js";
 
+import { validarActualizacion, actualizarPrograma } from "../services/actualizarProgramas.js";
+import { validarId } from "../services/docentes.js";
+
 function validarPrograma(body) {
   const { materiaId, contenidos, bibliografia } = body ?? {};
   if (!Number.isInteger(materiaId) || materiaId < 1 || materiaId > 2147483647) {
@@ -47,6 +50,29 @@ export function crearRouterProgramas(db = prisma) {
     } catch (e) {
       if (e.code === "P2002") return res.status(409).json({ error: "Esta materia ya tiene un programa cargado. No se reemplazó su contenido." });
       if (e.code === "P2003") return res.status(404).json({ error: "La materia seleccionada ya no existe." });
+      next(e);
+    }
+  });
+  // El administrador puede abrir también programas no vigentes para republicarlos.
+  router.get("/:id", async (req, res, next) => {
+    try {
+      const id = validarId(req.params.id, "programa");
+      const programa = await db.programa.findUnique({
+        where: { id },
+        include: { materia: { select: { id: true, nombre: true, codigo: true, programaUrl: true } } },
+      });
+      if (!programa) return res.status(404).json({ error: "El programa no existe." });
+      res.json(programa);
+    } catch (e) { next(e); }
+  });
+  router.patch("/:id", async (req, res, next) => {
+    try {
+      const id = validarId(req.params.id, "programa");
+      const datos = validarActualizacion(req.body);
+      res.json(await actualizarPrograma(db, { id, autorId: req.usuario.id, datos }));
+    } catch (e) {
+      if (e.code === "P2034") return res.status(409).json({ error: "Hubo una modificación simultánea. Recargá el programa antes de guardar." });
+      if (e.code === "P2025") return res.status(404).json({ error: "El programa o la materia ya no existen." });
       next(e);
     }
   });
