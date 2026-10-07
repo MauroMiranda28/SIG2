@@ -86,6 +86,7 @@ enum TipoNotificacion {
   CALIFICACION_PUBLICADA // se publicó una nota
   FECHA_EXAMEN // fecha de un parcial o final
   RECORDATORIO_ENTREGA // se acerca la entrega de una tarea
+  SOLICITUD_REVISION // un alumno pidió la revisión de una nota (le llega al docente de la materia)
 }
 
 // Seg-01, Seg-04, U-01, U-02 y las dos nuevas de docente

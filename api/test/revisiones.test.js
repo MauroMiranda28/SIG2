@@ -57,28 +57,97 @@ test("HTTP: exige login y rol ALUMNO", async () => {
   });
 });
 
-test("HTTP: crea la solicitud cuando la evaluación es del alumno", async () => {
-  const creada = { id: 1, motivo: valida().motivo, estado: "PENDIENTE", creadoEn: new Date(), evaluacion: { id: 5, tipo: "PARCIAL", nota: 4, fecha: new Date(), cursada: { materia: { nombre: "Base de Datos", codigo: "BD1" } } } };
+// DB falsa: la evaluación 5 es del alumno 2 (Ana Díaz) en la materia 3, que dictan los docentes 7 y 8.
+// $transaction restaura lo guardado si algo falla (como un rollback).
+function dbSolicitud({ docentes = [7, 8], pendiente = null, fallaAviso = false } = {}) {
+  const estado = { solicitudes: [], notificaciones: [], consultaDocentes: null };
+  const creada = (data) => ({
+    id: 1, motivo: data.motivo, estado: "PENDIENTE", creadoEn: new Date(),
+    evaluacion: { id: 5, tipo: "PARCIAL", nota: 4, fecha: new Date("2026-05-12T00:00:00Z"), cursada: { materia: { nombre: "Base de Datos", codigo: "BD1" } } },
+  });
   const db = {
-    evaluacion: { findFirst: async () => ({ id: 5 }) },
-    solicitudRevision: { findFirst: async () => null, create: async () => creada },
+    estado,
+    evaluacion: { findFirst: async () => ({
+      id: 5, tipo: "PARCIAL", nota: 4, fecha: new Date("2026-05-12T00:00:00Z"),
+      cursada: { materia: { id: 3, nombre: "Base de Datos" }, alumno: { nombre: "Ana", apellido: "Díaz" } },
+    }) },
+    solicitudRevision: { findFirst: async () => pendiente, create: async ({ data }) => { estado.solicitudes.push(data); return creada(data); } },
+    materiaDocente: { findMany: async ({ where }) => { estado.consultaDocentes = where; return docentes.map((docenteId) => ({ docenteId })); } },
+    notificacion: { createMany: async ({ data }) => {
+      if (fallaAviso) throw new Error("falla notificacion");
+      estado.notificaciones.push(...data); return { count: data.length };
+    } },
   };
-  await conAPI(db, async (request) => {
+  db.$transaction = async (fn) => {
+    const copia = { solicitudes: [...estado.solicitudes], notificaciones: [...estado.notificaciones] };
+    try { return await fn(db); } catch (e) { Object.assign(estado, copia); throw e; }
+  };
+  return db;
+}
+
+test("HTTP: crea la solicitud cuando la evaluación es del alumno", async () => {
+  await conAPI(dbSolicitud(), async (request) => {
     const r = await request("POST", "/", "ALUMNO", valida());
     assert.equal(r.status, 201);
     assert.equal((await r.json()).evaluacion.materia.codigo, "BD1");
   });
 });
 
-test("HTTP: rechaza evaluación ajena, solicitud duplicada y datos inválidos", async () => {
+test("HTTP: al pedir la revisión, los docentes de la materia reciben la notificación con los datos del reclamo", async () => {
+  const db = dbSolicitud();
+  await conAPI(db, async (request) => {
+    assert.equal((await request("POST", "/", "ALUMNO", valida())).status, 201);
+  });
+  assert.deepEqual(db.estado.consultaDocentes, { materiaId: 3 }, "solo los docentes de ESA materia");
+  assert.deepEqual(db.estado.notificaciones.map((n) => n.usuarioId), [7, 8]);
+  for (const n of db.estado.notificaciones) {
+    assert.equal(n.tipo, "SOLICITUD_REVISION");
+    assert.equal(n.materiaId, 3);
+    assert.equal(n.autorId, 2, "figura el alumno que la pidió (sale del token)");
+    assert.equal(n.titulo, "Solicitud de revisión en Base de Datos");
+    assert.equal(n.mensaje, "Ana Díaz pidió la revisión de su parcial del 12/5/2026 (nota 4). Motivo: La nota no coincide con la grilla de corrección publicada.");
+  }
+});
+
+test("HTTP: sin docentes asignados la solicitud se crea igual, sin avisar a nadie", async () => {
+  const db = dbSolicitud({ docentes: [] });
+  await conAPI(db, async (request) => {
+    assert.equal((await request("POST", "/", "ALUMNO", valida())).status, 201);
+  });
+  assert.equal(db.estado.solicitudes.length, 1);
+  assert.equal(db.estado.notificaciones.length, 0);
+});
+
+test("HTTP: un motivo larguísimo se acorta en el aviso sin romper la solicitud", async () => {
+  const db = dbSolicitud();
+  await conAPI(db, async (request) => {
+    assert.equal((await request("POST", "/", "ALUMNO", { evaluacionId: 5, motivo: "a".repeat(1000) })).status, 201);
+  });
+  const mensaje = db.estado.notificaciones[0].mensaje;
+  assert.equal(mensaje.length, 1000);
+  assert.ok(mensaje.endsWith("…"));
+});
+
+test("HTTP: si falla el aviso no queda guardada la solicitud (misma transacción)", async () => {
+  const db = dbSolicitud({ fallaAviso: true });
+  await conAPI(db, async (request) => {
+    assert.equal((await request("POST", "/", "ALUMNO", valida())).status, 500);
+  });
+  assert.equal(db.estado.solicitudes.length, 0);
+  assert.equal(db.estado.notificaciones.length, 0);
+});
+
+test("HTTP: rechaza evaluación ajena, solicitud duplicada y datos inválidos, sin avisar", async () => {
   await conAPI({ evaluacion: { findFirst: async () => null } }, async (request) => {
     assert.equal((await request("POST", "/", "ALUMNO", valida())).status, 404);
     assert.equal((await request("POST", "/", "ALUMNO", { evaluacionId: 0 })).status, 400);
   });
-  const db = { evaluacion: { findFirst: async () => ({ id: 5 }) }, solicitudRevision: { findFirst: async () => ({ id: 9 }) } };
+  const db = dbSolicitud({ pendiente: { id: 9 } });
   await conAPI(db, async (request) => {
     assert.equal((await request("POST", "/", "ALUMNO", valida())).status, 409);
+    assert.equal((await request("POST", "/", "ALUMNO", { evaluacionId: 5, motivo: "corto" })).status, 400);
   });
+  assert.equal(db.estado.notificaciones.length, 0);
 });
 
 test("HTTP: lista mis solicitudes más recientes primero", async () => {

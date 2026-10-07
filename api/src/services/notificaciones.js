@@ -5,7 +5,7 @@
 import { errorAcceso } from "./docentes.js";
 
 export const TIPOS_NOTIFICACION = [
-  "AVISO_DOCENTE", "HORARIO_MODIFICADO", "CALIFICACION_PUBLICADA", "FECHA_EXAMEN", "RECORDATORIO_ENTREGA",
+  "AVISO_DOCENTE", "HORARIO_MODIFICADO", "CALIFICACION_PUBLICADA", "FECHA_EXAMEN", "RECORDATORIO_ENTREGA", "SOLICITUD_REVISION",
 ];
 
 export const LIMITE_POR_DEFECTO = 30;
@@ -109,6 +109,16 @@ export function avisoCorreccion({ materiaNombre, tipo, notaAnterior, notaNueva }
   return {
     titulo: `Se corrigió una calificación de ${materiaNombre}`,
     mensaje: `${etiqueta}: la nota pasó de ${formatoNota(notaAnterior)} a ${formatoNota(notaNueva)}.`,
+  };
+}
+
+// Aviso para el docente cuando un alumno pide la revisión de una nota: quién, qué evaluación y por qué.
+// Hoy el docente no tiene una pantalla de solicitudes, así que el aviso lleva todos los datos.
+export function avisoSolicitudRevision({ alumnoNombre, materiaNombre, tipo, nota, fecha, motivo }) {
+  const etiqueta = ETIQUETA_EVALUACION[tipo] ?? "evaluación";
+  return {
+    titulo: `Solicitud de revisión en ${materiaNombre}`,
+    mensaje: `${alumnoNombre} pidió la revisión de su ${etiqueta.toLowerCase()} del ${formatoFecha(fecha)} (nota ${formatoNota(nota)}). Motivo: ${motivo}`,
   };
 }
 

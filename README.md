@@ -278,7 +278,7 @@ Lo que ya está implementado, para no repetir trabajo:
   responde 404 igual que una inexistente.
 - El destinatario sale siempre del token, nunca de un id por query o body. Una fila por destinatario: cada uno
   marca como leídas solo las suyas y el historial no se borra.
-- Campanita junto a «Cerrar sesión» (solo alumno) con el número de no leídas; abre el historial, con filtro
+- Campanita junto a «Cerrar sesión» (alumno y docente) con el número de no leídas; abre el historial, con filtro
   «Solo no leídas» y «Ver más antiguas».
 - Para que otras historias avisen algo: `crearNotificaciones(db, destinatarioIds, { tipo, titulo, mensaje, materiaId })`
   en `services/notificaciones.js` (acepta una transacción, así el aviso se guarda junto con el cambio que lo origina).
@@ -345,8 +345,19 @@ Lo que ya está implementado, para no repetir trabajo:
 
 **Navegación por rol**
 - El DOCENTE no ve «Materias» ni «Mi horario» (son del alumno) y arranca en «Mis materias».
-- Las notificaciones son una campanita en el encabezado, junto a «Cerrar sesión», y no una pestaña del menú.
+- Las notificaciones son una campanita en el encabezado, junto a «Cerrar sesión» (alumno y docente), y no una pestaña del menú.
 - «Solicitar revisión» es una sección al pie de «Mis notas», ya no una pestaña aparte.
+
+**Notificaciones: solicitud de revisión (docente)**
+- Cuando un alumno pide la revisión de una nota (`POST /api/revisiones`), los docentes asignados a esa materia reciben una
+  notificación `SOLICITUD_REVISION` con quién la pidió, qué evaluación (tipo, fecha y nota) y el motivo del reclamo
+  (ej. «Ana Díaz pidió la revisión de su parcial del 12/5/2026 (nota 4). Motivo: …»). Les llega a la campanita.
+- Solo les llega a los docentes de esa materia: otro docente no recibe nada. Si la materia no tiene docentes asignados la
+  solicitud se crea igual. Pedir de nuevo una revisión pendiente (409) o con datos inválidos (400) no avisa.
+- Se guarda en la misma transacción que la solicitud: si falla el aviso, no queda la solicitud.
+- Todavía no hay una pantalla para que el docente **resuelva** (aceptar o rechazar) la solicitud: por ahora el aviso lleva
+  todos los datos del reclamo.
+- Schema: valor nuevo `SOLICITUD_REVISION` en `TipoNotificacion`. Correr `db:push`. Tests: `node --test api/test/revisiones.test.js`.
 
 **Privacidad del seguimiento académico**
 - Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del

@@ -30,6 +30,9 @@ import CargarPrograma from "./programas/CargarPrograma.jsx";
 // «Materias» y «Mi horario» son del alumno; el docente arranca en «Mis materias».
 const tabInicial = (rol) => (rol === "DOCENTE" ? "mis-materias" : "materias");
 
+// El alumno recibe avisos de sus materias y el docente, las solicitudes de revisión de sus alumnos.
+const tieneNotificaciones = (rol) => rol === "ALUMNO" || rol === "DOCENTE";
+
 function Campana({ noLeidas, activa, onClick }) {
   return (
     <button
@@ -82,9 +85,9 @@ export default function App() {
       .finally(() => setCargando(false));
   }, []);
 
-  // El número de notificaciones sin leer del menú (solo alumnos).
+  // El número de notificaciones sin leer de la campanita (alumnos y docentes).
   useEffect(() => {
-    if (usuario?.rol !== "ALUMNO") return;
+    if (!tieneNotificaciones(usuario?.rol)) return;
     api("/notificaciones?limite=1&soloNoLeidas=true").then((d) => setNoLeidas(d.noLeidas)).catch(() => {});
   }, [usuario]);
 
@@ -113,7 +116,7 @@ export default function App() {
           Hola, <strong>{usuario.nombre}</strong>
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          {usuario.rol === "ALUMNO" && <Campana noLeidas={noLeidas} activa={tab === "notificaciones"} onClick={() => setTab("notificaciones")} />}
+          {tieneNotificaciones(usuario.rol) && <Campana noLeidas={noLeidas} activa={tab === "notificaciones"} onClick={() => setTab("notificaciones")} />}
           <button onClick={cerrarSesion} style={{ cursor: "pointer" }}>
             Cerrar sesión
           </button>
@@ -174,7 +177,7 @@ export default function App() {
       {tab === "historial-notas" && usuario.rol === "ALUMNO" && <HistorialNotas />}
       {tab === "asistencia" && usuario.rol === "ALUMNO" && <MiAsistencia />}
       {tab === "simular-promedio" && usuario.rol === "ALUMNO" && <SimularPromedio />}
-      {tab === "notificaciones" && usuario.rol === "ALUMNO" && <Notificaciones onCambioNoLeidas={setNoLeidas} />}
+      {tab === "notificaciones" && tieneNotificaciones(usuario.rol) && <Notificaciones onCambioNoLeidas={setNoLeidas} />}
       {tab === "cargar-programa" && usuario.rol === "ADMIN" && <CargarPrograma />}
       {tab === "mi-carrera" && usuario.rol === "ALUMNO" && <MiCarrera />}
       {tab === "mis-datos" && <MisDatos usuario={usuario} onActualizado={(datos) => setUsuario({ ...usuario, ...datos })} />}
