@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../api.js";
+import { api, descargarArchivo } from "../api.js";
 import MateriaDetalle from "./MateriaDetalle.jsx";
 import { estadoVisible, ETIQUETA_ESTADO, COLOR_ESTADO } from "./estadoMateria.js";
 
@@ -17,6 +17,8 @@ export default function MateriasCarrera() {
   const [cargandoPrograma, setCargandoPrograma] = useState(false);
   const [detalleAbiertoId, setDetalleAbiertoId] = useState(null);
   const [busqueda, setBusqueda] = useState("");
+  const [descargandoId, setDescargandoId] = useState(null);
+  const [errorDescarga, setErrorDescarga] = useState(null); // { materiaId, mensaje }
 
   useEffect(() => {
     buscarMaterias("");
@@ -56,6 +58,19 @@ export default function MateriasCarrera() {
       setErrorPrograma(e.message);
     } finally {
       setCargandoPrograma(false);
+    }
+  }
+
+  // Descarga el programa en PDF (el subido por el docente, o uno armado con el programa en texto).
+  async function descargarPrograma(materia) {
+    setErrorDescarga(null);
+    setDescargandoId(materia.id);
+    try {
+      await descargarArchivo(`/materias/${materia.id}/programa/pdf`, `programa-${materia.codigo}.pdf`);
+    } catch (e) {
+      setErrorDescarga({ materiaId: materia.id, mensaje: e.message });
+    } finally {
+      setDescargandoId(null);
     }
   }
 
@@ -152,7 +167,22 @@ export default function MateriasCarrera() {
                   >
                     {materiaAbiertaId === materia.id ? "Ocultar programa" : "Ver programa"}
                   </button>
+
+                  <button
+                    onClick={() => descargarPrograma(materia)}
+                    disabled={!materia.tienePrograma || descargandoId === materia.id}
+                    title={materia.tienePrograma ? "Descargar el programa en PDF" : "Esta materia todavía no tiene un programa cargado"}
+                    style={{ alignSelf: "flex-start", cursor: materia.tienePrograma ? "pointer" : "not-allowed" }}
+                  >
+                    {descargandoId === materia.id ? "Descargando..." : "Descargar programa (PDF)"}
+                  </button>
                 </div>
+                {!materia.tienePrograma && (
+                  <small style={{ color: "#777" }}>Todavía no hay un programa cargado para descargar.</small>
+                )}
+                {errorDescarga?.materiaId === materia.id && (
+                  <p style={{ color: "#b00020", margin: 0 }}>{errorDescarga.mensaje}</p>
+                )}
 
                 {detalleAbiertoId === materia.id && (
                   <div style={{ background: "#fafafa", padding: "0.75rem", borderRadius: "6px" }}>

@@ -3,7 +3,7 @@ import { prisma } from "../db.js";
 import { requiereAuth, requiereRol } from "../middleware/auth.js";
 import { requiereMateriaAsignada, validarId, errorAcceso } from "../services/docentes.js";
 import {
-  subirProgramaPdf, esPdf, leerCabecera, rutaPrograma, borrarArchivo, nombreDescarga, escribirProgramaPdf,
+  subirProgramaPdf, esPdf, leerCabecera, rutaPrograma, borrarArchivo, nombreDescarga, escribirProgramaPdf, tieneProgramaParaDescargar,
 } from "../services/programas.js";
 import fs from "node:fs";
 import { guardarProgramaConRegistro } from "../services/auditoriaMateria.js";
@@ -44,14 +44,18 @@ router.get("/", requiereAuth, async (req, res, next) => {
         },
         // Si eligió una comisión de la materia, la está cursando aunque todavía no tenga notas.
         comisiones: { where: { inscripciones: { some: { alumnoId: req.usuario.id } } }, select: { id: true } },
+        // Solo para saber si hay programa para descargar (no se manda su contenido).
+        programa: { select: { vigente: true } },
       },
       orderBy: [{ anio: "asc" }, { nombre: "asc" }],
     });
 
-    const materiasConEstado = materias.map(({ cursadas, comisiones, ...materia }) => {
+    const materiasConEstado = materias.map(({ cursadas, comisiones, programa, programaUrl, ...materia }) => {
       const cursada = cursadas[0];
       return {
         ...materia,
+        // Si se puede descargar el programa (PDF subido o texto vigente). No se expone el nombre del archivo.
+        tienePrograma: tieneProgramaParaDescargar({ programaUrl, programa }),
         estado: cursada?.estado ?? "PENDIENTE",
         nota: cursada?.nota ?? null,
         inscripto: comisiones.length > 0,
