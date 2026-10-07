@@ -7,6 +7,8 @@ const ETIQUETA_TIPO = {
   CALIFICACION_PUBLICADA: "Calificación",
   FECHA_EXAMEN: "Examen",
   RECORDATORIO_ENTREGA: "Entrega",
+  SOLICITUD_REVISION: "Solicitud de revisión",
+  REVISION_RESUELTA: "Revisión de nota",
 };
 
 const POR_PAGINA = 20;
