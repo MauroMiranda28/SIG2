@@ -278,7 +278,8 @@ Lo que ya está implementado, para no repetir trabajo:
   responde 404 igual que una inexistente.
 - El destinatario sale siempre del token, nunca de un id por query o body. Una fila por destinatario: cada uno
   marca como leídas solo las suyas y el historial no se borra.
-- Pestaña «Notificaciones» del alumno, con el número de no leídas en el menú, filtro «Solo no leídas» y «Ver más antiguas».
+- Campanita junto a «Cerrar sesión» (solo alumno) con el número de no leídas; abre el historial, con filtro
+  «Solo no leídas» y «Ver más antiguas».
 - Para que otras historias avisen algo: `crearNotificaciones(db, destinatarioIds, { tipo, titulo, mensaje, materiaId })`
   en `services/notificaciones.js` (acepta una transacción, así el aviso se guarda junto con el cambio que lo origina).
 - Schema: modelo nuevo `Notificacion` y enum `TipoNotificacion`. Correr `db:push`.
@@ -341,6 +342,11 @@ Lo que ya está implementado, para no repetir trabajo:
 - Schema: modelo `Tarea` y `Notificacion.clave` con restricción única `[usuarioId, clave]`. Correr
   `db:push --accept-data-loss`: Prisma avisa por la restricción nueva, pero es seguro porque las notificaciones existentes
   quedan con `clave` nula y los nulos no cuentan como duplicados. Tests: `node --test api/test/tareas.test.js`.
+
+**Navegación por rol**
+- El DOCENTE no ve «Materias» ni «Mi horario» (son del alumno) y arranca en «Mis materias».
+- Las notificaciones son una campanita en el encabezado, junto a «Cerrar sesión», y no una pestaña del menú.
+- «Solicitar revisión» es una sección al pie de «Mis notas», ya no una pestaña aparte.
 
 **Privacidad del seguimiento académico**
 - Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del

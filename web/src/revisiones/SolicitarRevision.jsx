@@ -4,6 +4,7 @@ import { formatFecha } from "../formatFecha.js";
 
 // Historia: como alumno quiero solicitar una revisión de nota desde el
 // sistema, para reclamar formalmente si considero que hay un error de calificación.
+// Es una sección al pie de «Mis notas» (ver notas/MisNotas.jsx), no una pantalla aparte.
 
 const ETIQUETA_TIPO = {
   PARCIAL: "Parcial",
@@ -71,8 +72,8 @@ export default function SolicitarRevision() {
   }
 
   return (
-    <div style={{ fontFamily: "system-ui", maxWidth: "40rem" }}>
-      <h2>Solicitar revisión de nota</h2>
+    <section style={{ marginTop: "2rem", paddingTop: "1.25rem", borderTop: "1px solid #ddd" }}>
+      <h3 style={{ marginTop: 0 }}>Solicitar revisión de nota</h3>
 
       {evaluaciones.length === 0 ? (
         <p>Todavía no tenés evaluaciones sobre las que solicitar una revisión.</p>
@@ -115,7 +116,7 @@ export default function SolicitarRevision() {
         </form>
       )}
 
-      <h3>Mis solicitudes</h3>
+      <h4>Mis solicitudes</h4>
       {solicitudes.length === 0 ? (
         <p>No enviaste ninguna solicitud todavía.</p>
       ) : (
@@ -147,7 +148,7 @@ export default function SolicitarRevision() {
           ))}
         </ul>
       )}
-    </div>
+    </section>
   );
 }
 

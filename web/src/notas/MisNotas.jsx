@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, leerToken } from "../api.js";
 import { formatFecha } from "../formatFecha.js";
 import { estadoVisible, detalleEstado, ETIQUETA_ESTADO } from "../materias/estadoMateria.js";
+import SolicitarRevision from "../revisiones/SolicitarRevision.jsx";
 
 // Mat-09: el alumno ve el estado de sus materias y puede descargar un
 // certificado en PDF con las que ya aprobó, para trámites externos.
@@ -47,8 +48,13 @@ export default function MisNotas() {
   }
 
   if (error) {
+    // La revisión de nota no depende de la tabla de materias: se puede pedir igual.
     return (
-      <p style={{ color: "#b00020" }}>No se pudieron cargar tus notas: {error}</p>
+      <div style={{ fontFamily: "system-ui", maxWidth: "40rem" }}>
+        <h2>Mis notas</h2>
+        <p style={{ color: "#b00020" }}>No se pudieron cargar tus notas: {error}</p>
+        <SolicitarRevision />
+      </div>
     );
   }
 
@@ -98,6 +104,8 @@ export default function MisNotas() {
           ))}
         </tbody>
       </table>
+
+      <SolicitarRevision />
     </div>
   );
 }
