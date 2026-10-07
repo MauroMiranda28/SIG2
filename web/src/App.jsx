@@ -27,6 +27,7 @@ import Tareas from "./docentes/Tareas.jsx";
 import Revisiones from "./docentes/Revisiones.jsx";
 
 import MiCarrera from "./carreras/MiCarrera.jsx";
+import ActualizarPrograma from "./programas/ActualizarPrograma.jsx";
 import CargarPrograma from "./programas/CargarPrograma.jsx";
 
 // «Materias» y «Mi horario» son del alumno; el docente arranca en «Mis materias».
@@ -161,6 +162,7 @@ export default function App() {
         </button>
         {usuario.rol === "ADMIN" && <button onClick={() => setTab("cargar-programa")} disabled={tab === "cargar-programa"}>Cargar programa</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("mi-carrera")} disabled={tab === "mi-carrera"}>Mi carrera</button>}
+        {usuario.rol === "ADMIN" && <button onClick={() => setTab("actualizar-programa")} disabled={tab === "actualizar-programa"}>Actualizar programa</button>}
       </nav>
 
       {tab === "materias" && usuario.rol !== "DOCENTE" && <MateriasCarrera />}
@@ -184,6 +186,7 @@ export default function App() {
       {tab === "actividades-personales" && usuario.rol === "ALUMNO" && <ActividadesPersonales />}
       {tab === "simular-promedio" && usuario.rol === "ALUMNO" && <SimularPromedio />}
       {tab === "notificaciones" && tieneNotificaciones(usuario.rol) && <Notificaciones onCambioNoLeidas={setNoLeidas} />}
+      {tab === "actualizar-programa" && usuario.rol === "ADMIN" && <ActualizarPrograma />}
       {tab === "cargar-programa" && usuario.rol === "ADMIN" && <CargarPrograma />}
       {tab === "mi-carrera" && usuario.rol === "ALUMNO" && <MiCarrera />}
       {tab === "mis-datos" && <MisDatos usuario={usuario} onActualizado={(datos) => setUsuario({ ...usuario, ...datos })} />}
