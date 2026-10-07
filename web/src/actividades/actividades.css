@@ -185,6 +185,10 @@
   font-size: 0.85rem;
 }
 
+.actividad-mensaje-info {
+  color: #555;
+}
+
 .actividad-mensaje.error {
   color: #b00020;
 }

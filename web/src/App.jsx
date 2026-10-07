@@ -6,7 +6,7 @@ import MateriasCarrera from "./materias/MateriasCarrera.jsx";
 import Bibliografia from "./materias/Bibliografia.jsx";
 import Correlatividades from "./correlatividades/Correlatividades.jsx";
 import CargarCorrelatividades from "./correlatividades/CargarCorrelatividades.jsx";
-import GrillaSemanal from "./horarios/GrillaSemanal.jsx";
+import AgendaSemanal from "./horarios/AgendaSemanal.jsx";
 import MisDatos from "./perfil/MisDatos.jsx";
 import MisNotas from "./notas/MisNotas.jsx";
 import HistorialNotas from "./evaluaciones/HistorialNotas.jsx";
@@ -134,7 +134,7 @@ export default function App() {
             Materias
           </button>
         )}
-        {usuario.rol !== "DOCENTE" && (
+        {usuario.rol === "ALUMNO" && (
           <button onClick={() => setTab("horario")} disabled={tab === "horario"} style={{ cursor: "pointer" }}>
             Mi horario
           </button>
@@ -166,7 +166,7 @@ export default function App() {
       </nav>
 
       {tab === "materias" && usuario.rol !== "DOCENTE" && <MateriasCarrera />}
-      {tab === "horario" && usuario.rol !== "DOCENTE" && <GrillaSemanal />}
+      {tab === "horario" && usuario.rol === "ALUMNO" && <AgendaSemanal />}
       {tab === "mis-materias" && usuario.rol === "DOCENTE" && <MisMaterias />}
       {tab === "consultar-materias" && usuario.rol === "DOCENTE" && <ConsultaMaterias />}
       {tab === "notas-docente" && usuario.rol === "DOCENTE" && <NotasDocente />}
