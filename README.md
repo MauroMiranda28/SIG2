@@ -278,7 +278,8 @@ Lo que ya está implementado, para no repetir trabajo:
   responde 404 igual que una inexistente.
 - El destinatario sale siempre del token, nunca de un id por query o body. Una fila por destinatario: cada uno
   marca como leídas solo las suyas y el historial no se borra.
-- Pestaña «Notificaciones» del alumno, con el número de no leídas en el menú, filtro «Solo no leídas» y «Ver más antiguas».
+- Campanita junto a «Cerrar sesión» (alumno y docente) con el número de no leídas; abre el historial, con filtro
+  «Solo no leídas» y «Ver más antiguas».
 - Para que otras historias avisen algo: `crearNotificaciones(db, destinatarioIds, { tipo, titulo, mensaje, materiaId })`
   en `services/notificaciones.js` (acepta una transacción, así el aviso se guarda junto con el cambio que lo origina).
 - Schema: modelo nuevo `Notificacion` y enum `TipoNotificacion`. Correr `db:push`.
@@ -341,6 +342,37 @@ Lo que ya está implementado, para no repetir trabajo:
 - Schema: modelo `Tarea` y `Notificacion.clave` con restricción única `[usuarioId, clave]`. Correr
   `db:push --accept-data-loss`: Prisma avisa por la restricción nueva, pero es seguro porque las notificaciones existentes
   quedan con `clave` nula y los nulos no cuentan como duplicados. Tests: `node --test api/test/tareas.test.js`.
+
+**Navegación por rol**
+- El DOCENTE no ve «Materias» ni «Mi horario» (son del alumno) y arranca en «Mis materias».
+- Las notificaciones son una campanita en el encabezado, junto a «Cerrar sesión» (alumno y docente), y no una pestaña del menú.
+- «Solicitar revisión» es una sección al pie de «Mis notas», ya no una pestaña aparte.
+
+**Notificaciones: solicitud de revisión (docente)**
+- Cuando un alumno pide la revisión de una nota (`POST /api/revisiones`), los docentes asignados a esa materia reciben una
+  notificación `SOLICITUD_REVISION` con quién la pidió, qué evaluación (tipo, fecha y nota) y el motivo del reclamo
+  (ej. «Ana Díaz pidió la revisión de su parcial del 12/5/2026 (nota 4). Motivo: …»). Les llega a la campanita.
+- Solo les llega a los docentes de esa materia: otro docente no recibe nada. Si la materia no tiene docentes asignados la
+  solicitud se crea igual. Pedir de nuevo una revisión pendiente (409) o con datos inválidos (400) no avisa.
+- Se guarda en la misma transacción que la solicitud: si falla el aviso, no queda la solicitud.
+- El docente la resuelve desde la pestaña «Revisiones» (ver más abajo).
+- Schema: valor nuevo `SOLICITUD_REVISION` en `TipoNotificacion`. Correr `db:push`. Tests: `node --test api/test/revisiones.test.js`.
+
+**Revisiones de nota: el docente las resuelve**
+- Antes las solicitudes quedaban `PENDIENTE` para siempre: nada cambiaba su estado. Ahora hay dos formas de resolverlas.
+- **Desde la pestaña «Revisiones» del DOCENTE:** `GET /api/revisiones/materias/:id` lista las solicitudes de la materia (primero las
+  pendientes, con el alumno, la evaluación y el motivo) y `PATCH /api/revisiones/:id/resolver` con `{ estado, respuesta }`
+  la deja `RESUELTA` o `RECHAZADA`. La respuesta es obligatoria (5 a 1000 caracteres). Solo el docente asignado a la materia
+  (o ADMIN) puede verlas y resolverlas: otro docente recibe 403, y el alumno también.
+- **Al corregir la nota reclamada** (`PATCH /api/notas/evaluaciones/:id`), las solicitudes pendientes de esa evaluación pasan solas
+  a `RESUELTA`, con la respuesta «Se corrigió la nota: pasó de X a Y. Motivo: …». En ese caso no hay un aviso extra: el alumno ya
+  recibe el de la corrección de la nota.
+- Una solicitud se resuelve una sola vez: volver a resolverla responde 409. Se guarda quién la resolvió, cuándo y la respuesta.
+- El alumno ve el estado y la «Respuesta del docente» en «Mis solicitudes» (dentro de «Mis notas») y recibe una notificación
+  `REVISION_RESUELTA` cuando el docente la resuelve o rechaza. Los avisos se guardan en la misma transacción que el cambio.
+- Schema: `SolicitudRevision.respuesta`, `resueltaEn` y `resueltaPorId`, y valor nuevo `REVISION_RESUELTA` en `TipoNotificacion`.
+  Correr `db:push`. Las solicitudes que ya estaban pendientes se pueden resolver desde la pestaña.
+  Tests: `node --test api/test/revisiones-docente.test.js`.
 
 **Privacidad del seguimiento académico**
 - Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del

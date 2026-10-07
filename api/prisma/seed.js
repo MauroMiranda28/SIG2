@@ -6,9 +6,9 @@ const prisma = new PrismaClient();
 
 async function main() {
   const carrera = await prisma.carrera.upsert({
-    where: { codigo: "LSI" },
+    where: { codigo: "IEI" },
     update: {},
-    create: { nombre: "Licenciatura en Sistemas de Información", codigo: "LSI" },
+    create: { nombre: "Ingeniería en Informática", codigo: "IEI" },
   });
 
   const plan = await prisma.planEstudio.upsert({
