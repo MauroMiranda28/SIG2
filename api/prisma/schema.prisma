@@ -31,6 +31,12 @@ enum DiaSemana {
   JUEVES
   VIERNES
   SABADO
+  DOMINGO
+}
+
+enum ProgramacionActividad {
+  RECURRENTE
+  PUNTUAL
 }
 
 enum TipoEvaluacion {
@@ -468,12 +474,18 @@ model BloqueHorario {
 
 // ACT-01 a ACT-06
 model ActividadPersonal {
-  id        Int      @id @default(autoincrement())
-  titulo    String
-  notas     String?
-  duracion  Int? // minutos
-  etiqueta  String?
-  creadoEn  DateTime @default(now())
+  id           Int                   @id @default(autoincrement())
+  titulo       String
+  notas        String?
+  duracion     Int? // minutos
+  categoria    String                @default("OTRA") @map("tipo")
+  etiquetas    String[]              @default([])
+  etiqueta     String?
+  programacion ProgramacionActividad @default(PUNTUAL)
+  dia          DiaSemana?
+  fecha        DateTime?             @db.Date
+  horaInicio   String?
+  creadoEn     DateTime              @default(now())
 
   usuarioId Int
   usuario   Usuario @relation(fields: [usuarioId], references: [id])
