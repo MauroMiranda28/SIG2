@@ -4,17 +4,13 @@ import MateriaDetalle from "./MateriaDetalle.jsx";
 import { estadoVisible, ETIQUETA_ESTADO, COLOR_ESTADO } from "./estadoMateria.js";
 
 // Mat-01 + HU-PRO + Mat-03 + Horarios U-01: el alumno ve las materias de su
-// carrera con su estado de cursada, y puede abrir el programa (contenidos y
-// bibliografía) o la información y comisiones de cualquiera.
+// carrera con su estado de cursada, puede descargar el programa en PDF y abrir
+// la información y comisiones de cualquiera.
 // Mat-08: puede buscar por nombre o código.
 
 export default function MateriasCarrera() {
   const [materias, setMaterias] = useState(null);
   const [error, setError] = useState(null);
-  const [materiaAbiertaId, setMateriaAbiertaId] = useState(null);
-  const [programa, setPrograma] = useState(null);
-  const [errorPrograma, setErrorPrograma] = useState(null);
-  const [cargandoPrograma, setCargandoPrograma] = useState(false);
   const [detalleAbiertoId, setDetalleAbiertoId] = useState(null);
   const [busqueda, setBusqueda] = useState("");
   const [descargandoId, setDescargandoId] = useState(null);
@@ -35,30 +31,6 @@ export default function MateriasCarrera() {
   function handleBuscar(e) {
     e.preventDefault();
     buscarMaterias(busqueda);
-  }
-
-  async function verPrograma(materiaId) {
-    // Si ya está abierta esta misma, la cierro (toggle).
-    if (materiaAbiertaId === materiaId) {
-      setMateriaAbiertaId(null);
-      setPrograma(null);
-      setErrorPrograma(null);
-      return;
-    }
-
-    setMateriaAbiertaId(materiaId);
-    setPrograma(null);
-    setErrorPrograma(null);
-    setCargandoPrograma(true);
-
-    try {
-      const data = await api(`/materias/${materiaId}/programa`);
-      setPrograma(data);
-    } catch (e) {
-      setErrorPrograma(e.message);
-    } finally {
-      setCargandoPrograma(false);
-    }
   }
 
   // Descarga el programa en PDF (el subido por el docente, o uno armado con el programa en texto).
@@ -162,13 +134,6 @@ export default function MateriasCarrera() {
                   </button>
 
                   <button
-                    onClick={() => verPrograma(materia.id)}
-                    style={{ alignSelf: "flex-start", cursor: "pointer" }}
-                  >
-                    {materiaAbiertaId === materia.id ? "Ocultar programa" : "Ver programa"}
-                  </button>
-
-                  <button
                     onClick={() => descargarPrograma(materia)}
                     disabled={!materia.tienePrograma || descargandoId === materia.id}
                     title={materia.tienePrograma ? "Descargar el programa en PDF" : "Esta materia todavía no tiene un programa cargado"}
@@ -190,36 +155,6 @@ export default function MateriasCarrera() {
                   </div>
                 )}
 
-                {materiaAbiertaId === materia.id && (
-                  <div style={{ background: "#fafafa", padding: "0.75rem", borderRadius: "6px" }}>
-                    {cargandoPrograma && <p>Cargando programa...</p>}
-
-                    {errorPrograma && (
-                      <p style={{ color: "#b00020", margin: 0 }}>{errorPrograma}</p>
-                    )}
-
-                    {programa && (
-                      <>
-                        <p style={{ margin: "0 0 0.5rem 0", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                          <strong>Contenidos</strong>
-                          <br />
-                          {programa.programa.contenidos}
-                        </p>
-                        {programa.programa.bibliografia && (
-                          <p style={{ margin: "0 0 0.5rem 0", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                            <strong>Bibliografía</strong>
-                            <br />
-                            {programa.programa.bibliografia}
-                          </p>
-                        )}
-                        <p style={{ margin: 0, fontSize: "0.8rem", color: "#777" }}>
-                          Versión {programa.programa.version} · actualizado el{" "}
-                          {new Date(programa.programa.actualizadoEn).toLocaleDateString()}
-                        </p>
-                      </>
-                    )}
-                  </div>
-                )}
               </li>
             ))}
           </ul>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, descargarArchivo } from "../api.js";
+import { api } from "../api.js";
 
 const ETIQUETA_DIA = {
   LUNES: "Lunes",
@@ -16,8 +16,6 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion }) {
   const [error, setError] = useState(null);
   const [eligiendoId, setEligiendoId] = useState(null);
   const [errorEleccion, setErrorEleccion] = useState(null);
-  const [descargando, setDescargando] = useState(false);
-  const [errorDescarga, setErrorDescarga] = useState(null);
 
   function cargar() {
     setError(null);
@@ -45,19 +43,6 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion }) {
       setErrorEleccion(e.message);
     } finally {
       setEligiendoId(null);
-    }
-  }
-
-  // Descargar el programa en PDF (el subido por el docente, o uno armado con el programa en texto)
-  async function descargarPrograma() {
-    setErrorDescarga(null);
-    setDescargando(true);
-    try {
-      await descargarArchivo(`/materias/${materiaId}/programa/pdf`, `programa-${materia.codigo}.pdf`);
-    } catch (e) {
-      setErrorDescarga(e.message);
-    } finally {
-      setDescargando(false);
     }
   }
 
@@ -95,16 +80,6 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion }) {
             {materia.esPromocional ? ` · se promociona con ${materia.notaPromocion}` : " · no es promocional"}
             {" "}· el final se aprueba con {materia.notaAprobacionFinal}
           </p>
-        )}
-
-        {/* Descargar el programa para consultarlo después */}
-        {(materia.programaUrl || materia.programa?.vigente) && (
-          <div style={{ marginTop: "1rem" }}>
-            <button onClick={descargarPrograma} disabled={descargando} style={{ cursor: "pointer" }}>
-              {descargando ? "Descargando..." : "Descargar programa (PDF)"}
-            </button>
-            {errorDescarga && <p style={{ color: "#b00020", margin: "0.5rem 0 0 0" }}>{errorDescarga}</p>}
-          </div>
         )}
       </div>
 
