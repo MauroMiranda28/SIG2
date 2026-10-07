@@ -7,7 +7,7 @@ export function errorCarrera(status, message) {
 
 const LARGO_NOMBRE = 160;
 const LARGO_DESCRIPCION = 1000;
-// Letras, números, guion y guion bajo. Se guarda en mayúsculas: "lsi" y "LSI" son el mismo código.
+// Letras, números, guion y guion bajo. Se guarda en mayúsculas: "iei" y "IEI" son el mismo código.
 const FORMATO_CODIGO = /^[A-Z0-9][A-Z0-9_-]{0,19}$/;
 
 // Solo estos campos se pueden cargar o cambiar desde estas historias.
