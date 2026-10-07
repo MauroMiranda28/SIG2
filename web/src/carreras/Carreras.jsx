@@ -121,12 +121,12 @@ export default function Carreras() {
 
           <label>Nombre
             <input ref={primerCampo} required maxLength={160} value={form.nombre}
-              placeholder="Ej. Licenciatura en Sistemas de Información"
+              placeholder="Ej. Ingeniería en Informática"
               onChange={(e) => cambiar("nombre", e.target.value)} />
           </label>
 
           <label>Código
-            <input required maxLength={20} value={form.codigo} placeholder="Ej. LSI"
+            <input required maxLength={20} value={form.codigo} placeholder="Ej. IEI"
               pattern="[A-Za-z0-9][A-Za-z0-9_\-]{0,19}"
               title="Hasta 20 caracteres: letras, números, guion o guion bajo, sin espacios."
               aria-describedby="ayuda-codigo"

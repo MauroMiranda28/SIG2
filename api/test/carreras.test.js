@@ -5,12 +5,12 @@ import jwt from "jsonwebtoken";
 import { crearRouterCarreras } from "../src/routes/carreras.js";
 import { validarCarrera, validarCambiosCarrera, validarIdCarrera, buscarDuplicado } from "../src/services/carreras.js";
 
-const valida = () => ({ nombre: "  Licenciatura   en Sistemas ", codigo: " lsi-2026 ", descripcion: "  Carrera de grado.  " });
+const valida = () => ({ nombre: "  Ingeniería   en Informática ", codigo: " iei-2026 ", descripcion: "  Carrera de grado.  " });
 
 // ---------- Validación (sin DB) ----------
 
 test("registrar: normaliza nombre, código y descripción", () => {
-  assert.deepEqual(validarCarrera(valida()), { nombre: "Licenciatura en Sistemas", codigo: "LSI-2026", descripcion: "Carrera de grado." });
+  assert.deepEqual(validarCarrera(valida()), { nombre: "Ingeniería en Informática", codigo: "IEI-2026", descripcion: "Carrera de grado." });
   assert.equal(validarCarrera({ nombre: "X", codigo: "X" }).descripcion, null);
   assert.equal(validarCarrera({ ...valida(), descripcion: "   " }).descripcion, null);
 });
@@ -19,7 +19,7 @@ test("registrar: rechaza datos faltantes, inválidos o campos que no corresponde
   const casos = [
     null, [], {},
     { ...valida(), nombre: " " }, { ...valida(), nombre: 5 }, { ...valida(), nombre: "a".repeat(161) },
-    { ...valida(), codigo: "" }, { ...valida(), codigo: "con espacio" }, { ...valida(), codigo: "A".repeat(21) }, { ...valida(), codigo: "-LSI" },
+    { ...valida(), codigo: "" }, { ...valida(), codigo: "con espacio" }, { ...valida(), codigo: "A".repeat(21) }, { ...valida(), codigo: "-IEI" },
     { ...valida(), descripcion: 3 }, { ...valida(), descripcion: "a".repeat(1001) },
     { ...valida(), vigente: false }, { ...valida(), id: 99 },
   ];
@@ -42,8 +42,8 @@ test("id de carrera: solo enteros positivos", () => {
 test("duplicados: distingue código de nombre y excluye la propia carrera", async () => {
   let where;
   const db = (otra) => ({ carrera: { findFirst: async (args) => { where = args.where; return otra; } } });
-  await assert.rejects(buscarDuplicado(db({ nombre: "Otra", codigo: "LSI" }), { nombre: "X", codigo: "LSI" }), (e) => e.status === 409 && /código/.test(e.message));
-  await assert.rejects(buscarDuplicado(db({ nombre: "Sistemas", codigo: "OTRO" }), { nombre: "sistemas", codigo: "LSI" }), (e) => e.status === 409 && /llamada/.test(e.message));
+  await assert.rejects(buscarDuplicado(db({ nombre: "Otra", codigo: "IEI" }), { nombre: "X", codigo: "IEI" }), (e) => e.status === 409 && /código/.test(e.message));
+  await assert.rejects(buscarDuplicado(db({ nombre: "Sistemas", codigo: "OTRO" }), { nombre: "sistemas", codigo: "IEI" }), (e) => e.status === 409 && /llamada/.test(e.message));
   await buscarDuplicado(db(null), { nombre: "X" }, 4);
   assert.deepEqual(where.NOT, { id: 4 });
 });
@@ -85,7 +85,7 @@ test("HTTP: registra una carrera y responde 201", async () => {
     const r = await request("POST", "/", "ADMIN", valida());
     assert.equal(r.status, 201);
     assert.equal((await r.json()).id, 5);
-    assert.equal(recibido.codigo, "LSI-2026");
+    assert.equal(recibido.codigo, "IEI-2026");
     assert.equal("vigente" in recibido, false);
   });
 });
@@ -95,7 +95,7 @@ test("HTTP: registrar rechaza datos inválidos (400) y duplicados (409) sin guar
   await conAPI({ $transaction: noGuarda }, async (request) => {
     assert.equal((await request("POST", "/", "ADMIN", { nombre: "Sin código" })).status, 400);
   });
-  const tx = { carrera: { findFirst: async () => ({ nombre: "Otra", codigo: "LSI-2026" }), create: noGuarda } };
+  const tx = { carrera: { findFirst: async () => ({ nombre: "Otra", codigo: "IEI-2026" }), create: noGuarda } };
   await conAPI(transaccion(tx), async (request) => {
     assert.equal((await request("POST", "/", "ADMIN", valida())).status, 409);
   });
@@ -111,7 +111,7 @@ test("HTTP: modifica solo los campos enviados y responde 200", async () => {
   const tx = { carrera: {
     findUnique: async () => ({ id: 3 }),
     findFirst: async (args) => { assert.deepEqual(args.where.NOT, { id: 3 }); return null; },
-    update: async (args) => { actualizado = args; return { id: 3, nombre: "Ingeniería en Sistemas", codigo: "LSI" }; },
+    update: async (args) => { actualizado = args; return { id: 3, nombre: "Ingeniería en Sistemas", codigo: "IEI" }; },
   } };
   await conAPI(transaccion(tx), async (request) => {
     const r = await request("PATCH", "/3", "ADMIN", { nombre: " Ingeniería en Sistemas " });
