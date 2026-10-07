@@ -56,6 +56,12 @@ export async function leerCabecera(ruta, bytes = 5) {
   }
 }
 
+// ¿Se puede descargar el programa de la materia? Sí si hay un PDF subido o un programa en texto vigente
+// (con ese se arma el PDF al vuelo). Es la misma regla que usa GET /api/materias/:id/programa/pdf.
+export function tieneProgramaParaDescargar({ programaUrl, programa } = {}) {
+  return Boolean(rutaPrograma(programaUrl)) || programa?.vigente === true;
+}
+
 // En la base se guarda solo el nombre del archivo. Si hay un valor viejo con ruta
 // (ej. "uploads/programas/abc" o "uploads\\programas\\abc"), se toma solo el final:
 // así nunca se puede apuntar a un archivo fuera de la carpeta de programas.

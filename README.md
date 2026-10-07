@@ -228,7 +228,13 @@ Lo que ya está implementado, para no repetir trabajo:
 
 **Programa en PDF**
 - `GET /api/materias/:id/programa/pdf` (cualquier usuario logueado) — descarga el PDF subido; si no hay,
-  arma uno con el programa cargado como texto. Botón «Descargar programa (PDF)» en el detalle de la materia.
+  arma uno con el programa cargado como texto.
+- El alumno lo descarga directo desde la lista «Materias de mi carrera» con el botón «Descargar programa (PDF)». Ya no hay un
+  «Ver programa» aparte (mostraba el mismo contenido en pantalla) ni otro botón de descarga dentro de «Ver información y
+  horarios»: un solo botón por materia. `GET /api/materias`
+  devuelve `tienePrograma` en cada materia (hay un PDF subido o un programa en texto vigente) para activar el botón; si la
+  materia todavía no tiene programa, el botón queda apagado con un aviso. La lista no expone el nombre del archivo del servidor.
+  Tests: `node --test api/test/descargar-programa.test.js`.
 
 **Notas cargadas por el docente (carga y corrección con registro)**
 - `GET /api/notas/materias/:id` (DOCENTE asignado o ADMIN) — alumnos de la materia (con cursada o comisión
