@@ -19,6 +19,7 @@ import correlatividadesRouter from "./routes/correlatividades.js";
 import notificacionesRouter from "./routes/notificaciones.js";
 import examenesRouter from "./routes/examenes.js";
 import tareasRouter from "./routes/tareas.js";
+import actividadesPersonalesRouter from "./routes/actividadesPersonales.js";
 import { manejarErrores } from "./middleware/errores.js";
 
 import programasRouter from "./routes/programas.js";
@@ -47,6 +48,7 @@ app.use("/api/correlatividades", correlatividadesRouter);
 app.use("/api/notificaciones", notificacionesRouter);
 app.use("/api/examenes", examenesRouter);
 app.use("/api/tareas", tareasRouter);
+app.use("/api/actividades-personales", actividadesPersonalesRouter);
 
 // Cada módulo agrega su router acá. Un archivo por módulo en src/routes/.
 

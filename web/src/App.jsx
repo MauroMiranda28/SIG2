@@ -13,6 +13,7 @@ import HistorialNotas from "./evaluaciones/HistorialNotas.jsx";
 import MiAsistencia from "./asistencia/MiAsistencia.jsx";
 import SimularPromedio from "./promedio/SimularPromedio.jsx";
 import Notificaciones from "./notificaciones/Notificaciones.jsx";
+import ActividadesPersonales from "./actividades/ActividadesPersonales.jsx";
 
 import CrearPlan from "./planes/CrearPlan.jsx";
 import MiPlan from "./planes/MiPlan.jsx";
@@ -153,6 +154,7 @@ export default function App() {
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("notas")} disabled={tab === "notas"}>Mis notas</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("historial-notas")} disabled={tab === "historial-notas"}>Historial de notas</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("asistencia")} disabled={tab === "asistencia"}>Mi asistencia</button>}
+        {usuario.rol === "ALUMNO" && <button onClick={() => setTab("actividades-personales")} disabled={tab === "actividades-personales"}>Actividades personales</button>}
         {usuario.rol === "ALUMNO" && <button onClick={() => setTab("simular-promedio")} disabled={tab === "simular-promedio"}>Simular promedio</button>}
         <button onClick={() => setTab("mis-datos")} disabled={tab === "mis-datos"} style={{ cursor: "pointer" }}>
           Mis datos
@@ -179,6 +181,7 @@ export default function App() {
       {tab === "notas" && usuario.rol === "ALUMNO" && <MisNotas />}
       {tab === "historial-notas" && usuario.rol === "ALUMNO" && <HistorialNotas />}
       {tab === "asistencia" && usuario.rol === "ALUMNO" && <MiAsistencia />}
+      {tab === "actividades-personales" && usuario.rol === "ALUMNO" && <ActividadesPersonales />}
       {tab === "simular-promedio" && usuario.rol === "ALUMNO" && <SimularPromedio />}
       {tab === "notificaciones" && tieneNotificaciones(usuario.rol) && <Notificaciones onCambioNoLeidas={setNoLeidas} />}
       {tab === "cargar-programa" && usuario.rol === "ADMIN" && <CargarPrograma />}

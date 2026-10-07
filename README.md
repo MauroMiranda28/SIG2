@@ -177,6 +177,33 @@ Lo que ya está implementado, para no repetir trabajo:
   una obra por renglón (se sacan viñetas y numeración). Pestaña «Bibliografía» con buscador por materia,
   título o autor. Tests: `node --test api/test/bibliografia.test.js`.
 
+**Actividades personales (ACT-01 a ACT-06, ALUMNO)**
+- La pestaña «Actividades personales» permite crear ocupaciones con título, duración, una categoría
+  general (Trabajo, Estudio, Salud, Hogar, Ocio u Otra) y hasta diez etiquetas libres para detalles
+  (por ejemplo, «remoto» o «gimnasio»). La categoría permite resumir; las etiquetas permiten filtrar.
+- Las actividades previas con un tipo libre conservan su texto original como etiqueta y pasan a la
+  categoría «Otra».
+- Cada actividad se programa con fecha (puntual) o día de la semana (recurrente) y hora de inicio.
+  La vista «Agenda semanal» presenta en listas por día las actividades y las clases de «Mi horario»;
+  permite cambiar de semana sin requerir una vista de calendario.
+- Al guardar, se avisa si la actividad coincide con una clase o con otra actividad personal; el aviso
+  no impide guardarla. La agenda resume el tiempo personal planificado por categoría y etiqueta.
+- La lista de actividades se puede filtrar por etiqueta. La API expone `GET` y `POST /api/actividades-personales`,
+  `PATCH /api/actividades-personales/:id` y `DELETE /api/actividades-personales/:id`; cada operación
+  requiere rol ALUMNO y limita los datos al propietario autenticado.
+- Tras actualizar el esquema, correr `npm run db:push --workspace=api`. Tests:
+  `node --test api/test/actividadesPersonales.test.js`.
+
+**Historias de usuario cubiertas**
+- Como alumno, quiero planificar una actividad personal puntual con fecha, hora y duración o una
+  actividad recurrente con día, hora y duración, para organizar mis ocupaciones dentro de la semana.
+- Como alumno, quiero consultar una agenda semanal en listas por día que reúna mis clases y actividades
+  personales, para ver cuándo tengo tiempo ocupado sin depender de un calendario.
+- Como alumno, quiero recibir una advertencia cuando una actividad se superponga con una clase u otra
+  actividad, para poder ajustar mi organización antes de guardarla; puedo conservarla si decido hacerlo.
+- Como alumno, quiero consultar el tiempo personal planificado por semana, categoría y etiqueta, para entender
+  cómo se distribuyen mis ocupaciones.
+
 **Horarios (Horarios U-01)**
 - `GET /api/horarios/comision/:id` — grilla de una comisión puntual.
 - `POST /api/horarios` (DOCENTE/ADMIN) — carga bloque horario + aula; rechaza si el aula ya
