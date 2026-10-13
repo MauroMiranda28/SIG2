@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../db.js";
 import { requiereAuth, requiereRol } from "../middleware/auth.js";
+import { proximasEvaluaciones } from "../services/proximasEvaluaciones.js";
 
 // Historial de notas: todas las evaluaciones (parciales, recuperatorios,
 // finales, trabajos prácticos) de las materias que el alumno cursó o cursa,
@@ -25,6 +26,14 @@ export function crearRouterEvaluaciones(db = prisma) {
         ...evaluacion,
         materia: cursada.materia,
       })));
+    } catch (e) { next(e); }
+  });
+
+  // Parciales, recuperatorios y trabajos prácticos por venir de las materias que cursa, con fecha
+  // y horario. El alumno sale siempre del token.
+  router.get("/proximas", async (req, res, next) => {
+    try {
+      res.json(await proximasEvaluaciones(db, req.usuario.id));
     } catch (e) { next(e); }
   });
 

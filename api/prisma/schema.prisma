@@ -260,6 +260,7 @@ model Tarea {
   titulo       String
   descripcion  String?
   fechaEntrega DateTime @db.Date
+  horaEntrega  String? // "23:59"; null si se puede entregar en cualquier momento del día
   creadaEn     DateTime @default(now())
 
   materiaId Int

@@ -17,10 +17,11 @@ export default function Tareas() {
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [fechaEntrega, setFechaEntrega] = useState("");
+  const [horaEntrega, setHoraEntrega] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
-  const [editando, setEditando] = useState(null); // { id, titulo, descripcion, fechaEntrega }
+  const [editando, setEditando] = useState(null); // { id, titulo, descripcion, fechaEntrega, horaEntrega }
 
   function cargarMaterias() {
     setErrorCarga("");
@@ -59,17 +60,17 @@ export default function Tareas() {
     e.preventDefault();
     setEnviando(true);
     const ok = await accion(
-      api(`/tareas/materias/${materiaId}`, { method: "POST", body: JSON.stringify({ titulo, descripcion: descripcion || null, fechaEntrega }) }),
+      api(`/tareas/materias/${materiaId}`, { method: "POST", body: JSON.stringify({ titulo, descripcion: descripcion || null, fechaEntrega, horaEntrega: horaEntrega || null }) }),
       "Tarea cargada. Los alumnos reciben un recordatorio unos días antes de la entrega."
     );
-    if (ok) { setTitulo(""); setDescripcion(""); setFechaEntrega(""); }
+    if (ok) { setTitulo(""); setDescripcion(""); setFechaEntrega(""); setHoraEntrega(""); }
     setEnviando(false);
   }
 
   async function guardarCambio(e) {
     e.preventDefault();
     const ok = await accion(
-      api(`/tareas/${editando.id}`, { method: "PATCH", body: JSON.stringify({ titulo: editando.titulo, descripcion: editando.descripcion || null, fechaEntrega: editando.fechaEntrega }) }),
+      api(`/tareas/${editando.id}`, { method: "PATCH", body: JSON.stringify({ titulo: editando.titulo, descripcion: editando.descripcion || null, fechaEntrega: editando.fechaEntrega, horaEntrega: editando.horaEntrega || null }) }),
       "Tarea actualizada."
     );
     if (ok) setEditando(null);
@@ -110,6 +111,9 @@ export default function Tareas() {
             <label>Fecha de entrega
               <input type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} required style={{ display: "block", padding: "0.4rem" }} />
             </label>
+            <label>Hora de entrega (opcional)
+              <input type="time" value={horaEntrega} onChange={(e) => setHoraEntrega(e.target.value)} style={{ display: "block", padding: "0.4rem" }} />
+            </label>
             <button type="submit" disabled={enviando} style={{ cursor: "pointer", justifySelf: "start" }}>{enviando ? "Guardando..." : "Cargar tarea"}</button>
           </form>
 
@@ -129,17 +133,18 @@ export default function Tareas() {
                     <form onSubmit={guardarCambio} style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "flex-end" }}>
                       <input value={editando.titulo} onChange={(e) => setEditando({ ...editando, titulo: e.target.value })} maxLength={120} required />
                       <input type="date" value={editando.fechaEntrega} onChange={(e) => setEditando({ ...editando, fechaEntrega: e.target.value })} required />
+                      <input type="time" value={editando.horaEntrega} onChange={(e) => setEditando({ ...editando, horaEntrega: e.target.value })} aria-label="Hora de entrega" />
                       <button type="submit" style={{ cursor: "pointer" }}>Guardar</button>
                       <button type="button" onClick={() => setEditando(null)} style={{ cursor: "pointer" }}>Volver</button>
                     </form>
                   ) : (
                     <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
                       <span>
-                        <strong>{t.titulo}</strong> · entrega {formatFecha(t.fechaEntrega)}
+                        <strong>{t.titulo}</strong> · entrega {formatFecha(t.fechaEntrega)}{t.horaEntrega ? ` a las ${t.horaEntrega}` : ""}
                         {t.descripcion ? <small className="text-muted" style={{ display: "block" }}>{t.descripcion}</small> : null}
                       </span>
                       <span style={{ display: "flex", gap: "0.5rem" }}>
-                        <button onClick={() => setEditando({ id: t.id, titulo: t.titulo, descripcion: t.descripcion ?? "", fechaEntrega: soloFecha(t.fechaEntrega) })} style={{ cursor: "pointer" }}>Editar</button>
+                        <button onClick={() => setEditando({ id: t.id, titulo: t.titulo, descripcion: t.descripcion ?? "", fechaEntrega: soloFecha(t.fechaEntrega), horaEntrega: t.horaEntrega ?? "" })} style={{ cursor: "pointer" }}>Editar</button>
                         <button onClick={() => eliminar(t)} style={{ cursor: "pointer" }}>Eliminar</button>
                       </span>
                     </div>

@@ -407,6 +407,13 @@ Lo que ya está implementado, para no repetir trabajo:
   Correr `db:push`. Las solicitudes que ya estaban pendientes se pueden resolver desde la pestaña.
   Tests: `node --test api/test/revisiones-docente.test.js`.
 
+**Parciales y trabajos prácticos del alumno**
+- `GET /api/evaluaciones/proximas` (ALUMNO) — parciales y recuperatorios (de las fechas de examen) y trabajos prácticos
+  (las tareas, con fecha y hora de entrega) de hoy en adelante, de las materias que cursa (cursada en curso o comisión
+  elegida, sin contar las ya aprobadas, regulares o libres). Ordenados por fecha y hora. Pestaña «Parciales y TPs».
+- Las tareas suman una hora de entrega opcional (`Tarea.horaEntrega`); el recordatorio la menciona. Correr `db:push`.
+  Tests: `node --test api/test/proximasEvaluaciones.test.js`.
+
 **Privacidad del seguimiento académico**
 - Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del
   token y son solo para ALUMNO. `api/test/privacidad.test.js` lo verifica para que no se rompa.
