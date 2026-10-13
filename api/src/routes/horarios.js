@@ -104,6 +104,15 @@ router.post("/inscripcion", requiereAuth, async (req, res, next) => {
     });
     if (!comisionElegida) return res.status(404).json({ error: "No existe esa comisión" });
 
+    // Solo cambia de comisión quien ya está inscripto a la materia (la inscripción controla las correlatividades).
+    const cursada = await prisma.cursada.findUnique({
+      where: { alumnoId_materiaId: { alumnoId: req.usuario.id, materiaId: comisionElegida.materiaId } },
+      select: { estado: true },
+    });
+    if (cursada?.estado !== "EN_CURSO") {
+      return res.status(400).json({ error: "Primero inscribite a la materia con el botón «Inscribirme». Desde acá solo podés cambiar de comisión." });
+    }
+
     const otrasInscripciones = await prisma.inscripcionComision.findMany({
       where: {
         alumnoId: req.usuario.id,

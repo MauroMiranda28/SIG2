@@ -24,6 +24,7 @@ import actividadesPersonalesRouter from "./routes/actividadesPersonales.js";
 import { manejarErrores } from "./middleware/errores.js";
 
 import programasRouter from "./routes/programas.js";
+import inscripcionesCursadaRouter from "./routes/inscripcionesCursada.js";
 
 const app = express();
 
@@ -51,6 +52,7 @@ app.use("/api/examenes", examenesRouter);
 app.use("/api/finales", inscripcionesExamenRouter);
 app.use("/api/tareas", tareasRouter);
 app.use("/api/actividades-personales", actividadesPersonalesRouter);
+app.use("/api/inscripciones-cursada", inscripcionesCursadaRouter);
 
 // Cada módulo agrega su router acá. Un archivo por módulo en src/routes/.
 

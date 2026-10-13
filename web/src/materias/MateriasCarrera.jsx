@@ -1,17 +1,25 @@
 import { useEffect, useState } from "react";
 import { api, descargarArchivo } from "../api.js";
 import MateriaDetalle from "./MateriaDetalle.jsx";
+import InscribirseMateria from "./InscribirseMateria.jsx";
 import { estadoVisible, ETIQUETA_ESTADO, COLOR_ESTADO } from "./estadoMateria.js";
 
 // Mat-01 + HU-PRO + Mat-03 + Horarios U-01: el alumno ve las materias de su
 // carrera con su estado de cursada, puede descargar el programa en PDF y abrir
 // la información y comisiones de cualquiera.
 // Mat-08: puede buscar por nombre o código.
+// Inscripción: se inscribe a cursar las pendientes o libres (con comisión si la materia tiene).
+
+// Puede inscribirse si no la está cursando ni la tiene aprobada o regular. Las que eligieron comisión
+// antes de que existiera la inscripción (sin cursada) también la ven, para regularizar su situación.
+const ofreceInscripcion = (m) => ["PENDIENTE", "LIBRE"].includes(estadoVisible(m)) || (m.estado === "PENDIENTE" && m.inscripto);
 
 export default function MateriasCarrera() {
   const [materias, setMaterias] = useState(null);
   const [error, setError] = useState(null);
   const [detalleAbiertoId, setDetalleAbiertoId] = useState(null);
+  const [inscribiendoId, setInscribiendoId] = useState(null);
+  const [aviso, setAviso] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [descargandoId, setDescargandoId] = useState(null);
   const [errorDescarga, setErrorDescarga] = useState(null); // { materiaId, mensaje }
@@ -20,6 +28,12 @@ export default function MateriasCarrera() {
     buscarMaterias("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function alInscribirse(resultado) {
+    setInscribiendoId(null);
+    setAviso(`Te inscribiste a ${resultado.materia.nombre}${resultado.comision ? ` (${resultado.comision.nombre})` : ""}.`);
+    buscarMaterias(busqueda);
+  }
 
   function buscarMaterias(texto) {
     const query = texto.trim() ? `?q=${encodeURIComponent(texto.trim())}` : "";
@@ -73,6 +87,7 @@ export default function MateriasCarrera() {
       <h2>Materias de mi carrera</h2>
 
       {formularioBusqueda}
+      {aviso && <p role="status" className="text-muted">{aviso}</p>}
 
       {materias.length === 0 && (
         <p className="empty-state">
@@ -98,7 +113,12 @@ export default function MateriasCarrera() {
                   </span>
                 </div>
 
-                <div style={{ display: "flex", gap: "0.5rem" }}>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {ofreceInscripcion(materia) && (
+                    <button className="btn" onClick={() => { setAviso(""); setInscribiendoId(inscribiendoId === materia.id ? null : materia.id); }}>
+                      {inscribiendoId === materia.id ? "Cerrar inscripción" : "Inscribirme"}
+                    </button>
+                  )}
                   <button onClick={() => setDetalleAbiertoId(detalleAbiertoId === materia.id ? null : materia.id)}>
                     {detalleAbiertoId === materia.id ? "Ocultar información" : "Ver información y horarios"}
                   </button>
@@ -114,9 +134,15 @@ export default function MateriasCarrera() {
                 {!materia.tienePrograma && <small className="text-muted">Todavía no hay un programa cargado para descargar.</small>}
                 {errorDescarga?.materiaId === materia.id && <p className="form-error">{errorDescarga.mensaje}</p>}
 
+                {inscribiendoId === materia.id && (
+                  <div className="panel-soft">
+                    <InscribirseMateria materiaId={materia.id} onInscripto={alInscribirse} />
+                  </div>
+                )}
+
                 {detalleAbiertoId === materia.id && (
                   <div className="panel-soft">
-                    <MateriaDetalle materiaId={materia.id} />
+                    <MateriaDetalle materiaId={materia.id} puedeCambiarComision={materia.estado === "EN_CURSO"} onCambioInscripcion={() => buscarMaterias(busqueda)} />
                   </div>
                 )}
               </li>

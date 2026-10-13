@@ -62,7 +62,7 @@ router.get("/", requiereAuth, async (req, res, next) => {
         // Regularidad: plazo para aprobar el final e intentos usados (máx. 3) con la nota de cada uno.
         venceRegularidad: cursada?.estado === "REGULAR" ? vencimientoRegularidad(cursada.regularDesde) : null,
         intentosFinal: cursada?.intentosFinal ?? 0,
-        intentos: cursada ? (estadoDeCursada(cursada.evaluaciones, materia)?.intentos ?? []) : [],
+        intentos: cursada && cursada.estado !== "EN_CURSO" ? (estadoDeCursada(cursada.evaluaciones, materia)?.intentos ?? []) : [],
       };
     });
 
