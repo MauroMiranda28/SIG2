@@ -18,6 +18,7 @@ import notasRouter from "./routes/notas.js";
 import correlatividadesRouter from "./routes/correlatividades.js";
 import notificacionesRouter from "./routes/notificaciones.js";
 import examenesRouter from "./routes/examenes.js";
+import inscripcionesExamenRouter from "./routes/inscripcionesExamen.js";
 import tareasRouter from "./routes/tareas.js";
 import actividadesPersonalesRouter from "./routes/actividadesPersonales.js";
 import { manejarErrores } from "./middleware/errores.js";
@@ -47,6 +48,7 @@ app.use("/api/notas", notasRouter);
 app.use("/api/correlatividades", correlatividadesRouter);
 app.use("/api/notificaciones", notificacionesRouter);
 app.use("/api/examenes", examenesRouter);
+app.use("/api/finales", inscripcionesExamenRouter);
 app.use("/api/tareas", tareasRouter);
 app.use("/api/actividades-personales", actividadesPersonalesRouter);
 
