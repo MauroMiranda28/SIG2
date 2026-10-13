@@ -361,6 +361,13 @@ Lo que ya está implementado, para no repetir trabajo:
 - Pestaña «Fechas de examen» del DOCENTE (programar, reprogramar, cancelar).
 - Schema: modelo `FechaExamen` y enum `TipoExamen`. Correr `db:push`. Tests: `node --test api/test/examenes.test.js`.
 
+**Parciales y trabajos prácticos del alumno**
+- `GET /api/evaluaciones/proximas` (ALUMNO) — parciales y recuperatorios (de las fechas de examen) y trabajos prácticos
+  (las tareas, con fecha y hora de entrega) de hoy en adelante, de las materias que cursa (cursada en curso o comisión
+  elegida, sin contar las ya aprobadas, regulares o libres). Ordenados por fecha y hora. Pestaña «Parciales y TPs».
+- Las tareas suman una hora de entrega opcional (`Tarea.horaEntrega`); el recordatorio la menciona. Correr `db:push`.
+  Tests: `node --test api/test/proximasEvaluaciones.test.js`.
+
 **Notificaciones: recordatorio de entrega de tareas**
 - El DOCENTE asignado (o ADMIN) carga las tareas de su materia con fecha de entrega: `GET /api/tareas/materias/:id`,
   `POST /api/tareas/materias/:id` (`titulo`, `descripcion` opcional, `fechaEntrega`), `PATCH /api/tareas/:id` y
@@ -406,13 +413,6 @@ Lo que ya está implementado, para no repetir trabajo:
 - Schema: `SolicitudRevision.respuesta`, `resueltaEn` y `resueltaPorId`, y valor nuevo `REVISION_RESUELTA` en `TipoNotificacion`.
   Correr `db:push`. Las solicitudes que ya estaban pendientes se pueden resolver desde la pestaña.
   Tests: `node --test api/test/revisiones-docente.test.js`.
-
-**Parciales y trabajos prácticos del alumno**
-- `GET /api/evaluaciones/proximas` (ALUMNO) — parciales y recuperatorios (de las fechas de examen) y trabajos prácticos
-  (las tareas, con fecha y hora de entrega) de hoy en adelante, de las materias que cursa (cursada en curso o comisión
-  elegida, sin contar las ya aprobadas, regulares o libres). Ordenados por fecha y hora. Pestaña «Parciales y TPs».
-- Las tareas suman una hora de entrega opcional (`Tarea.horaEntrega`); el recordatorio la menciona. Correr `db:push`.
-  Tests: `node --test api/test/proximasEvaluaciones.test.js`.
 
 **Privacidad del seguimiento académico**
 - Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del
