@@ -152,6 +152,33 @@ a {
   cursor: default;
 }
 
+/* Categoría con subnav abierto, pero el botón de la categoría no está disabled (los
+   sub-ítems son los que llevan el estado "actual"). */
+.nav-btn--activo:not(:disabled) {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+.app-subnav {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin: -0.5rem 0 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.nav-btn--sub {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.75rem;
+  background: var(--color-white);
+  border-color: var(--color-border);
+}
+
+.nav-btn--sub:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+}
+
 /* ---------- Botones genéricos ---------- */
 
 button {

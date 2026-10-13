@@ -36,6 +36,54 @@ const tabInicial = (rol) => (rol === "DOCENTE" ? "mis-materias" : "materias");
 // El alumno recibe avisos de sus materias y el docente, las solicitudes de revisión de sus alumnos.
 const tieneNotificaciones = (rol) => rol === "ALUMNO" || rol === "DOCENTE";
 
+// Categorías del menú, en el orden en que se muestran. Una categoría solo aparece si el rol
+// actual tiene al menos un ítem dentro (ver NAV_ITEMS). «roles: null» significa «todos los roles».
+const GRUPOS = [
+  { id: "materias", label: "Materias" },
+  { id: "agenda", label: "Agenda" },
+  { id: "mi-carrera", label: "Mi carrera" },
+  { id: "evaluacion", label: "Evaluación" },
+  { id: "mis-materias", label: "Mis materias" },
+  { id: "evaluacion-docente", label: "Evaluación" },
+  { id: "comunicacion", label: "Comunicación" },
+  { id: "planes", label: "Carreras y planes" },
+  { id: "programas", label: "Programas" },
+  { id: "cuenta", label: "Cuenta" },
+];
+
+const NAV_ITEMS = [
+  { id: "materias", label: "Materias", grupo: "materias", roles: ["ALUMNO", "ADMIN"], Componente: MateriasCarrera },
+  { id: "horario", label: "Mi horario", grupo: "agenda", roles: ["ALUMNO"], Componente: AgendaSemanal },
+  { id: "actividades-personales", label: "Actividades personales", grupo: "agenda", roles: ["ALUMNO"], Componente: ActividadesPersonales },
+  { id: "mi-plan", label: "Mi plan de estudios", grupo: "mi-carrera", roles: ["ALUMNO"], Componente: MiPlan },
+  { id: "bibliografia", label: "Bibliografía", grupo: "mi-carrera", roles: ["ALUMNO"], Componente: Bibliografia },
+  { id: "correlatividades", label: "Correlatividades", grupo: "mi-carrera", roles: ["ALUMNO"], Componente: Correlatividades },
+  { id: "mi-carrera", label: "Mi carrera", grupo: "mi-carrera", roles: ["ALUMNO"], Componente: MiCarrera },
+  { id: "notas", label: "Mis notas", grupo: "evaluacion", roles: ["ALUMNO"], Componente: MisNotas },
+  { id: "historial-notas", label: "Historial de notas", grupo: "evaluacion", roles: ["ALUMNO"], Componente: HistorialNotas },
+  { id: "asistencia", label: "Mi asistencia", grupo: "evaluacion", roles: ["ALUMNO"], Componente: MiAsistencia },
+  { id: "simular-promedio", label: "Simular promedio", grupo: "evaluacion", roles: ["ALUMNO"], Componente: SimularPromedio },
+  { id: "mis-materias", label: "Mis materias", grupo: "mis-materias", roles: ["DOCENTE"], Componente: MisMaterias },
+  { id: "consultar-materias", label: "Consultar materias", grupo: "mis-materias", roles: ["DOCENTE"], Componente: ConsultaMaterias },
+  { id: "notas-docente", label: "Notas", grupo: "evaluacion-docente", roles: ["DOCENTE"], Componente: NotasDocente },
+  { id: "revisiones", label: "Revisiones", grupo: "evaluacion-docente", roles: ["DOCENTE"], Componente: Revisiones },
+  { id: "fechas-examen", label: "Fechas de examen", grupo: "evaluacion-docente", roles: ["DOCENTE"], Componente: FechasExamen },
+  { id: "enviar-aviso", label: "Enviar aviso", grupo: "comunicacion", roles: ["DOCENTE"], Componente: EnviarAviso },
+  { id: "tareas", label: "Tareas", grupo: "comunicacion", roles: ["DOCENTE"], Componente: Tareas },
+  { id: "carreras", label: "Carreras", grupo: "planes", roles: ["ADMIN"], Componente: Carreras },
+  { id: "crear-plan", label: "Crear plan", grupo: "planes", roles: ["ADMIN"], Componente: CrearPlan },
+  { id: "correlatividades-admin", label: "Correlatividades", grupo: "planes", roles: ["ADMIN"], Componente: CargarCorrelatividades },
+  { id: "cargar-programa", label: "Cargar programa", grupo: "programas", roles: ["ADMIN"], Componente: CargarPrograma },
+  { id: "actualizar-programa", label: "Actualizar programa", grupo: "programas", roles: ["ADMIN"], Componente: ActualizarPrograma },
+  // «Mis datos» se renderiza aparte porque necesita props (usuario, onActualizado); va igual en NAV_ITEMS para que el menú lo agrupe.
+  { id: "mis-datos", label: "Mis datos", grupo: "cuenta", roles: null, Componente: null },
+];
+
+const visibleParaRol = (item, rol) => !item.roles || item.roles.includes(rol);
+const itemsDelRol = (rol) => NAV_ITEMS.filter((item) => visibleParaRol(item, rol));
+const itemsDelGrupo = (grupoId, rol) => itemsDelRol(rol).filter((item) => item.grupo === grupoId);
+const gruposDelRol = (rol) => GRUPOS.filter((grupo) => itemsDelGrupo(grupo.id, rol).length > 0);
+
 function Campana({ noLeidas, activa, onClick }) {
   return (
     <button
@@ -100,6 +148,16 @@ export default function App() {
     );
   }
 
+  const grupos = gruposDelRol(usuario.rol);
+  const itemActual = NAV_ITEMS.find((item) => item.id === tab && visibleParaRol(item, usuario.rol));
+  const grupoActivoId = itemActual?.grupo ?? null;
+  const itemsDelGrupoActivo = grupoActivoId ? itemsDelGrupo(grupoActivoId, usuario.rol) : [];
+
+  function irAGrupo(grupoId) {
+    const items = itemsDelGrupo(grupoId, usuario.rol);
+    if (!items.some((item) => item.id === tab)) setTab(items[0].id);
+  }
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -123,67 +181,31 @@ export default function App() {
 
       <main className="app-main">
         <nav className="app-nav">
-          {usuario.rol !== "DOCENTE" && (
-            <button className="nav-btn" onClick={() => setTab("materias")} disabled={tab === "materias"}>
-              Materias
+          {grupos.map((grupo) => (
+            <button
+              key={grupo.id}
+              className={`nav-btn${grupoActivoId === grupo.id ? " nav-btn--activo" : ""}`}
+              onClick={() => irAGrupo(grupo.id)}
+              disabled={grupoActivoId === grupo.id}
+            >
+              {grupo.label}
             </button>
-          )}
-          {usuario.rol === "ALUMNO" && (
-            <button className="nav-btn" onClick={() => setTab("horario")} disabled={tab === "horario"}>
-              Mi horario
-            </button>
-          )}
-          {usuario.rol === "DOCENTE" && <button className="nav-btn" onClick={() => setTab("mis-materias")} disabled={tab === "mis-materias"}>Mis materias</button>}
-          {usuario.rol === "DOCENTE" && <button className="nav-btn" onClick={() => setTab("consultar-materias")} disabled={tab === "consultar-materias"}>Consultar materias</button>}
-          {usuario.rol === "DOCENTE" && <button className="nav-btn" onClick={() => setTab("notas-docente")} disabled={tab === "notas-docente"}>Notas</button>}
-          {usuario.rol === "DOCENTE" && <button className="nav-btn" onClick={() => setTab("revisiones")} disabled={tab === "revisiones"}>Revisiones</button>}
-          {usuario.rol === "DOCENTE" && <button className="nav-btn" onClick={() => setTab("enviar-aviso")} disabled={tab === "enviar-aviso"}>Enviar aviso</button>}
-          {usuario.rol === "DOCENTE" && <button className="nav-btn" onClick={() => setTab("fechas-examen")} disabled={tab === "fechas-examen"}>Fechas de examen</button>}
-          {usuario.rol === "DOCENTE" && <button className="nav-btn" onClick={() => setTab("tareas")} disabled={tab === "tareas"}>Tareas</button>}
-          {usuario.rol === "ADMIN" && <button className="nav-btn" onClick={() => setTab("carreras")} disabled={tab === "carreras"}>Carreras</button>}
-          {usuario.rol === "ADMIN" && <button className="nav-btn" onClick={() => setTab("crear-plan")} disabled={tab === "crear-plan"}>Crear plan</button>}
-          {usuario.rol === "ADMIN" && <button className="nav-btn" onClick={() => setTab("correlatividades-admin")} disabled={tab === "correlatividades-admin"}>Correlatividades</button>}
-          {usuario.rol === "ALUMNO" && <button className="nav-btn" onClick={() => setTab("mi-plan")} disabled={tab === "mi-plan"}>Mi plan de estudios</button>}
-          {usuario.rol === "ALUMNO" && <button className="nav-btn" onClick={() => setTab("bibliografia")} disabled={tab === "bibliografia"}>Bibliografía</button>}
-          {usuario.rol === "ALUMNO" && <button className="nav-btn" onClick={() => setTab("correlatividades")} disabled={tab === "correlatividades"}>Correlatividades</button>}
-          {usuario.rol === "ALUMNO" && <button className="nav-btn" onClick={() => setTab("notas")} disabled={tab === "notas"}>Mis notas</button>}
-          {usuario.rol === "ALUMNO" && <button className="nav-btn" onClick={() => setTab("historial-notas")} disabled={tab === "historial-notas"}>Historial de notas</button>}
-          {usuario.rol === "ALUMNO" && <button className="nav-btn" onClick={() => setTab("asistencia")} disabled={tab === "asistencia"}>Mi asistencia</button>}
-          {usuario.rol === "ALUMNO" && <button className="nav-btn" onClick={() => setTab("actividades-personales")} disabled={tab === "actividades-personales"}>Actividades personales</button>}
-          {usuario.rol === "ALUMNO" && <button className="nav-btn" onClick={() => setTab("simular-promedio")} disabled={tab === "simular-promedio"}>Simular promedio</button>}
-          <button className="nav-btn" onClick={() => setTab("mis-datos")} disabled={tab === "mis-datos"}>
-            Mis datos
-          </button>
-          {usuario.rol === "ADMIN" && <button className="nav-btn" onClick={() => setTab("cargar-programa")} disabled={tab === "cargar-programa"}>Cargar programa</button>}
-          {usuario.rol === "ALUMNO" && <button className="nav-btn" onClick={() => setTab("mi-carrera")} disabled={tab === "mi-carrera"}>Mi carrera</button>}
-          {usuario.rol === "ADMIN" && <button className="nav-btn" onClick={() => setTab("actualizar-programa")} disabled={tab === "actualizar-programa"}>Actualizar programa</button>}
+          ))}
         </nav>
 
-        {tab === "materias" && usuario.rol !== "DOCENTE" && <MateriasCarrera />}
-        {tab === "horario" && usuario.rol === "ALUMNO" && <AgendaSemanal />}
-        {tab === "mis-materias" && usuario.rol === "DOCENTE" && <MisMaterias />}
-        {tab === "consultar-materias" && usuario.rol === "DOCENTE" && <ConsultaMaterias />}
-        {tab === "notas-docente" && usuario.rol === "DOCENTE" && <NotasDocente />}
-        {tab === "revisiones" && usuario.rol === "DOCENTE" && <Revisiones />}
-        {tab === "enviar-aviso" && usuario.rol === "DOCENTE" && <EnviarAviso />}
-        {tab === "fechas-examen" && usuario.rol === "DOCENTE" && <FechasExamen />}
-        {tab === "tareas" && usuario.rol === "DOCENTE" && <Tareas />}
-        {tab === "carreras" && usuario.rol === "ADMIN" && <Carreras />}
-        {tab === "crear-plan" && usuario.rol === "ADMIN" && <CrearPlan />}
-        {tab === "correlatividades-admin" && usuario.rol === "ADMIN" && <CargarCorrelatividades />}
-        {tab === "mi-plan" && usuario.rol === "ALUMNO" && <MiPlan />}
-        {tab === "bibliografia" && usuario.rol === "ALUMNO" && <Bibliografia />}
-        {tab === "correlatividades" && usuario.rol === "ALUMNO" && <Correlatividades />}
-        {tab === "notas" && usuario.rol === "ALUMNO" && <MisNotas />}
-        {tab === "historial-notas" && usuario.rol === "ALUMNO" && <HistorialNotas />}
-        {tab === "asistencia" && usuario.rol === "ALUMNO" && <MiAsistencia />}
-        {tab === "actividades-personales" && usuario.rol === "ALUMNO" && <ActividadesPersonales />}
-        {tab === "simular-promedio" && usuario.rol === "ALUMNO" && <SimularPromedio />}
-        {tab === "notificaciones" && tieneNotificaciones(usuario.rol) && <Notificaciones onCambioNoLeidas={setNoLeidas} />}
-        {tab === "actualizar-programa" && usuario.rol === "ADMIN" && <ActualizarPrograma />}
-        {tab === "cargar-programa" && usuario.rol === "ADMIN" && <CargarPrograma />}
-        {tab === "mi-carrera" && usuario.rol === "ALUMNO" && <MiCarrera />}
+        {itemsDelGrupoActivo.length > 1 && (
+          <nav className="app-subnav">
+            {itemsDelGrupoActivo.map((item) => (
+              <button key={item.id} className="nav-btn nav-btn--sub" onClick={() => setTab(item.id)} disabled={tab === item.id}>
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        )}
+
+        {itemActual?.Componente && <itemActual.Componente />}
         {tab === "mis-datos" && <MisDatos usuario={usuario} onActualizado={(datos) => setUsuario({ ...usuario, ...datos })} />}
+        {tab === "notificaciones" && tieneNotificaciones(usuario.rol) && <Notificaciones onCambioNoLeidas={setNoLeidas} />}
       </main>
     </div>
   );
