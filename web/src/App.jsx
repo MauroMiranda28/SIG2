@@ -10,6 +10,7 @@ import AgendaSemanal from "./horarios/AgendaSemanal.jsx";
 import MisDatos from "./perfil/MisDatos.jsx";
 import MisNotas from "./notas/MisNotas.jsx";
 import HistorialNotas from "./evaluaciones/HistorialNotas.jsx";
+import InscripcionFinal from "./evaluaciones/InscripcionFinal.jsx";
 import MiAsistencia from "./asistencia/MiAsistencia.jsx";
 import SimularPromedio from "./promedio/SimularPromedio.jsx";
 import Notificaciones from "./notificaciones/Notificaciones.jsx";
@@ -61,6 +62,7 @@ const NAV_ITEMS = [
   { id: "mi-carrera", label: "Mi carrera", grupo: "mi-carrera", roles: ["ALUMNO"], Componente: MiCarrera },
   { id: "notas", label: "Mis notas", grupo: "evaluacion", roles: ["ALUMNO"], Componente: MisNotas },
   { id: "historial-notas", label: "Historial de notas", grupo: "evaluacion", roles: ["ALUMNO"], Componente: HistorialNotas },
+  { id: "inscripcion-final", label: "Inscripción a finales", grupo: "evaluacion", roles: ["ALUMNO"], Componente: InscripcionFinal },
   { id: "asistencia", label: "Mi asistencia", grupo: "evaluacion", roles: ["ALUMNO"], Componente: MiAsistencia },
   { id: "simular-promedio", label: "Simular promedio", grupo: "evaluacion", roles: ["ALUMNO"], Componente: SimularPromedio },
   { id: "mis-materias", label: "Mis materias", grupo: "mis-materias", roles: ["DOCENTE"], Componente: MisMaterias },

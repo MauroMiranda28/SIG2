@@ -59,6 +59,14 @@ enum CondicionFinal {
   LIBRE // desaprobó la cursada
 }
 
+// Con qué condición se inscribe el alumno a un final: regular (tiene la cursada vigente)
+// o libre (no cursó, o se le venció la regularidad o la perdió). No hay PROMOCIONADO: ese
+// alumno ya aprobó la materia y no rinde final.
+enum ModalidadFinal {
+  REGULAR
+  LIBRE
+}
+
 enum EstadoSolicitud {
   PENDIENTE
   RESUELTA
@@ -120,6 +128,7 @@ model Usuario {
   materiasQueDicta MateriaDocente[]
   actividades     ActividadPersonal[]
   inscripciones   InscripcionComision[]
+  inscripcionesExamen InscripcionExamen[]
   solicitudesRevision SolicitudRevision[] @relation("AlumnoSolicitud")
   revisionesResueltas SolicitudRevision[] @relation("ResolvedorRevision")
   asistencias     Asistencia[]
@@ -428,7 +437,25 @@ model FechaExamen {
   creadoPorId Int
   creadoPor   Usuario @relation(fields: [creadoPorId], references: [id])
 
+  inscripciones InscripcionExamen[]
+
   @@index([materiaId, fecha])
+}
+
+// Ev-xx: el alumno se inscribe a una fecha de final ya programada (FechaExamen.tipo FINAL),
+// como regular o como libre según su cursada al momento de inscribirse (ver `modalidad`).
+model InscripcionExamen {
+  id        Int            @id @default(autoincrement())
+  modalidad ModalidadFinal
+  creadoEn  DateTime       @default(now())
+
+  alumnoId Int
+  alumno   Usuario @relation(fields: [alumnoId], references: [id])
+
+  examenId Int
+  examen   FechaExamen @relation(fields: [examenId], references: [id])
+
+  @@unique([alumnoId, examenId])
 }
 
 model Comision {
