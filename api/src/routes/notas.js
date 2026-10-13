@@ -6,6 +6,7 @@ import {
   validarCargaNotas, validarCorreccionNota, filtroAlumnosDeMateria, condicionConfigurada,
   verificarCarga, recalcularCursada, vencimientoRegularidad,
 } from "../services/notas.js";
+import { hoy } from "../services/examenes.js";
 import { avisoCalificacion, avisoCorreccion, crearNotificacionesIndividuales } from "../services/notificaciones.js";
 
 const DATOS_CAMBIO = {
@@ -31,6 +32,31 @@ async function materiaDeLaEvaluacion(req, db) {
   return evaluacion.cursada.materiaId;
 }
 
+// Mesas de final de la materia (de la más reciente a la más vieja) con sus inscriptos y a quiénes ya
+// se les cargó la nota de esa mesa.
+async function mesasDeFinal(db, materiaId) {
+  const mesas = await db.fechaExamen.findMany({
+    where: { materiaId, tipo: "FINAL" },
+    select: {
+      id: true, fecha: true, hora: true, aula: { select: { nombre: true } },
+      inscripciones: { select: { alumnoId: true, modalidad: true } },
+      notas: { select: { cursada: { select: { alumnoId: true } } } },
+    },
+    orderBy: [{ fecha: "desc" }, { id: "desc" }],
+  });
+  return mesas.map(({ notas, ...mesa }) => ({ ...mesa, rendida: mesa.fecha <= hoy(), calificados: (notas ?? []).map((n) => n.cursada.alumnoId) }));
+}
+
+// La mesa tiene que ser un final de esta materia que ya se rindió (hoy o antes).
+async function verificarMesa(tx, examenId, materiaId) {
+  const mesa = await tx.fechaExamen.findUnique({
+    where: { id: examenId }, select: { tipo: true, fecha: true, materiaId: true, inscripciones: { select: { alumnoId: true, modalidad: true } } },
+  });
+  if (!mesa || mesa.tipo !== "FINAL" || mesa.materiaId !== materiaId) throw errorAcceso(400, "Elegí una mesa de final de esta materia.");
+  if (mesa.fecha > hoy()) throw errorAcceso(400, "Ese final todavía no se rindió: la nota se carga desde el día del examen.");
+  return mesa;
+}
+
 const SIN_CONDICION = "Configurá la condición de la materia en «Mis materias» antes de cargar condiciones finales o exámenes finales.";
 
 // El docente carga y corrige las notas de las materias que tiene asignadas (Seg-05).
@@ -42,7 +68,8 @@ export function crearRouterNotas(db = prisma) {
   const router = Router();
   router.use(requiereAuth, requiereRol("DOCENTE", "ADMIN"));
 
-  // Alumnos de la materia con su estado, sus notas cargadas y sus correcciones.
+  // Alumnos de la materia con su estado, sus notas cargadas y sus correcciones, y las mesas de
+  // final con sus inscriptos (para cargar las notas del examen final por mesa).
   router.get("/materias/:id", requiereMateriaAsignada(db, materiaDelParametro), async (req, res, next) => {
     try {
       const materiaId = req.materia.id;
@@ -62,8 +89,10 @@ export function crearRouterNotas(db = prisma) {
         orderBy: [{ apellido: "asc" }, { nombre: "asc" }],
       });
 
+      const mesas = await mesasDeFinal(db, materiaId);
       res.json({
         materia: { ...req.materia, ...condicion, condicionConfigurada: condicionConfigurada(condicion) },
+        mesas,
         alumnos: alumnos.map(({ cursadas, ...alumno }) => {
           const cursada = cursadas[0];
           return {
@@ -83,7 +112,9 @@ export function crearRouterNotas(db = prisma) {
   // Carga una evaluación (tipo + fecha) con la nota de cada alumno, todo o nada.
   router.post("/materias/:id", requiereMateriaAsignada(db, materiaDelParametro), async (req, res, next) => {
     try {
-      const { tipo, fecha, notas } = validarCargaNotas(req.body);
+      const carga = validarCargaNotas(req.body);
+      const { tipo, notas } = carga;
+      let { fecha } = carga;
       const materiaId = req.materia.id;
       const alumnoIds = notas.map((n) => n.alumnoId);
       const cierraCursada = tipo === "CONDICION_FINAL" || tipo === "FINAL";
@@ -91,6 +122,16 @@ export function crearRouterNotas(db = prisma) {
       const creadas = await db.$transaction(async (tx) => {
         const materia = cierraCursada ? await tx.materia.findUnique({ where: { id: materiaId }, select: CONDICION_MATERIA }) : null;
         if (cierraCursada && !condicionConfigurada(materia)) throw errorAcceso(400, SIN_CONDICION);
+
+        // Examen final: la fecha es la de la mesa y cada alumno tiene que estar inscripto (de ahí sale su modalidad).
+        const modalidadDe = new Map();
+        if (tipo === "FINAL") {
+          const mesa = await verificarMesa(tx, carga.examenId, materiaId);
+          fecha = mesa.fecha;
+          for (const i of mesa.inscripciones) modalidadDe.set(i.alumnoId, i.modalidad);
+          const sinInscripcion = notas.filter((n) => !modalidadDe.has(n.alumnoId));
+          if (sinInscripcion.length) throw errorAcceso(400, "Solo se puede cargar la nota del final a los alumnos inscriptos a esa mesa.");
+        }
 
         const validos = await tx.usuario.findMany({
           where: { id: { in: alumnoIds }, ...filtroAlumnosDeMateria(materiaId) },
@@ -119,10 +160,14 @@ export function crearRouterNotas(db = prisma) {
             update: {},
             select: { id: true, estado: true, regularDesde: true, evaluacionesDesdeId: true },
           });
-          verificarCarga({ tipo, condicion, nota, fecha }, { cursada, materia, nombre: nombres.get(alumnoId) });
+          const modalidad = modalidadDe.get(alumnoId) ?? null;
+          verificarCarga({ tipo, condicion, nota, fecha, modalidad }, { cursada, materia, nombre: nombres.get(alumnoId) });
 
           resultado.push(await tx.evaluacion.create({
-            data: { tipo, condicion, fecha, nota, observaciones, cursadaId: cursada.id, cargadaPorId: req.usuario.id },
+            data: {
+              tipo, condicion, fecha, nota, observaciones, cursadaId: cursada.id, cargadaPorId: req.usuario.id,
+              examenId: tipo === "FINAL" ? carga.examenId : null, modalidad,
+            },
             select: { id: true, tipo: true, condicion: true, nota: true, fecha: true, observaciones: true, cursada: { select: { alumnoId: true } } },
           }));
           if (cierraCursada) await recalcularCursada(tx, { ...cursada, alumnoId, materiaId }, materia);
