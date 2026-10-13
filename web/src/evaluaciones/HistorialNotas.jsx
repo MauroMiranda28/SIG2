@@ -24,24 +24,24 @@ export default function HistorialNotas() {
   }, []);
 
   if (error) {
-    return <p style={{ color: "#b00020" }}>No se pudo cargar tu historial: {error}</p>;
+    return <p className="form-error">No se pudo cargar tu historial: {error}</p>;
   }
 
   if (!evaluaciones) {
-    return <p>Cargando historial...</p>;
+    return <p className="loading">Cargando historial...</p>;
   }
 
   return (
-    <div style={{ fontFamily: "system-ui", maxWidth: "40rem" }}>
+    <div className="page">
       <h2>Historial de notas</h2>
 
       {evaluaciones.length === 0 ? (
-        <p>Todavía no tenés evaluaciones registradas.</p>
+        <p className="empty-state">Todavía no tenés evaluaciones registradas.</p>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <table>
           <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid #ddd" }}>
-              <th style={{ padding: "0.4rem 0" }}>Fecha</th>
+            <tr>
+              <th>Fecha</th>
               <th>Materia</th>
               <th>Evaluación</th>
               <th>Nota</th>
@@ -49,10 +49,10 @@ export default function HistorialNotas() {
           </thead>
           <tbody>
             {evaluaciones.map((ev) => (
-              <tr key={ev.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                <td style={{ padding: "0.4rem 0" }}>{formatFecha(ev.fecha)}</td>
+              <tr key={ev.id}>
+                <td>{formatFecha(ev.fecha)}</td>
                 <td>
-                  {ev.materia.nombre} <span style={{ color: "#777" }}>({ev.materia.codigo})</span>
+                  {ev.materia.nombre} <span className="text-muted">({ev.materia.codigo})</span>
                 </td>
                 <td>
                   {ETIQUETA_TIPO[ev.tipo] ?? ev.tipo}
@@ -61,7 +61,7 @@ export default function HistorialNotas() {
                 <td>
                   {ev.nota}
                   {ev.cambios?.length > 0 && (
-                    <div style={{ fontSize: "0.8rem", color: "#777" }}>
+                    <div className="text-muted" style={{ fontSize: "0.8rem" }}>
                       Corregida (antes {ev.cambios[0].notaAnterior}): {ev.cambios[0].motivo}
                     </div>
                   )}

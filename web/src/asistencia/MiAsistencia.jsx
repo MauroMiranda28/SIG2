@@ -55,15 +55,15 @@ export default function MiAsistencia() {
   }
 
   if (error) {
-    return <p style={{ color: "#b00020" }}>No se pudo cargar tu asistencia: {error}</p>;
+    return <p className="form-error">No se pudo cargar tu asistencia: {error}</p>;
   }
 
   if (materiasEnCurso === null || asistencias === null) {
-    return <p>Cargando...</p>;
+    return <p className="loading">Cargando...</p>;
   }
 
   return (
-    <div style={{ fontFamily: "system-ui", maxWidth: "40rem" }}>
+    <div className="page">
       <h2>Mi asistencia</h2>
 
       <p>
@@ -71,12 +71,12 @@ export default function MiAsistencia() {
       </p>
 
       {materiasEnCurso.length === 0 ? (
-        <p>No tenés materias en curso para asentar asistencia.</p>
+        <p className="empty-state">No tenés materias en curso para asentar asistencia.</p>
       ) : (
         <form onSubmit={handleSubmit} style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "flex-end", marginBottom: "1.5rem" }}>
-          <label>
+          <label className="field">
             Materia
-            <select value={materiaId} onChange={(e) => setMateriaId(e.target.value)} style={{ display: "block", padding: "0.4rem" }}>
+            <select value={materiaId} onChange={(e) => setMateriaId(e.target.value)}>
               {materiasEnCurso.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.nombre} ({m.codigo})
@@ -85,54 +85,47 @@ export default function MiAsistencia() {
             </select>
           </label>
 
-          <label>
+          <label className="field">
             Fecha
-            <input
-              type="date"
-              value={fecha}
-              max={HOY}
-              onChange={(e) => setFecha(e.target.value)}
-              required
-              style={{ display: "block", padding: "0.4rem" }}
-            />
+            <input type="date" value={fecha} max={HOY} onChange={(e) => setFecha(e.target.value)} required />
           </label>
 
-          <label>
+          <label className="field">
             Estado
-            <select value={estado} onChange={(e) => setEstado(e.target.value)} style={{ display: "block", padding: "0.4rem" }}>
+            <select value={estado} onChange={(e) => setEstado(e.target.value)}>
               <option value="PRESENTE">Presente</option>
               <option value="AUSENTE">Ausente</option>
               <option value="TARDE">Tarde</option>
             </select>
           </label>
 
-          <button type="submit" disabled={guardando} style={{ cursor: "pointer", padding: "0.45rem 0.75rem" }}>
+          <button type="submit" className="btn" disabled={guardando}>
             {guardando ? "Guardando..." : "Guardar"}
           </button>
         </form>
       )}
 
-      {errorGuardado && <p style={{ color: "#b00020" }}>{errorGuardado}</p>}
-      {mensaje && <p style={{ color: "#2e7d32" }}>{mensaje}</p>}
+      {errorGuardado && <p className="form-error">{errorGuardado}</p>}
+      {mensaje && <p style={{ color: "var(--color-success)" }}>{mensaje}</p>}
 
       <h3>Historial</h3>
       {asistencias.length === 0 ? (
-        <p>Todavía no asentaste ninguna clase.</p>
+        <p className="empty-state">Todavía no asentaste ninguna clase.</p>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <table>
           <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid #ddd" }}>
-              <th style={{ padding: "0.4rem 0" }}>Fecha</th>
+            <tr>
+              <th>Fecha</th>
               <th>Materia</th>
               <th>Estado</th>
             </tr>
           </thead>
           <tbody>
             {asistencias.map((a) => (
-              <tr key={a.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                <td style={{ padding: "0.4rem 0" }}>{formatFecha(a.fecha)}</td>
+              <tr key={a.id}>
+                <td>{formatFecha(a.fecha)}</td>
                 <td>
-                  {a.materia.nombre} <span style={{ color: "#777" }}>({a.materia.codigo})</span>
+                  {a.materia.nombre} <span className="text-muted">({a.materia.codigo})</span>
                 </td>
                 <td>{ETIQUETA_ESTADO[a.estado] ?? a.estado}</td>
               </tr>

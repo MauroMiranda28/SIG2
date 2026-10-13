@@ -8,7 +8,7 @@ const ETIQUETA_TIPO = {
   CONDICION_FINAL: "Condición final", TRABAJO_PRACTICO: "Trabajo práctico",
 };
 const ETIQUETA_ESTADO = { PENDIENTE: "Pendiente", RESUELTA: "Resuelta", RECHAZADA: "Rechazada" };
-const COLOR_ESTADO = { PENDIENTE: "#f9a825", RESUELTA: "#2e7d32", RECHAZADA: "#b00020" };
+const COLOR_ESTADO = { PENDIENTE: "#c77700", RESUELTA: "var(--color-success)", RECHAZADA: "var(--color-danger)" };
 
 // Historia: como docente quiero ver y resolver las solicitudes de revisión de nota de mis alumnos,
 // para responder los reclamos formalmente. La API solo deja ver y resolver las de las materias
@@ -83,8 +83,8 @@ export default function Revisiones() {
             </select>
           </label>
 
-          {error && <p role="alert" style={{ color: "#b00020" }}>{error}</p>}
-          {aviso && <p role="status" style={{ color: "#2e7d32" }}>{aviso}</p>}
+          {error && <p role="alert" className="docente-error">{error}</p>}
+          {aviso && <p role="status" className="docente-exito">{aviso}</p>}
 
           {solicitudes === null ? (
             <p role="status">Cargando solicitudes…</p>
@@ -95,18 +95,18 @@ export default function Revisiones() {
               <p><strong>{pendientes}</strong> {pendientes === 1 ? "pendiente" : "pendientes"} de {solicitudes.length}.</p>
               <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: "0.75rem" }}>
                 {solicitudes.map((s) => (
-                  <li key={s.id} style={{ padding: "0.75rem 1rem", background: "#fafafa", borderRadius: "6px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+                  <li key={s.id} className="panel-soft" style={{ padding: "0.75rem 1rem" }}>
+                    <div className="row-between">
                       <strong>{s.alumno.apellido}, {s.alumno.nombre}</strong>
-                      <span style={{ fontSize: "0.85rem", padding: "0.15rem 0.5rem", borderRadius: "999px", background: COLOR_ESTADO[s.estado], color: "#fff" }}>
+                      <span className="badge" style={{ background: COLOR_ESTADO[s.estado] }}>
                         {ETIQUETA_ESTADO[s.estado] ?? s.estado}
                       </span>
                     </div>
                     <p style={{ margin: "0.25rem 0" }}>
                       {ETIQUETA_TIPO[s.evaluacion.tipo] ?? s.evaluacion.tipo} del {formatFecha(s.evaluacion.fecha)} · nota {s.evaluacion.nota}
                     </p>
-                    <p style={{ margin: "0.25rem 0", color: "#475569", whiteSpace: "pre-line" }}>«{s.motivo}»</p>
-                    <small style={{ color: "#777" }}>Enviada el {new Date(s.creadoEn).toLocaleDateString("es-AR")}</small>
+                    <p className="text-muted" style={{ margin: "0.25rem 0", whiteSpace: "pre-line" }}>«{s.motivo}»</p>
+                    <small className="text-muted">Enviada el {new Date(s.creadoEn).toLocaleDateString("es-AR")}</small>
 
                     {s.estado === "PENDIENTE" ? (
                       <div style={{ display: "grid", gap: "0.5rem", marginTop: "0.6rem" }}>
@@ -126,7 +126,7 @@ export default function Revisiones() {
                     ) : (
                       <p style={{ margin: "0.5rem 0 0", whiteSpace: "pre-line" }}>
                         <strong>Respuesta:</strong> {s.respuesta}
-                        {s.resueltaEn ? <small style={{ color: "#777" }}> · {new Date(s.resueltaEn).toLocaleDateString("es-AR")}</small> : null}
+                        {s.resueltaEn ? <small className="text-muted"> · {new Date(s.resueltaEn).toLocaleDateString("es-AR")}</small> : null}
                       </p>
                     )}
                   </li>

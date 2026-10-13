@@ -47,10 +47,10 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion }) {
   }
 
   if (error) {
-    return <p style={{ color: "#b00020" }}>No se pudo cargar la materia: {error}</p>;
+    return <p className="form-error">No se pudo cargar la materia: {error}</p>;
   }
   if (!materia || !comisiones) {
-    return <p>Cargando...</p>;
+    return <p className="loading">Cargando...</p>;
   }
 
   return (
@@ -86,28 +86,24 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion }) {
       <div>
         <h4 style={{ margin: "0 0 0.5rem 0" }}>Comisiones</h4>
 
-        {comisiones.length === 0 && <p>Todavía no hay comisiones cargadas para esta materia.</p>}
+        {comisiones.length === 0 && <p className="empty-state">Todavía no hay comisiones cargadas para esta materia.</p>}
 
-        {errorEleccion && (
-          <p style={{ color: "#b00020", margin: "0 0 0.5rem 0" }}>{errorEleccion}</p>
-        )}
+        {errorEleccion && <p className="form-error">{errorEleccion}</p>}
 
-        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        <ul className="list-clean" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
           {comisiones.map((comision) => (
             <li
               key={comision.id}
+              className="row-between"
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "0.5rem",
-                border: comision.elegidaPorMi ? "1px solid #2e7d32" : "1px solid #eee",
-                borderRadius: "6px",
+                padding: "0.6rem 0.75rem",
+                border: comision.elegidaPorMi ? "1px solid var(--color-success)" : "1px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)",
               }}
             >
               <div>
                 <strong>{comision.nombre}</strong>
-                <div style={{ fontSize: "0.85rem", color: "#555" }}>
+                <div className="text-muted" style={{ fontSize: "0.85rem" }}>
                   {comision.bloques.length === 0
                     ? "Sin horario cargado"
                     : comision.bloques
@@ -116,11 +112,7 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion }) {
                 </div>
               </div>
 
-              <button
-                onClick={() => elegirComision(comision.id)}
-                disabled={comision.elegidaPorMi || eligiendoId === comision.id}
-                style={{ cursor: comision.elegidaPorMi ? "default" : "pointer" }}
-              >
+              <button onClick={() => elegirComision(comision.id)} disabled={comision.elegidaPorMi || eligiendoId === comision.id}>
                 {comision.elegidaPorMi ? "Elegida" : eligiendoId === comision.id ? "Guardando..." : "Elegir"}
               </button>
             </li>

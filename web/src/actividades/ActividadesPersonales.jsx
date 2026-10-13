@@ -36,11 +36,6 @@ const FORMULARIO_VACIO = {
 };
 
 const fechaLocal = (fecha) => new Date(fecha).toISOString().slice(0, 10);
-const fechaDeDia = (fecha, desplazamiento) => {
-  const resultado = new Date(`${fecha}T00:00:00.000Z`);
-  resultado.setUTCDate(resultado.getUTCDate() + desplazamiento);
-  return fechaLocal(resultado);
-};
 
 function prepararDatos(formulario) {
   return {
@@ -68,28 +63,8 @@ function fechaCorta(fecha) {
   return new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(fecha));
 }
 
-function resumir(eventos) {
-  const personales = eventos.filter((evento) => evento.tipoEvento === "ACTIVIDAD");
-  const porCategoria = new Map();
-  const porEtiqueta = new Map();
-  for (const actividad of personales) {
-    porCategoria.set(actividad.categoria, (porCategoria.get(actividad.categoria) ?? 0) + actividad.duracion);
-    for (const etiqueta of actividad.etiquetas) {
-      porEtiqueta.set(etiqueta, (porEtiqueta.get(etiqueta) ?? 0) + actividad.duracion);
-    }
-  }
-  const ordenar = (mapa) => [...mapa].sort(([a], [b]) => a.localeCompare(b, "es"));
-  return {
-    total: personales.reduce((suma, actividad) => suma + actividad.duracion, 0),
-    porCategoria: ordenar(porCategoria).map(([categoria, minutos]) => [nombreCategoria(categoria), minutos]),
-    porEtiqueta: ordenar(porEtiqueta),
-  };
-}
-
 export default function ActividadesPersonales() {
   const [actividades, setActividades] = useState(null);
-  const [agenda, setAgenda] = useState(null);
-  const [fechaReferencia, setFechaReferencia] = useState(FORMULARIO_VACIO.fecha);
   const [formulario, setFormulario] = useState(FORMULARIO_VACIO);
   const [actividadEditando, setActividadEditando] = useState(null);
   const [etiquetaSeleccionada, setEtiquetaSeleccionada] = useState("");
@@ -112,12 +87,6 @@ export default function ActividadesPersonales() {
     cargarActividades();
   }, []);
 
-  useEffect(() => {
-    api(`/actividades-personales/agenda?fecha=${fechaReferencia}`)
-      .then(setAgenda)
-      .catch((e) => setError(e.message));
-  }, [fechaReferencia]);
-
   const etiquetas = useMemo(
     () => [...new Set((actividades ?? []).flatMap((actividad) => actividad.etiquetas))].sort((a, b) => a.localeCompare(b, "es")),
     [actividades],
@@ -125,8 +94,6 @@ export default function ActividadesPersonales() {
   const actividadesFiltradas = (actividades ?? []).filter(
     (actividad) => !etiquetaSeleccionada || actividad.etiquetas.includes(etiquetaSeleccionada),
   );
-  const resumen = useMemo(() => resumir(agenda?.eventos ?? []), [agenda]);
-  const lunesSemana = agenda?.desde ? fechaLocal(agenda.desde) : fechaReferencia;
 
   function actualizarCampo(evento) {
     setFormulario((actual) => ({ ...actual, [evento.target.name]: evento.target.value }));
@@ -160,8 +127,6 @@ export default function ActividadesPersonales() {
   async function refrescar() {
     const datos = await api("/actividades-personales");
     setActividades(datos.actividades);
-    const datosAgenda = await api(`/actividades-personales/agenda?fecha=${fechaReferencia}`);
-    setAgenda(datosAgenda);
   }
 
   async function guardar(evento) {
@@ -255,7 +220,7 @@ export default function ActividadesPersonales() {
         </label>
         <small id="actividad-etiquetas-ayuda">¿Qué detalle querés recordar? Agregá etiquetas libres, por ejemplo “remoto” o “gimnasio”; separalas con comas.</small>
         <div className="actividad-acciones">
-          <button type="submit" disabled={guardando}>{guardando ? "Guardando..." : actividadEditando === null ? "Guardar actividad" : "Guardar cambios"}</button>
+          <button type="submit" className="btn" disabled={guardando}>{guardando ? "Guardando..." : actividadEditando === null ? "Guardar actividad" : "Guardar cambios"}</button>
           {actividadEditando !== null && <button type="button" onClick={cancelarEdicion} disabled={guardando}>Cancelar</button>}
         </div>
       </form>
@@ -277,63 +242,7 @@ export default function ActividadesPersonales() {
         </section>
       )}
 
-      <section className="actividad-semana">
-        <h3>Agenda semanal</h3>
-        <p>Clases y actividades, en una lista ordenada por día y hora.</p>
-        <div className="actividad-navegacion-semana">
-          <button type="button" onClick={() => setFechaReferencia(fechaDeDia(lunesSemana, -7))}>Semana anterior</button>
-          <label>
-            Semana de
-            <input
-              type="date"
-              value={fechaReferencia}
-              onChange={(evento) => setFechaReferencia(evento.target.value)}
-              aria-label="Elegir una fecha de la semana"
-            />
-          </label>
-          <button type="button" onClick={() => setFechaReferencia(fechaDeDia(lunesSemana, 7))}>Semana siguiente</button>
-        </div>
-        {agenda ? (
-          <>
-            <p className="actividad-rango-semana">{fechaCorta(agenda.desde)} – {fechaCorta(agenda.hasta)}</p>
-            <p>Tiempo personal planificado: <strong>{Math.floor(resumen.total / 60)} h {resumen.total % 60} min</strong></p>
-            {resumen.porCategoria.length > 0 && (
-              <div className="actividad-resumen">
-                <div>
-                  <h4>Por categoría</h4>
-                  <ul>{resumen.porCategoria.map(([categoria, minutos]) => <li key={categoria}>{categoria}: {Math.floor(minutos / 60)} h {minutos % 60} min</li>)}</ul>
-                </div>
-                {resumen.porEtiqueta.length > 0 && (
-                  <div>
-                    <h4>Por etiqueta</h4>
-                    <ul>{resumen.porEtiqueta.map(([etiqueta, minutos]) => <li key={etiqueta}>{etiqueta}: {Math.floor(minutos / 60)} h {minutos % 60} min</li>)}</ul>
-                    <small>Una actividad con varias etiquetas cuenta en cada una; estos subtotales pueden superponerse.</small>
-                  </div>
-                )}
-              </div>
-            )}
-            {agenda.dias.map(({ dia, nombre, fecha, eventos }) => (
-              <section className="actividad-dia" key={dia}>
-                <h4>{nombre} <span>{fechaCorta(fecha)}</span></h4>
-                {eventos.length === 0 ? <p>Sin clases ni actividades planificadas.</p> : (
-                  <ul className="actividad-lista">
-                    {eventos.map((evento, indice) => (
-                      <li className={`actividad-tarjeta ${evento.tipoEvento === "CLASE" ? "clase" : ""}`} key={`${evento.tipoEvento}-${evento.id ?? evento.titulo}-${indice}`}>
-                        <div>
-                          <span className="actividad-tipo-evento">{evento.tipoEvento === "CLASE" ? "Clase" : "Actividad personal"}</span>
-                          <h5>{evento.titulo}</h5>
-                          <p><strong>{evento.horaInicio}–{evento.horaFin}</strong>{evento.categoria ? ` · ${nombreCategoria(evento.categoria)}` : ""}</p>
-                          {evento.etiquetas?.length > 0 && <p className="actividad-etiquetas-texto">{evento.etiquetas.join(" · ")}</p>}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            ))}
-          </>
-        ) : <p>Cargando agenda semanal...</p>}
-      </section>
+      <p className="actividad-mensaje-info">Para ver tus clases y actividades juntas en una semana, andá a la pestaña «Mi horario».</p>
 
       <section>
         <h3>Todas mis actividades</h3>
@@ -344,8 +253,8 @@ export default function ActividadesPersonales() {
             {etiquetas.map((etiqueta) => <option key={etiqueta} value={etiqueta}>{etiqueta}</option>)}
           </select>
         </div>
-        {actividades === null ? <p>Cargando actividades...</p> : actividadesFiltradas.length === 0 ? (
-          <p>{actividades.length === 0 ? "Todavía no registraste actividades." : "No hay actividades con esa etiqueta."}</p>
+        {actividades === null ? <p className="loading">Cargando actividades...</p> : actividadesFiltradas.length === 0 ? (
+          <p className="empty-state">{actividades.length === 0 ? "Todavía no registraste actividades." : "No hay actividades con esa etiqueta."}</p>
         ) : (
           <ul className="actividad-lista">
             {actividadesFiltradas.map((actividad) => (
@@ -367,7 +276,7 @@ export default function ActividadesPersonales() {
                 </div>
                 <div className="actividad-acciones">
                   <button type="button" onClick={() => editar(actividad)} aria-label={`Editar ${actividad.titulo}`}>Editar</button>
-                  <button type="button" onClick={() => eliminar(actividad)} aria-label={`Eliminar ${actividad.titulo}`}>Eliminar</button>
+                  <button type="button" className="btn-danger" onClick={() => eliminar(actividad)} aria-label={`Eliminar ${actividad.titulo}`}>Eliminar</button>
                 </div>
               </li>
             ))}

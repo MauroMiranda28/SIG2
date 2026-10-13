@@ -50,31 +50,31 @@ export default function MisNotas() {
   if (error) {
     // La revisión de nota no depende de la tabla de materias: se puede pedir igual.
     return (
-      <div style={{ fontFamily: "system-ui", maxWidth: "40rem" }}>
+      <div className="page">
         <h2>Mis notas</h2>
-        <p style={{ color: "#b00020" }}>No se pudieron cargar tus notas: {error}</p>
+        <p className="form-error">No se pudieron cargar tus notas: {error}</p>
         <SolicitarRevision />
       </div>
     );
   }
 
   if (!materias) {
-    return <p>Cargando notas...</p>;
+    return <p className="loading">Cargando notas...</p>;
   }
 
   return (
-    <div style={{ fontFamily: "system-ui", maxWidth: "40rem" }}>
+    <div className="page">
       <h2>Mis notas</h2>
 
-      <button onClick={descargarCertificado} disabled={descargando} style={{ cursor: "pointer", marginBottom: "1rem" }}>
+      <button onClick={descargarCertificado} disabled={descargando} style={{ marginBottom: "1rem" }}>
         {descargando ? "Generando..." : "Descargar certificado de notas (PDF)"}
       </button>
-      {errorDescarga && <p style={{ color: "#b00020" }}>{errorDescarga}</p>}
+      {errorDescarga && <p className="form-error">{errorDescarga}</p>}
 
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <table>
         <thead>
-          <tr style={{ textAlign: "left", borderBottom: "1px solid #ddd" }}>
-            <th style={{ padding: "0.4rem 0" }}>Código</th>
+          <tr>
+            <th>Código</th>
             <th>Materia</th>
             <th>Estado</th>
             <th>Nota</th>
@@ -82,17 +82,15 @@ export default function MisNotas() {
         </thead>
         <tbody>
           {materias.map((materia) => (
-            <tr key={materia.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
-              <td style={{ padding: "0.4rem 0" }}>{materia.codigo}</td>
+            <tr key={materia.id}>
+              <td>{materia.codigo}</td>
               <td>{materia.nombre}</td>
               <td>
                 {ETIQUETA_ESTADO[estadoVisible(materia)]}
-                {detalleEstado(materia) && (
-                  <div style={{ fontSize: "0.8rem", color: "#777" }}>{detalleEstado(materia)}</div>
-                )}
+                {detalleEstado(materia) && <div className="text-muted" style={{ fontSize: "0.8rem" }}>{detalleEstado(materia)}</div>}
                 {/* Cada intento de examen final queda registrado con su nota */}
                 {materia.intentos?.length > 0 && (
-                  <ol style={{ fontSize: "0.8rem", color: "#555", margin: "0.25rem 0 0 0", paddingLeft: "1.2rem" }}>
+                  <ol className="text-muted" style={{ fontSize: "0.8rem", margin: "0.25rem 0 0 0", paddingLeft: "1.2rem" }}>
                     {materia.intentos.map((intento) => (
                       <li key={intento.id}>Final del {formatFecha(intento.fecha)}: {intento.nota}</li>
                     ))}

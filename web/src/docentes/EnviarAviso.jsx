@@ -97,9 +97,9 @@ export default function EnviarAviso() {
             <small>{mensaje.length} / {LARGO_MENSAJE}</small>
           </label>
 
-          {error && <p role="alert" style={{ color: "#b00020", margin: 0 }}>{error}</p>}
+          {error && <p role="alert" className="docente-error">{error}</p>}
           {resultado && (
-            <p role="status" style={{ color: "#2e7d32", margin: 0 }}>
+            <p role="status" className="docente-exito">
               Aviso enviado a {resultado.enviadas} {resultado.enviadas === 1 ? "alumno" : "alumnos"} de {resultado.materia.nombre}.
             </p>
           )}

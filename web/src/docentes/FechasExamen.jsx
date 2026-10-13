@@ -128,8 +128,8 @@ export default function FechasExamen() {
             <button type="submit" disabled={enviando} style={{ cursor: "pointer" }}>{enviando ? "Guardando..." : "Programar y avisar"}</button>
           </form>
 
-          {error && <p role="alert" style={{ color: "#b00020" }}>{error}</p>}
-          {aviso && <p role="status" style={{ color: "#2e7d32" }}>{aviso}</p>}
+          {error && <p role="alert" className="docente-error">{error}</p>}
+          {aviso && <p role="status" className="docente-exito">{aviso}</p>}
 
           <h3>Fechas programadas</h3>
           {examenes === null ? (
@@ -139,7 +139,7 @@ export default function FechasExamen() {
           ) : (
             <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: "0.6rem" }}>
               {examenes.map((ex) => (
-                <li key={ex.id} style={{ padding: "0.6rem 0.8rem", background: "#fafafa", borderRadius: "6px" }}>
+                <li key={ex.id} className="panel-soft" style={{ padding: "0.6rem 0.8rem" }}>
                   {editando?.id === ex.id ? (
                     <form onSubmit={guardarCambio} style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "flex-end" }}>
                       <strong>{NOMBRE_TIPO[ex.tipo]}</strong>

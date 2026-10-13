@@ -113,8 +113,8 @@ export default function Tareas() {
             <button type="submit" disabled={enviando} style={{ cursor: "pointer", justifySelf: "start" }}>{enviando ? "Guardando..." : "Cargar tarea"}</button>
           </form>
 
-          {error && <p role="alert" style={{ color: "#b00020" }}>{error}</p>}
-          {aviso && <p role="status" style={{ color: "#2e7d32" }}>{aviso}</p>}
+          {error && <p role="alert" className="docente-error">{error}</p>}
+          {aviso && <p role="status" className="docente-exito">{aviso}</p>}
 
           <h3>Tareas cargadas</h3>
           {tareas === null ? (
@@ -124,7 +124,7 @@ export default function Tareas() {
           ) : (
             <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: "0.6rem" }}>
               {tareas.map((t) => (
-                <li key={t.id} style={{ padding: "0.6rem 0.8rem", background: "#fafafa", borderRadius: "6px" }}>
+                <li key={t.id} className="panel-soft" style={{ padding: "0.6rem 0.8rem" }}>
                   {editando?.id === t.id ? (
                     <form onSubmit={guardarCambio} style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "flex-end" }}>
                       <input value={editando.titulo} onChange={(e) => setEditando({ ...editando, titulo: e.target.value })} maxLength={120} required />
@@ -136,7 +136,7 @@ export default function Tareas() {
                     <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
                       <span>
                         <strong>{t.titulo}</strong> · entrega {formatFecha(t.fechaEntrega)}
-                        {t.descripcion ? <small style={{ display: "block", color: "#475569" }}>{t.descripcion}</small> : null}
+                        {t.descripcion ? <small className="text-muted" style={{ display: "block" }}>{t.descripcion}</small> : null}
                       </span>
                       <span style={{ display: "flex", gap: "0.5rem" }}>
                         <button onClick={() => setEditando({ id: t.id, titulo: t.titulo, descripcion: t.descripcion ?? "", fechaEntrega: soloFecha(t.fechaEntrega) })} style={{ cursor: "pointer" }}>Editar</button>

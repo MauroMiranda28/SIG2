@@ -86,38 +86,39 @@ export default function Notificaciones({ onCambioNoLeidas }) {
     }
   }
 
-  if (error) return <p style={{ color: "#b00020" }}>No se pudieron cargar las notificaciones: {error}</p>;
-  if (notificaciones === null) return <p>Cargando...</p>;
+  if (error) return <p className="form-error">No se pudieron cargar las notificaciones: {error}</p>;
+  if (notificaciones === null) return <p className="loading">Cargando...</p>;
 
   return (
-    <div style={{ fontFamily: "system-ui" }}>
+    <div className="page">
       <h2>Notificaciones</h2>
 
       <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", marginBottom: "1rem" }}>
-        <label style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
-          <input type="checkbox" checked={soloNoLeidas} onChange={(e) => setSoloNoLeidas(e.target.checked)} />
+        <label style={{ display: "flex", gap: "0.4rem", alignItems: "center", fontWeight: 400 }}>
+          <input type="checkbox" checked={soloNoLeidas} onChange={(e) => setSoloNoLeidas(e.target.checked)} style={{ width: "auto" }} />
           Solo no leídas
         </label>
-        <button onClick={marcarTodas} disabled={noLeidas === 0} style={{ cursor: "pointer" }}>
+        <button onClick={marcarTodas} disabled={noLeidas === 0}>
           Marcar todas como leídas{noLeidas > 0 ? ` (${noLeidas})` : ""}
         </button>
       </div>
 
       {notificaciones.length === 0 ? (
-        <p>{soloNoLeidas ? "No tenés notificaciones sin leer." : "Todavía no tenés notificaciones."}</p>
+        <p className="empty-state">{soloNoLeidas ? "No tenés notificaciones sin leer." : "Todavía no tenés notificaciones."}</p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.6rem" }}>
+        <ul className="list-clean" style={{ display: "grid", gap: "0.6rem" }}>
           {notificaciones.map((n) => (
             <li
               key={n.id}
               style={{
                 padding: "0.75rem 1rem",
-                borderRadius: "6px",
-                background: n.leida ? "#fafafa" : "#eef5ff",
-                borderLeft: `4px solid ${n.leida ? "#ddd" : "#164e83"}`,
+                borderRadius: "var(--radius-sm)",
+                background: n.leida ? "var(--color-white)" : "var(--color-primary-soft)",
+                border: "1px solid var(--color-border)",
+                borderLeft: `4px solid ${n.leida ? "var(--color-border)" : "var(--color-primary)"}`,
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", flexWrap: "wrap", fontSize: "0.85rem", color: "#475569" }}>
+              <div className="text-muted row-between" style={{ gap: "0.5rem", flexWrap: "wrap", fontSize: "0.85rem" }}>
                 <span>
                   {ETIQUETA_TIPO[n.tipo] ?? n.tipo}
                   {n.materia ? ` · ${n.materia.nombre}` : ""}
@@ -128,7 +129,7 @@ export default function Notificaciones({ onCambioNoLeidas }) {
               <strong style={{ display: "block", marginTop: "0.25rem" }}>{n.titulo}</strong>
               <p style={{ margin: "0.25rem 0 0", whiteSpace: "pre-line" }}>{n.mensaje}</p>
               {!n.leida && (
-                <button onClick={() => marcarLeida(n.id)} style={{ cursor: "pointer", marginTop: "0.5rem" }}>
+                <button onClick={() => marcarLeida(n.id)} style={{ marginTop: "0.5rem" }}>
                   Marcar como leída
                 </button>
               )}
@@ -138,7 +139,7 @@ export default function Notificaciones({ onCambioNoLeidas }) {
       )}
 
       {hayMas && (
-        <button onClick={verMas} disabled={cargandoMas} style={{ cursor: "pointer", marginTop: "1rem" }}>
+        <button onClick={verMas} disabled={cargandoMas} style={{ marginTop: "1rem" }}>
           {cargandoMas ? "Cargando..." : "Ver más antiguas"}
         </button>
       )}
