@@ -88,6 +88,10 @@ function dbExamenes({ alumnos = [{ id: 21 }, { id: 22 }], aulas = [{ id: 1, nomb
       delete: async ({ where }) => { estado.examenes = estado.examenes.filter((e) => e.id !== where.id); return {}; },
     },
     notificacion: { createMany: async ({ data }) => { estado.notificaciones.push(...data); return { count: data.length }; } },
+    inscripcionExamen: {
+      findMany: async ({ where }) => (estado.inscripciones ?? []).filter((i) => where.examenId.in.includes(i.examenId)),
+      deleteMany: async ({ where }) => { estado.inscripcionesBorradas = [...(estado.inscripcionesBorradas ?? []), where.examenId]; return { count: 0 }; },
+    },
   };
   // Transacción con rollback: si algo falla se restaura lo que había.
   db.$transaction = async (fn) => {
@@ -233,4 +237,33 @@ test("HTTP: sin alumnos igual se programa el examen (no hay a quién avisar)", a
   });
   assert.equal(db.estado.examenes.length, 1);
   assert.equal(db.estado.notificaciones.length, 0);
+});
+
+// ---------- Inscriptos a los finales (vista del docente) ----------
+
+test("HTTP: los finales traen sus inscriptos (regulares y libres); los parciales no", async () => {
+  const db = dbExamenes();
+  await conAPI(db, async (request) => {
+    await request("POST", "/materias/5", "DOCENTE", { tipo: "FINAL", fecha: futuro(10), hora: "09:00" });
+    await request("POST", "/materias/5", "DOCENTE", { tipo: "PARCIAL", fecha: futuro(5) });
+    db.estado.inscripciones = [
+      { examenId: 1, modalidad: "REGULAR", alumno: { id: 21, nombre: "Ana", apellido: "Díaz", email: "ana@alumnos.ucse.edu.ar" } },
+      { examenId: 1, modalidad: "LIBRE", alumno: { id: 22, nombre: "Beto", apellido: "Gómez", email: "beto@alumnos.ucse.edu.ar" } },
+      { examenId: 1, modalidad: "REGULAR", alumno: { id: 23, nombre: "Caro", apellido: "Paz", email: "caro@alumnos.ucse.edu.ar" } },
+    ];
+    const { examenes } = await (await request("GET", "/materias/5", "DOCENTE")).json();
+    const final = examenes.find((e) => e.tipo === "FINAL");
+    assert.deepEqual([final.inscriptos.total, final.inscriptos.regulares, final.inscriptos.libres], [3, 2, 1]);
+    assert.deepEqual(final.inscriptos.alumnos.map((a) => [a.apellido, a.modalidad]), [["Díaz", "REGULAR"], ["Gómez", "LIBRE"], ["Paz", "REGULAR"]]);
+    assert.equal("inscriptos" in examenes.find((e) => e.tipo === "PARCIAL"), false);
+  });
+});
+
+test("HTTP: cancelar un final borra también sus inscripciones", async () => {
+  const db = dbExamenes();
+  await conAPI(db, async (request) => {
+    await request("POST", "/materias/5", "DOCENTE", { tipo: "FINAL", fecha: futuro(10) });
+    assert.equal((await request("DELETE", "/1", "DOCENTE")).status, 200);
+  });
+  assert.deepEqual(db.estado.inscripcionesBorradas, [1]);
 });

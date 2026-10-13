@@ -5,6 +5,7 @@ import { errorAcceso, requiereMateriaAsignada, validarId } from "../services/doc
 import {
   DATOS_EXAMEN, avisarAlumnosDeExamen, avisoExamen, cambioRelevante, validarCambioExamen, validarNuevoExamen,
 } from "../services/examenes.js";
+import { inscriptosPorFinal } from "../services/inscriptosFinal.js";
 
 const materiaDelParametro = (req) => validarId(req.params.id, "identificador de la materia");
 
@@ -29,12 +30,17 @@ export function crearRouterExamenes(db = prisma) {
   router.use(requiereAuth, requiereRol("DOCENTE", "ADMIN"));
 
   // Fechas ya programadas de la materia, de la más próxima a la más lejana.
+  // Los finales traen sus inscriptos (cuántos regulares y libres, y quiénes).
   router.get("/materias/:id", requiereMateriaAsignada(db, materiaDelParametro), async (req, res, next) => {
     try {
       const examenes = await db.fechaExamen.findMany({
         where: { materiaId: req.materia.id }, select: DATOS_EXAMEN, orderBy: [{ fecha: "asc" }, { id: "asc" }],
       });
-      res.json({ materia: req.materia, examenes });
+      const inscriptos = await inscriptosPorFinal(db, examenes.filter((e) => e.tipo === "FINAL").map((e) => e.id));
+      res.json({
+        materia: req.materia,
+        examenes: examenes.map((e) => (e.tipo === "FINAL" ? { ...e, inscriptos: inscriptos.get(e.id) } : e)),
+      });
     } catch (e) { next(e); }
   });
 
@@ -82,6 +88,8 @@ export function crearRouterExamenes(db = prisma) {
       await db.$transaction(async (tx) => {
         const examen = await tx.fechaExamen.findUnique({ where: { id }, select: DATOS_EXAMEN });
         if (!examen) throw errorAcceso(404, "El examen no existe.");
+        // Si es un final con inscriptos, se borran sus inscripciones (si no, la base no deja borrarlo).
+        await tx.inscripcionExamen.deleteMany({ where: { examenId: id } });
         await tx.fechaExamen.delete({ where: { id } });
         await avisarAlumnosDeExamen(tx, {
           materia: req.materia, autorId: req.usuario.id, aviso: avisoExamen({ accion: "CANCELADO", materiaNombre: req.materia.nombre, examen }),

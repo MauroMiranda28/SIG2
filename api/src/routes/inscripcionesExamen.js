@@ -4,6 +4,7 @@ import { requiereAuth, requiereRol } from "../middleware/auth.js";
 import { errorAcceso, validarId } from "../services/docentes.js";
 import { hoy } from "../services/examenes.js";
 import { DATOS_INSCRIPCION, modalidadDisponible, validarInscripcion } from "../services/inscripcionesExamen.js";
+import { contarInscriptos } from "../services/inscriptosFinal.js";
 
 async function cursadaDelAlumno(db, alumnoId, materiaId) {
   return db.cursada.findUnique({
@@ -19,7 +20,7 @@ export function crearRouterInscripcionesExamen(db = prisma) {
   router.use(requiereAuth, requiereRol("ALUMNO"));
 
   // Finales futuros de las materias donde el alumno puede inscribirse, con la modalidad que le
-  // corresponde (REGULAR o LIBRE) y si ya se inscribió.
+  // corresponde (REGULAR o LIBRE), si ya se inscribió y cuántos inscriptos hay (regulares y libres).
   router.get("/", async (req, res, next) => {
     try {
       const cursadas = await db.cursada.findMany({
@@ -40,10 +41,12 @@ export function crearRouterInscripcionesExamen(db = prisma) {
         orderBy: [{ fecha: "asc" }, { id: "asc" }],
       });
 
+      const inscriptos = await contarInscriptos(db, examenes.map((e) => e.id));
       res.json(examenes.map(({ inscripciones, materiaId, ...examen }) => ({
         ...examen,
         modalidadDisponible: modalidadDisponible(porMateria.get(materiaId)),
         inscripcion: inscripciones[0] ?? null,
+        inscriptos: inscriptos.get(examen.id),
       })));
     } catch (e) { next(e); }
   });

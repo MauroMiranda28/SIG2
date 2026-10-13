@@ -407,6 +407,13 @@ Lo que ya está implementado, para no repetir trabajo:
   Correr `db:push`. Las solicitudes que ya estaban pendientes se pueden resolver desde la pestaña.
   Tests: `node --test api/test/revisiones-docente.test.js`.
 
+**Inscriptos a los finales**
+- `GET /api/finales` (ALUMNO) suma `inscriptos: { total, regulares, libres }` en cada final: solo los números.
+- `GET /api/examenes/materias/:id` (docente de la materia o ADMIN) suma en cada final `inscriptos` con los números y la
+  lista de alumnos (nombre, correo y modalidad). Se ve en «Inscripción a finales» y en «Fechas de examen».
+- Cancelar un final que tenía inscriptos ahora borra sus inscripciones en la misma transacción (antes daba error 500).
+  Tests: `node --test api/test/inscriptosFinal.test.js`.
+
 **Privacidad del seguimiento académico**
 - Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del
   token y son solo para ALUMNO. `api/test/privacidad.test.js` lo verifica para que no se rompa.

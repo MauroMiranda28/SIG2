@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { formatFecha } from "../formatFecha.js";
 import { ETIQUETA_ESTADO, COLOR_ESTADO } from "../materias/estadoMateria.js";
+import { textoInscriptos } from "./inscriptos.js";
 
 // Historia: como alumno quiero poder inscribirme a un final seleccionando una materia
 // específica, sin importar si es libre o regular. La API ya calcula con qué modalidad le
@@ -74,6 +75,8 @@ export default function InscripcionFinal() {
                   {formatFecha(ex.fecha)}
                   {ex.hora ? ` · ${ex.hora}` : ""}
                   {ex.aula ? ` · ${ex.aula.nombre}` : ""}
+                  <br />
+                  <small className="text-muted">{textoInscriptos(ex.inscriptos)}</small>
                 </span>
                 <span className="badge" style={{ background: COLOR_ESTADO[ex.modalidadDisponible] }}>
                   {ETIQUETA_ESTADO[ex.modalidadDisponible]}
@@ -98,3 +101,4 @@ export default function InscripcionFinal() {
     </div>
   );
 }
+
