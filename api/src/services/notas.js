@@ -175,11 +175,12 @@ export function estadoDeCursada(evaluaciones, materia) {
   return estado;
 }
 
-// `cursada` trae id, alumnoId y materiaId. Si queda LIBRE, se le quita la comisión elegida:
+// `cursada` trae id, alumnoId, materiaId y evaluacionesDesdeId (las anteriores son de una cursada que
+// quedó libre y no cuentan). Si queda LIBRE, se le quita la comisión elegida:
 // deja de cursar (sale de «Mi horario») hasta que vuelva a inscribirse.
 export async function recalcularCursada(tx, cursada, materia) {
   const evaluaciones = await tx.evaluacion.findMany({
-    where: { cursadaId: cursada.id, tipo: { in: ["CONDICION_FINAL", "FINAL"] } },
+    where: { cursadaId: cursada.id, tipo: { in: ["CONDICION_FINAL", "FINAL"] }, id: { gt: cursada.evaluacionesDesdeId ?? 0 } },
     select: { id: true, tipo: true, condicion: true, nota: true, fecha: true },
   });
   const calculado = estadoDeCursada(evaluaciones, materia);

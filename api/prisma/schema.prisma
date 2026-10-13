@@ -319,6 +319,9 @@ model Cursada {
   // Se recalculan desde las evaluaciones cada vez que se carga o corrige una condición final o un final.
   regularDesde  DateTime?
   intentosFinal Int       @default(0)
+  // Al reinscribirse a recursar (estaba libre), se guarda el id de la última evaluación que ya tenía:
+  // las de la cursada anterior (id menor o igual) no cuentan para calcular el estado de la nueva.
+  evaluacionesDesdeId Int @default(0)
 
   alumnoId Int
   alumno   Usuario @relation(fields: [alumnoId], references: [id])

@@ -414,6 +414,8 @@ Lo que ya está implementado, para no repetir trabajo:
 - Puede inscribirse a una materia de su plan que tenga Pendiente o Libre (o con la regularidad vencida) si cumple las
   correlatividades. No: si ya la aprobó, ya la cursa o la tiene regular vigente. La cursada queda EN_CURSO (si estaba
   libre, recursa de cero) y la comisión elegida reemplaza la que tuviera en esa materia.
+- Al recursar se guarda `Cursada.evaluacionesDesdeId` (la última evaluación de la cursada anterior): esas siguen en el
+  historial pero no cuentan para el estado nuevo, aunque tengan fechas posteriores. Schema: correr `db:push`.
 - Botón «Inscribirme» en «Materias». `POST /api/horarios/inscripcion` («Cambiar a esta» en el detalle) queda solo
   para cambiar de comisión a quien ya está inscripto, así nadie se saltea las correlatividades.
   Tests: `node --test api/test/inscripcionCursada.test.js`.

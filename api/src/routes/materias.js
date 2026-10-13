@@ -35,7 +35,7 @@ router.get("/", requiereAuth, async (req, res, next) => {
         cursadas: {
           where: { alumnoId: req.usuario.id },
           select: {
-            estado: true, nota: true, regularDesde: true, intentosFinal: true,
+            estado: true, nota: true, regularDesde: true, intentosFinal: true, evaluacionesDesdeId: true,
             evaluaciones: {
               where: { tipo: { in: ["CONDICION_FINAL", "FINAL"] } },
               select: { id: true, tipo: true, condicion: true, nota: true, fecha: true },
@@ -62,7 +62,10 @@ router.get("/", requiereAuth, async (req, res, next) => {
         // Regularidad: plazo para aprobar el final e intentos usados (máx. 3) con la nota de cada uno.
         venceRegularidad: cursada?.estado === "REGULAR" ? vencimientoRegularidad(cursada.regularDesde) : null,
         intentosFinal: cursada?.intentosFinal ?? 0,
-        intentos: cursada && cursada.estado !== "EN_CURSO" ? (estadoDeCursada(cursada.evaluaciones, materia)?.intentos ?? []) : [],
+        // Solo los de la cursada actual (si recursó, los de la anterior no cuentan).
+        intentos: cursada
+          ? (estadoDeCursada(cursada.evaluaciones.filter((e) => e.id > cursada.evaluacionesDesdeId), materia)?.intentos ?? [])
+          : [],
       };
     });
 

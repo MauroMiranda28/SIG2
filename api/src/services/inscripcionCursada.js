@@ -121,11 +121,15 @@ export async function inscribirACursar(db, alumnoId, { materiaId, comisionId }, 
   }
 
   return db.$transaction(async (tx) => {
+    // Recursa (estaba libre o se le venció la regularidad): arranca de cero. Las evaluaciones que ya
+    // tenía quedan en el historial, pero no cuentan para el estado de la cursada nueva.
+    const ultima = opciones.cursada
+      ? await tx.evaluacion.findFirst({ where: { cursadaId: opciones.cursada.id }, orderBy: { id: "desc" }, select: { id: true } })
+      : null;
     const cursada = await tx.cursada.upsert({
       where: { alumnoId_materiaId: { alumnoId, materiaId } },
       create: { alumnoId, materiaId, estado: "EN_CURSO" },
-      // Recursa (estaba libre o se le venció la regularidad): arranca de cero.
-      update: { estado: "EN_CURSO", nota: null, regularDesde: null, intentosFinal: 0 },
+      update: { estado: "EN_CURSO", nota: null, regularDesde: null, intentosFinal: 0, evaluacionesDesdeId: ultima?.id ?? 0 },
       select: { id: true, estado: true },
     });
     await tx.inscripcionComision.deleteMany({ where: { alumnoId, comision: { materiaId } } });

@@ -45,7 +45,7 @@ test("choqueDeHorario: mismo día y horas que se cruzan; los bordes no chocan", 
 // ---------- Con DB simulada ----------
 
 // Alumno 7, plan 9. Materia 4 (Programación II) requiere Programación I (3) débil y Álgebra (2) fuerte.
-function dbFalsa({ cursadaPropia = null, requeridas = [], comisiones = [], otras = [], plan = 9 } = {}) {
+function dbFalsa({ cursadaPropia = null, requeridas = [], comisiones = [], otras = [], plan = 9, ultimaEvaluacion = null } = {}) {
   const registro = { upserts: [], bajas: [], altas: [] };
   const db = {
     registro,
@@ -64,6 +64,7 @@ function dbFalsa({ cursadaPropia = null, requeridas = [], comisiones = [], otras
         };
       },
     },
+    evaluacion: { findFirst: async (args) => { registro.ultimaDe = args.where.cursadaId; return ultimaEvaluacion; } },
     cursada: {
       findMany: async (args) => { assert.equal(args.where.alumnoId, 7); return requeridas; },
       upsert: async (args) => { registro.upserts.push(args); return { id: 50, estado: "EN_CURSO" }; },
@@ -106,7 +107,7 @@ test("inscribir: con comisión crea la cursada EN_CURSO y reemplaza la comisión
   const resultado = await inscribirACursar(db, 7, { materiaId: 4, comisionId: 12 }, AHORA);
   assert.equal(resultado.comision.nombre, "Comisión B");
   assert.deepEqual(db.registro.upserts[0].create, { alumnoId: 7, materiaId: 4, estado: "EN_CURSO" });
-  assert.deepEqual(db.registro.upserts[0].update, { estado: "EN_CURSO", nota: null, regularDesde: null, intentosFinal: 0 }, "si estaba libre, recursa de cero");
+  assert.deepEqual(db.registro.upserts[0].update, { estado: "EN_CURSO", nota: null, regularDesde: null, intentosFinal: 0, evaluacionesDesdeId: 0 }, "si estaba libre, recursa de cero");
   assert.deepEqual(db.registro.bajas, [{ alumnoId: 7, comision: { materiaId: 4 } }]);
   assert.deepEqual(db.registro.altas, [{ alumnoId: 7, comisionId: 12 }]);
 });
@@ -152,4 +153,11 @@ test("HTTP: solo ALUMNO, y el alumno sale del token", async () => {
     assert.equal((await request("GET", "/4", "ALUMNO")).status, 200);
     assert.equal((await request("POST", "/", "ALUMNO", { materiaId: 4, alumnoId: 999 })).status, 201);
   } finally { await new Promise((resolve) => server.close(resolve)); }
+});
+
+test("inscribir: al recursar, las evaluaciones de la cursada anterior quedan antes del corte", async () => {
+  const db = dbFalsa({ requeridas: CUMPLE, cursadaPropia: { id: 50, estado: "LIBRE" }, ultimaEvaluacion: { id: 11 } });
+  await inscribirACursar(db, 7, { materiaId: 4 }, AHORA);
+  assert.equal(db.registro.ultimaDe, 50);
+  assert.equal(db.registro.upserts[0].update.evaluacionesDesdeId, 11);
 });
