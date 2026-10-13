@@ -37,7 +37,10 @@ export async function proximasEvaluaciones(db, alumnoId, ahora = new Date()) {
     }),
     db.tarea.findMany({
       where: { materiaId: { in: materiaIds }, fechaEntrega: { gte: desde } },
-      select: { id: true, titulo: true, descripcion: true, fechaEntrega: true, horaEntrega: true, materia: MATERIA },
+      select: {
+        id: true, titulo: true, descripcion: true, fechaEntrega: true, horaEntrega: true, materia: MATERIA,
+        archivos: { select: { id: true, nombre: true, tamanio: true }, orderBy: { id: "asc" } },
+      },
     }),
   ]);
 
@@ -45,7 +48,7 @@ export async function proximasEvaluaciones(db, alumnoId, ahora = new Date()) {
     ...examenes.map((e) => ({ clave: `examen-${e.id}`, tipo: e.tipo, fecha: e.fecha, hora: e.hora, aula: e.aula, materia: e.materia })),
     ...tareas.map((t) => ({
       clave: `tarea-${t.id}`, tipo: "TRABAJO_PRACTICO", fecha: t.fechaEntrega, hora: t.horaEntrega,
-      titulo: t.titulo, descripcion: t.descripcion, materia: t.materia,
+      titulo: t.titulo, descripcion: t.descripcion, materia: t.materia, archivos: t.archivos ?? [],
     })),
   ].sort((a, b) => clave(a).localeCompare(clave(b)) || a.materia.nombre.localeCompare(b.materia.nombre));
 }

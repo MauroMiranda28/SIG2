@@ -10,7 +10,10 @@ export const DIAS_ANTICIPACION = 3; // cuántos días antes de la entrega se man
 export const LARGO_TITULO_MAXIMO = 120;
 export const LARGO_DESCRIPCION_MAXIMO = 1000;
 
-export const DATOS_TAREA = { id: true, titulo: true, descripcion: true, fechaEntrega: true, horaEntrega: true, materiaId: true };
+export const DATOS_TAREA = {
+  id: true, titulo: true, descripcion: true, fechaEntrega: true, horaEntrega: true, materiaId: true,
+  archivos: { select: { id: true, nombre: true, tipo: true, tamanio: true }, orderBy: { id: "asc" } },
+};
 const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const esObjeto = (v) => v != null && typeof v === "object" && !Array.isArray(v);

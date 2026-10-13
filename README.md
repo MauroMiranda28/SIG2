@@ -366,6 +366,10 @@ Lo que ya está implementado, para no repetir trabajo:
   (las tareas, con fecha y hora de entrega) de hoy en adelante, de las materias que cursa (cursada en curso o comisión
   elegida, sin contar las ya aprobadas, regulares o libres). Ordenados por fecha y hora. Pestaña «Parciales y TPs».
 - Las tareas suman una hora de entrega opcional (`Tarea.horaEntrega`); el recordatorio la menciona. Correr `db:push`.
+- **Adjuntos de las tareas** (modelo `ArchivoTarea`): el docente sube hasta 5 archivos por vez (10 MB c/u; PDF, Word,
+  Excel, PowerPoint, imágenes, ZIP, texto) con `POST /api/archivos-tarea/tareas/:id` y los quita con
+  `DELETE /api/archivos-tarea/:id`. `GET /api/archivos-tarea/:id` los descarga el docente de la materia o un alumno que
+  la cursa. Se guardan en `api/uploads/tareas/` con nombre del servidor; borrar la tarea borra sus adjuntos.
   Tests: `node --test api/test/proximasEvaluaciones.test.js`.
 
 **Notificaciones: recordatorio de entrega de tareas**

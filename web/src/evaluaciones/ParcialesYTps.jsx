@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../api.js";
+import { api, descargarArchivo } from "../api.js";
 import { formatFecha } from "../formatFecha.js";
 
 // Historia: como alumno quiero consultar mis parciales a rendir y trabajos prácticos,
@@ -23,6 +23,8 @@ function cuantoFalta(fecha) {
   if (dias === 1) return "Mañana";
   return `En ${dias} días`;
 }
+
+const pesoLegible = (bytes) => (bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`);
 
 export default function ParcialesYTps() {
   const [items, setItems] = useState(null);
@@ -70,6 +72,16 @@ export default function ParcialesYTps() {
                     : (i.tipo === "TRABAJO_PRACTICO" ? " · entrega en el día" : " · horario a confirmar")}
                   {i.aula ? ` · ${i.aula.nombre}` : ""}
                   {i.descripcion && <small className="text-muted" style={{ display: "block" }}>{i.descripcion}</small>}
+                  {i.archivos?.length > 0 && (
+                    <span style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.35rem" }}>
+                      {i.archivos.map((a) => (
+                        <button key={a.id} type="button" className="btn-secondary" style={{ fontSize: "0.85rem", padding: "0.2rem 0.6rem" }}
+                          onClick={() => descargarArchivo(`/archivos-tarea/${a.id}`, a.nombre).catch((e) => setError(e.message))}>
+                          📎 {a.nombre} <span className="text-muted">({pesoLegible(a.tamanio)})</span>
+                        </button>
+                      ))}
+                    </span>
+                  )}
                 </span>
                 <span style={{ display: "grid", gap: "0.25rem", justifyItems: "end" }}>
                   <span className="badge" style={{ background: TIPO[i.tipo].color }}>{TIPO[i.tipo].nombre}</span>
