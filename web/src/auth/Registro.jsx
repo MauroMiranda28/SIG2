@@ -38,89 +38,60 @@ export default function Registro({ onRegistrado, onIrALogin }) {
   }
 
   return (
-    <div style={{ fontFamily: "system-ui", maxWidth: "24rem", margin: "3rem auto" }}>
-      <h1>Crear cuenta</h1>
-      <form onSubmit={enviar} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        <label>
-          Nombre
-          <input
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            required
-            style={{ display: "block", width: "100%", padding: "0.5rem" }}
-          />
-        </label>
-        <label>
-          Apellido
-          <input
-            value={apellido}
-            onChange={(e) => setApellido(e.target.value)}
-            required
-            style={{ display: "block", width: "100%", padding: "0.5rem" }}
-          />
-        </label>
-        <label>
-          Correo institucional
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ display: "block", width: "100%", padding: "0.5rem" }}
-          />
-        </label>
+    <div className="auth-shell">
+      <div className="auth-card">
+        <img src="/logo-ucse.png" alt="UCSE" className="auth-card__logo" />
+        <h1>Crear cuenta</h1>
+        <form onSubmit={enviar}>
+          <label className="field">
+            Nombre
+            <input value={nombre} onChange={(e) => setNombre(e.target.value)} required />
+          </label>
+          <label className="field">
+            Apellido
+            <input value={apellido} onChange={(e) => setApellido(e.target.value)} required />
+          </label>
+          <label className="field">
+            Correo institucional
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </label>
 
-        {esDocente && (
-          <>
-            <label>
-              DNI (sin puntos)
-              <input
-                value={dni}
-                onChange={(e) => setDni(e.target.value)}
-                required
-                inputMode="numeric"
-                pattern="\d{7,8}"
-                title="7 u 8 dígitos, sin puntos"
-                style={{ display: "block", width: "100%", padding: "0.5rem" }}
-              />
-            </label>
-            <label>
-              Teléfono
-              <input
-                type="tel"
-                value={telefono}
-                onChange={(e) => setTelefono(e.target.value)}
-                required
-                style={{ display: "block", width: "100%", padding: "0.5rem" }}
-              />
-            </label>
-          </>
-        )}
+          {esDocente && (
+            <>
+              <label className="field">
+                DNI (sin puntos)
+                <input
+                  value={dni}
+                  onChange={(e) => setDni(e.target.value)}
+                  required
+                  inputMode="numeric"
+                  pattern="\d{7,8}"
+                  title="7 u 8 dígitos, sin puntos"
+                />
+              </label>
+              <label className="field">
+                Teléfono
+                <input type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} required />
+              </label>
+            </>
+          )}
 
-        <label>
-          Contraseña
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ display: "block", width: "100%", padding: "0.5rem" }}
-          />
-        </label>
+          <label className="field">
+            Contraseña
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </label>
 
-        {error && <p style={{ color: "#b00020", margin: 0 }}>{error}</p>}
+          {error && <p className="form-error">{error}</p>}
 
-        <button type="submit" disabled={enviando} style={{ padding: "0.5rem", cursor: "pointer" }}>
-          {enviando ? "Creando..." : "Crear cuenta"}
-        </button>
-      </form>
+          <button type="submit" disabled={enviando} className="btn">
+            {enviando ? "Creando..." : "Crear cuenta"}
+          </button>
+        </form>
 
-      <p style={{ marginTop: "1rem" }}>
-        ¿Ya tenés cuenta?{" "}
-        <button onClick={onIrALogin} style={{ cursor: "pointer" }}>
-          Iniciá sesión
-        </button>
-      </p>
+        <p className="auth-card__footer">
+          ¿Ya tenés cuenta? <button onClick={onIrALogin}>Iniciá sesión</button>
+        </p>
+      </div>
     </div>
   );
 }

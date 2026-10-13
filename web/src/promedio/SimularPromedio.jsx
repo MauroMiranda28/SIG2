@@ -43,15 +43,15 @@ export default function SimularPromedio() {
   }
 
   if (error) {
-    return <p style={{ color: "#b00020" }}>No se pudo cargar tu promedio: {error}</p>;
+    return <p className="form-error">No se pudo cargar tu promedio: {error}</p>;
   }
 
   if (materiasPendientes === null) {
-    return <p>Cargando...</p>;
+    return <p className="loading">Cargando...</p>;
   }
 
   return (
-    <div style={{ fontFamily: "system-ui", maxWidth: "30rem" }}>
+    <div className="page" style={{ maxWidth: "30rem" }}>
       <h2>Simular promedio</h2>
 
       <p>
@@ -60,16 +60,12 @@ export default function SimularPromedio() {
       </p>
 
       {materiasPendientes.length === 0 ? (
-        <p>No te quedan materias pendientes de tu plan para simular.</p>
+        <p className="empty-state">No te quedan materias pendientes de tu plan para simular.</p>
       ) : (
         <form onSubmit={handleSimular} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          <label>
+          <label className="field">
             Materia
-            <select
-              value={materiaId}
-              onChange={(e) => setMateriaId(e.target.value)}
-              style={{ display: "block", width: "100%", padding: "0.4rem" }}
-            >
+            <select value={materiaId} onChange={(e) => setMateriaId(e.target.value)}>
               {materiasPendientes.map((materia) => (
                 <option key={materia.id} value={materia.id}>
                   {materia.nombre} ({materia.codigo})
@@ -78,30 +74,21 @@ export default function SimularPromedio() {
             </select>
           </label>
 
-          <label>
+          <label className="field">
             Nota hipotética (0 a 10)
-            <input
-              type="number"
-              min="0"
-              max="10"
-              step="0.01"
-              value={nota}
-              onChange={(e) => setNota(e.target.value)}
-              required
-              style={{ display: "block", width: "100%", padding: "0.4rem" }}
-            />
+            <input type="number" min="0" max="10" step="0.01" value={nota} onChange={(e) => setNota(e.target.value)} required />
           </label>
 
-          {errorSimulacion && <p style={{ color: "#b00020", margin: 0 }}>{errorSimulacion}</p>}
+          {errorSimulacion && <p className="form-error">{errorSimulacion}</p>}
 
-          <button type="submit" disabled={simulando} style={{ cursor: "pointer", alignSelf: "flex-start" }}>
+          <button type="submit" className="btn" disabled={simulando} style={{ alignSelf: "flex-start" }}>
             {simulando ? "Simulando..." : "Simular"}
           </button>
         </form>
       )}
 
       {resultado && (
-        <div style={{ marginTop: "1.5rem", padding: "1rem", background: "#fafafa", borderRadius: "6px" }}>
+        <div className="panel-soft" style={{ marginTop: "1.5rem" }}>
           <p style={{ margin: "0 0 0.5rem 0" }}>
             Si aprobás <strong>{resultado.materia.nombre}</strong> con nota <strong>{resultado.notaSimulada}</strong>:
           </p>
@@ -110,7 +97,7 @@ export default function SimularPromedio() {
             {" → "}
             Promedio simulado: <strong>{resultado.promedioSimulado}</strong>
             {resultado.diferencia !== null && (
-              <span style={{ color: resultado.diferencia >= 0 ? "#2e7d32" : "#b00020" }}>
+              <span style={{ color: resultado.diferencia >= 0 ? "var(--color-success)" : "var(--color-danger)" }}>
                 {" "}({resultado.diferencia >= 0 ? "+" : ""}{resultado.diferencia})
               </span>
             )}

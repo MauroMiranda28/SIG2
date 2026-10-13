@@ -47,42 +47,35 @@ export default function MateriasCarrera() {
   }
 
   const formularioBusqueda = (
-    <form onSubmit={handleBuscar} style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+    <form onSubmit={handleBuscar} className="search-bar">
       <input
         type="text"
         value={busqueda}
         onChange={(e) => setBusqueda(e.target.value)}
         placeholder="Buscar por nombre o código..."
-        style={{ flex: 1, padding: "0.4rem" }}
       />
-      <button type="submit" style={{ cursor: "pointer" }}>
-        Buscar
-      </button>
+      <button type="submit">Buscar</button>
     </form>
   );
 
   if (error) {
-    return (
-      <p style={{ color: "#b00020" }}>
-        No se pudieron cargar las materias: {error}
-      </p>
-    );
+    return <p className="form-error">No se pudieron cargar las materias: {error}</p>;
   }
 
   if (!materias) {
-    return <p>Cargando materias...</p>;
+    return <p className="loading">Cargando materias...</p>;
   }
 
   const porAnio = agruparPorAnio(materias);
 
   return (
-    <div style={{ fontFamily: "system-ui", maxWidth: "40rem" }}>
+    <div className="page">
       <h2>Materias de mi carrera</h2>
 
       {formularioBusqueda}
 
       {materias.length === 0 && (
-        <p>
+        <p className="empty-state">
           {busqueda.trim()
             ? `No se encontraron materias que coincidan con "${busqueda.trim()}".`
             : "No hay materias vigentes cargadas para tu carrera todavía."}
@@ -90,46 +83,23 @@ export default function MateriasCarrera() {
       )}
 
       {Object.entries(porAnio).map(([anio, materiasDelAnio]) => (
-        <section key={anio} style={{ marginBottom: "1.5rem" }}>
-          <h3 style={{ borderBottom: "1px solid #ddd", paddingBottom: "0.25rem" }}>
-            {anio}° año
-          </h3>
+        <section key={anio} className="section-block">
+          <h3>{anio}° año</h3>
 
-          <ul style={{ listStyle: "none", padding: 0 }}>
+          <ul className="list-clean">
             {materiasDelAnio.map((materia) => (
-              <li
-                key={materia.id}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.5rem",
-                  padding: "0.75rem 0",
-                  borderBottom: "1px solid #f0f0f0",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <li key={materia.id} className="list-row">
+                <div className="row-between">
                   <div>
-                    <strong>{materia.nombre}</strong>{" "}
-                    <span style={{ color: "#777" }}>({materia.codigo})</span>
+                    <strong>{materia.nombre}</strong> <span className="text-muted">({materia.codigo})</span>
                   </div>
-                  <span
-                    style={{
-                      fontSize: "0.85rem",
-                      padding: "0.15rem 0.5rem",
-                      borderRadius: "999px",
-                      background: COLOR_ESTADO[estadoVisible(materia)],
-                      color: "#fff",
-                    }}
-                  >
+                  <span className="badge" style={{ background: COLOR_ESTADO[estadoVisible(materia)] }}>
                     {ETIQUETA_ESTADO[estadoVisible(materia)]}
                   </span>
                 </div>
 
                 <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button
-                    onClick={() => setDetalleAbiertoId(detalleAbiertoId === materia.id ? null : materia.id)}
-                    style={{ alignSelf: "flex-start", cursor: "pointer" }}
-                  >
+                  <button onClick={() => setDetalleAbiertoId(detalleAbiertoId === materia.id ? null : materia.id)}>
                     {detalleAbiertoId === materia.id ? "Ocultar información" : "Ver información y horarios"}
                   </button>
 
@@ -137,24 +107,18 @@ export default function MateriasCarrera() {
                     onClick={() => descargarPrograma(materia)}
                     disabled={!materia.tienePrograma || descargandoId === materia.id}
                     title={materia.tienePrograma ? "Descargar el programa en PDF" : "Esta materia todavía no tiene un programa cargado"}
-                    style={{ alignSelf: "flex-start", cursor: materia.tienePrograma ? "pointer" : "not-allowed" }}
                   >
                     {descargandoId === materia.id ? "Descargando..." : "Descargar programa (PDF)"}
                   </button>
                 </div>
-                {!materia.tienePrograma && (
-                  <small style={{ color: "#777" }}>Todavía no hay un programa cargado para descargar.</small>
-                )}
-                {errorDescarga?.materiaId === materia.id && (
-                  <p style={{ color: "#b00020", margin: 0 }}>{errorDescarga.mensaje}</p>
-                )}
+                {!materia.tienePrograma && <small className="text-muted">Todavía no hay un programa cargado para descargar.</small>}
+                {errorDescarga?.materiaId === materia.id && <p className="form-error">{errorDescarga.mensaje}</p>}
 
                 {detalleAbiertoId === materia.id && (
-                  <div style={{ background: "#fafafa", padding: "0.75rem", borderRadius: "6px" }}>
+                  <div className="panel-soft">
                     <MateriaDetalle materiaId={materia.id} />
                   </div>
                 )}
-
               </li>
             ))}
           </ul>

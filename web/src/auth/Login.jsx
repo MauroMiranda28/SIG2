@@ -26,43 +26,31 @@ export default function Login({ onLogin, onIrARegistro }) {
   }
 
   return (
-    <div style={{ fontFamily: "system-ui", maxWidth: "24rem", margin: "3rem auto" }}>
-      <h1>Iniciar sesión</h1>
-      <form onSubmit={enviar} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        <label>
-          Correo institucional
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ display: "block", width: "100%", padding: "0.5rem" }}
-          />
-        </label>
-        <label>
-          Contraseña
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ display: "block", width: "100%", padding: "0.5rem" }}
-          />
-        </label>
+    <div className="auth-shell">
+      <div className="auth-card">
+        <img src="/logo-ucse.png" alt="UCSE" className="auth-card__logo" />
+        <h1>Iniciar sesión</h1>
+        <form onSubmit={enviar}>
+          <label className="field">
+            Correo institucional
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </label>
+          <label className="field">
+            Contraseña
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </label>
 
-        {error && <p style={{ color: "#b00020", margin: 0 }}>{error}</p>}
+          {error && <p className="form-error">{error}</p>}
 
-        <button type="submit" disabled={enviando} style={{ padding: "0.5rem", cursor: "pointer" }}>
-          {enviando ? "Entrando..." : "Entrar"}
-        </button>
-      </form>
+          <button type="submit" disabled={enviando} className="btn">
+            {enviando ? "Entrando..." : "Entrar"}
+          </button>
+        </form>
 
-      <p style={{ marginTop: "1rem" }}>
-        ¿No tenés cuenta?{" "}
-        <button onClick={onIrARegistro} style={{ cursor: "pointer" }}>
-          Registrate
-        </button>
-      </p>
+        <p className="auth-card__footer">
+          ¿No tenés cuenta? <button onClick={onIrARegistro}>Registrate</button>
+        </p>
+      </div>
     </div>
   );
 }

@@ -7,8 +7,9 @@
   gap: 0.75rem;
   margin: 1.5rem 0;
   padding: 1rem;
-  border: 1px solid #d7dfe8;
-  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
 }
 
 .actividad-formulario h3 {
@@ -73,7 +74,8 @@
 }
 
 .actividad-rango-semana {
-  color: #555;
+  color: var(--color-text-muted);
+  font-weight: 600;
 }
 
 .actividad-resumen {
@@ -85,8 +87,13 @@
 
 .actividad-resumen > div {
   padding: 0.75rem;
-  border: 1px solid #e0e5eb;
-  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+}
+
+.actividad-resumen h4 {
+  color: var(--color-primary-dark);
 }
 
 .actividad-resumen h4,
@@ -108,23 +115,34 @@
   justify-content: space-between;
   gap: 1rem;
   padding-bottom: 0.35rem;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .actividad-dia h4 span,
-.actividad-tipo-evento,
 .actividad-etiquetas-texto {
-  color: #666;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
 }
 
 .actividad-tarjeta.clase {
-  border-left: 4px solid #527da8;
+  border-left: 4px solid var(--color-primary);
 }
 
 .actividad-tipo-evento {
+  display: inline-block;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  background: var(--color-primary-soft);
+}
+
+.actividad-tarjeta.clase .actividad-tipo-evento {
+  color: var(--color-white);
+  background: var(--color-primary);
 }
 
 .actividad-tarjeta h5 {
@@ -163,8 +181,10 @@
   align-items: flex-start;
   gap: 1rem;
   padding: 1rem;
-  border: 1px solid #e0e5eb;
-  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+  box-shadow: var(--shadow-sm);
 }
 
 .actividad-tarjeta h3,
@@ -181,20 +201,21 @@
 .actividad-etiquetas li {
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
-  background: #eaf1f8;
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
   font-size: 0.85rem;
 }
 
 .actividad-mensaje-info {
-  color: #555;
+  color: var(--color-text-muted);
 }
 
 .actividad-mensaje.error {
-  color: #b00020;
+  color: var(--color-danger);
 }
 
 .actividad-mensaje.exito {
-  color: #2e7d32;
+  color: var(--color-success);
 }
 
 @media (max-width: 32rem) {

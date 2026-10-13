@@ -220,7 +220,7 @@ export default function ActividadesPersonales() {
         </label>
         <small id="actividad-etiquetas-ayuda">¿Qué detalle querés recordar? Agregá etiquetas libres, por ejemplo “remoto” o “gimnasio”; separalas con comas.</small>
         <div className="actividad-acciones">
-          <button type="submit" disabled={guardando}>{guardando ? "Guardando..." : actividadEditando === null ? "Guardar actividad" : "Guardar cambios"}</button>
+          <button type="submit" className="btn" disabled={guardando}>{guardando ? "Guardando..." : actividadEditando === null ? "Guardar actividad" : "Guardar cambios"}</button>
           {actividadEditando !== null && <button type="button" onClick={cancelarEdicion} disabled={guardando}>Cancelar</button>}
         </div>
       </form>
@@ -253,8 +253,8 @@ export default function ActividadesPersonales() {
             {etiquetas.map((etiqueta) => <option key={etiqueta} value={etiqueta}>{etiqueta}</option>)}
           </select>
         </div>
-        {actividades === null ? <p>Cargando actividades...</p> : actividadesFiltradas.length === 0 ? (
-          <p>{actividades.length === 0 ? "Todavía no registraste actividades." : "No hay actividades con esa etiqueta."}</p>
+        {actividades === null ? <p className="loading">Cargando actividades...</p> : actividadesFiltradas.length === 0 ? (
+          <p className="empty-state">{actividades.length === 0 ? "Todavía no registraste actividades." : "No hay actividades con esa etiqueta."}</p>
         ) : (
           <ul className="actividad-lista">
             {actividadesFiltradas.map((actividad) => (
@@ -276,7 +276,7 @@ export default function ActividadesPersonales() {
                 </div>
                 <div className="actividad-acciones">
                   <button type="button" onClick={() => editar(actividad)} aria-label={`Editar ${actividad.titulo}`}>Editar</button>
-                  <button type="button" onClick={() => eliminar(actividad)} aria-label={`Eliminar ${actividad.titulo}`}>Eliminar</button>
+                  <button type="button" className="btn-danger" onClick={() => eliminar(actividad)} aria-label={`Eliminar ${actividad.titulo}`}>Eliminar</button>
                 </div>
               </li>
             ))}

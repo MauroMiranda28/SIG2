@@ -64,28 +64,24 @@ export default function SolicitarRevision() {
   }
 
   if (error) {
-    return <p style={{ color: "#b00020" }}>No se pudo cargar la información: {error}</p>;
+    return <p className="form-error">No se pudo cargar la información: {error}</p>;
   }
 
   if (evaluaciones === null || solicitudes === null) {
-    return <p>Cargando...</p>;
+    return <p className="loading">Cargando...</p>;
   }
 
   return (
-    <section style={{ marginTop: "2rem", paddingTop: "1.25rem", borderTop: "1px solid #ddd" }}>
+    <section style={{ marginTop: "2rem", paddingTop: "1.25rem", borderTop: "1px solid var(--color-border)" }}>
       <h3 style={{ marginTop: 0 }}>Solicitar revisión de nota</h3>
 
       {evaluaciones.length === 0 ? (
-        <p>Todavía no tenés evaluaciones sobre las que solicitar una revisión.</p>
+        <p className="empty-state">Todavía no tenés evaluaciones sobre las que solicitar una revisión.</p>
       ) : (
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "2rem" }}>
-          <label>
+          <label className="field">
             Evaluación
-            <select
-              value={evaluacionId}
-              onChange={(e) => setEvaluacionId(e.target.value)}
-              style={{ display: "block", width: "100%", padding: "0.4rem" }}
-            >
+            <select value={evaluacionId} onChange={(e) => setEvaluacionId(e.target.value)}>
               {evaluaciones.map((ev) => (
                 <option key={ev.id} value={ev.id}>
                   {ev.materia.nombre} ({ev.materia.codigo}) — {ETIQUETA_TIPO[ev.tipo] ?? ev.tipo} — nota {ev.nota} —{" "}
@@ -95,7 +91,7 @@ export default function SolicitarRevision() {
             </select>
           </label>
 
-          <label>
+          <label className="field">
             Motivo del reclamo
             <textarea
               value={motivo}
@@ -103,14 +99,13 @@ export default function SolicitarRevision() {
               required
               rows={4}
               placeholder="Explicá por qué considerás que hay un error de calificación (mínimo 10 caracteres)."
-              style={{ display: "block", width: "100%", padding: "0.4rem" }}
             />
           </label>
 
-          {errorEnvio && <p style={{ color: "#b00020", margin: 0 }}>{errorEnvio}</p>}
-          {mensaje && <p style={{ color: "#2e7d32", margin: 0 }}>{mensaje}</p>}
+          {errorEnvio && <p className="form-error">{errorEnvio}</p>}
+          {mensaje && <p style={{ color: "var(--color-success)", margin: 0 }}>{mensaje}</p>}
 
-          <button type="submit" disabled={enviando} style={{ cursor: "pointer", alignSelf: "flex-start" }}>
+          <button type="submit" className="btn" disabled={enviando} style={{ alignSelf: "flex-start" }}>
             {enviando ? "Enviando..." : "Enviar solicitud"}
           </button>
         </form>
@@ -118,38 +113,28 @@ export default function SolicitarRevision() {
 
       <h4>Mis solicitudes</h4>
       {solicitudes.length === 0 ? (
-        <p>No enviaste ninguna solicitud todavía.</p>
+        <p className="empty-state">No enviaste ninguna solicitud todavía.</p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
+        <ul className="list-clean">
           {solicitudes.map((s) => (
-            <li key={s.id} style={{ padding: "0.75rem 0", borderBottom: "1px solid #f0f0f0" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <li key={s.id} className="list-row">
+              <div className="row-between">
                 <strong>
                   {s.evaluacion.materia.nombre} ({s.evaluacion.materia.codigo}) —{" "}
                   {ETIQUETA_TIPO[s.evaluacion.tipo] ?? s.evaluacion.tipo}, nota {s.evaluacion.nota}
                 </strong>
-                <span
-                  style={{
-                    fontSize: "0.85rem",
-                    padding: "0.15rem 0.5rem",
-                    borderRadius: "999px",
-                    background: colorEstado(s.estado),
-                    color: "#fff",
-                  }}
-                >
+                <span className="badge" style={{ background: colorEstado(s.estado) }}>
                   {ETIQUETA_ESTADO[s.estado] ?? s.estado}
                 </span>
               </div>
-              <p style={{ margin: "0.25rem 0 0 0", color: "#555" }}>{s.motivo}</p>
-              <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.8rem", color: "#777" }}>
+              <p className="text-muted" style={{ margin: 0 }}>{s.motivo}</p>
+              <p className="text-muted" style={{ margin: 0, fontSize: "0.8rem" }}>
                 Enviada el {new Date(s.creadoEn).toLocaleDateString()}
               </p>
               {s.respuesta && (
-                <p style={{ margin: "0.5rem 0 0 0", padding: "0.5rem 0.75rem", background: "#f5f7fa", borderRadius: "6px", whiteSpace: "pre-line" }}>
+                <p className="panel-soft" style={{ margin: 0, whiteSpace: "pre-line" }}>
                   <strong>Respuesta del docente:</strong> {s.respuesta}
-                  {s.resueltaEn && (
-                    <span style={{ fontSize: "0.8rem", color: "#777" }}> · {new Date(s.resueltaEn).toLocaleDateString()}</span>
-                  )}
+                  {s.resueltaEn && <span className="text-muted" style={{ fontSize: "0.8rem" }}> · {new Date(s.resueltaEn).toLocaleDateString()}</span>}
                 </p>
               )}
             </li>
@@ -161,7 +146,7 @@ export default function SolicitarRevision() {
 }
 
 function colorEstado(estado) {
-  if (estado === "RESUELTA") return "#2e7d32";
-  if (estado === "RECHAZADA") return "#b00020";
-  return "#f9a825";
+  if (estado === "RESUELTA") return "var(--color-success)";
+  if (estado === "RECHAZADA") return "var(--color-danger)";
+  return "#c77700";
 }

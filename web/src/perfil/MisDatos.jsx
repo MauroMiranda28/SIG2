@@ -50,56 +50,43 @@ export default function MisDatos({ usuario, onActualizado }) {
     }
   }
 
-  if (cargando) return <p style={{ fontFamily: "system-ui" }}>Cargando...</p>;
-
-  const campo = { display: "block", width: "100%", padding: "0.4rem" };
+  if (cargando) return <p className="loading">Cargando...</p>;
 
   return (
-    <div style={{ fontFamily: "system-ui", maxWidth: "30rem" }}>
+    <div className="page" style={{ maxWidth: "30rem" }}>
       <h2>Mis datos personales</h2>
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        <label>
+        <label className="field">
           Correo institucional
-          <input value={email} disabled style={campo} />
+          <input value={email} disabled />
         </label>
         {dni && (
-          <label>
+          <label className="field">
             DNI
-            <input value={dni} disabled style={campo} />
+            <input value={dni} disabled />
           </label>
         )}
-        <label>
+        <label className="field">
           Nombre
-          <input value={nombre} onChange={(e) => setNombre(e.target.value)} required style={campo} />
+          <input value={nombre} onChange={(e) => setNombre(e.target.value)} required />
         </label>
-        <label>
+        <label className="field">
           Apellido
-          <input value={apellido} onChange={(e) => setApellido(e.target.value)} required style={campo} />
+          <input value={apellido} onChange={(e) => setApellido(e.target.value)} required />
         </label>
-        <label>
+        <label className="field">
           Teléfono{esDocente ? "" : " (opcional)"}
-          <input
-            type="tel"
-            value={telefono}
-            onChange={(e) => setTelefono(e.target.value)}
-            required={esDocente}
-            style={campo}
-          />
+          <input type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} required={esDocente} />
         </label>
-        <label>
+        <label className="field">
           Correo personal (opcional)
-          <input
-            type="email"
-            value={emailPersonal}
-            onChange={(e) => setEmailPersonal(e.target.value)}
-            style={campo}
-          />
+          <input type="email" value={emailPersonal} onChange={(e) => setEmailPersonal(e.target.value)} />
         </label>
 
-        {error && <p style={{ color: "#b00020", margin: 0 }}>{error}</p>}
-        {mensaje && <p style={{ color: "#2e7d32", margin: 0 }}>{mensaje}</p>}
+        {error && <p className="form-error">{error}</p>}
+        {mensaje && <p style={{ color: "var(--color-success)", margin: 0 }}>{mensaje}</p>}
 
-        <button type="submit" disabled={guardando} style={{ cursor: "pointer", alignSelf: "flex-start" }}>
+        <button type="submit" className="btn" disabled={guardando} style={{ alignSelf: "flex-start" }}>
           {guardando ? "Guardando..." : "Guardar cambios"}
         </button>
       </form>
