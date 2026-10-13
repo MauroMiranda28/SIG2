@@ -70,7 +70,9 @@ export function validarCargaNotas(body) {
     return { alumnoId, nota: validarNota(item.nota), observaciones, condicion };
   });
 
-  return { tipo, fecha: fechaValida, notas: normalizadas };
+  // Examen final: la nota es de una mesa (fecha de final programada) y solo de sus inscriptos.
+  const examenId = tipo === "FINAL" ? validarId(body.examenId, "identificador de la mesa de examen") : null;
+  return { tipo, fecha: fechaValida, notas: normalizadas, examenId };
 }
 
 // Cuerpo de PATCH /api/notas/evaluaciones/:id: la nota nueva y por qué se corrige.
@@ -160,7 +162,13 @@ export function estadoDeCursada(evaluaciones, materia) {
       else estado = inicial("REGULAR", { regularDesde: fecha });
       continue;
     }
-    // Examen final: no cuenta si no estaba regular o si lo rindió fuera del plazo.
+    // Final rendido como libre: con la nota de aprobación del final aprueba la materia; si no, no cambia
+    // nada (no consume intentos de regularidad).
+    if (ev.modalidad === "LIBRE") {
+      if (materia.notaAprobacionFinal != null && ev.nota >= materia.notaAprobacionFinal) estado = inicial("APROBADA", { nota: ev.nota });
+      continue;
+    }
+    // Examen final como regular: no cuenta si no estaba regular o si lo rindió fuera del plazo.
     if (estado.estado !== "REGULAR" || fecha < estado.regularDesde || fecha > vencimientoRegularidad(estado.regularDesde)) continue;
     const intentosFinal = estado.intentosFinal + 1;
     const intentos = [...estado.intentos, { id: ev.id, fecha: ev.fecha, nota: ev.nota }];
@@ -180,7 +188,7 @@ export function estadoDeCursada(evaluaciones, materia) {
 export async function recalcularCursada(tx, cursada, materia) {
   const evaluaciones = await tx.evaluacion.findMany({
     where: { cursadaId: cursada.id, tipo: { in: ["CONDICION_FINAL", "FINAL"] } },
-    select: { id: true, tipo: true, condicion: true, nota: true, fecha: true },
+    select: { id: true, tipo: true, condicion: true, modalidad: true, nota: true, fecha: true },
   });
   const calculado = estadoDeCursada(evaluaciones, materia);
   if (!calculado) return;
@@ -193,7 +201,12 @@ export async function recalcularCursada(tx, cursada, materia) {
 
 // Antes de guardar, rechaza lo que no corresponde con un mensaje que nombra al alumno.
 // `cursada` es el estado actual (estado, regularDesde); `materia` trae la condición configurada.
-export function verificarCarga({ tipo, condicion, nota, fecha }, { cursada, materia, nombre }, ahora = new Date()) {
+// `modalidad` (solo examen final) es con la que el alumno se inscribió a la mesa: un libre puede rendir.
+export function verificarCarga({ tipo, condicion, nota, fecha, modalidad }, { cursada, materia, nombre }, ahora = new Date()) {
+  if (tipo === "FINAL" && modalidad === "LIBRE") {
+    if (cursada?.estado === "APROBADA") throw errorAcceso(409, `${nombre} ya aprobó la materia.`);
+    return;
+  }
   if (estaLibre(cursada, ahora)) {
     throw errorAcceso(400, `${nombre} está libre: tiene que volver a inscribirse para cursar la materia.`);
   }

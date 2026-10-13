@@ -381,6 +381,11 @@ Lo que ya está implementado, para no repetir trabajo:
 - `GET /api/examenes/materias/:id` (docente de la materia o ADMIN) suma en cada final `inscriptos` con los números y la
   lista de alumnos (nombre, correo y modalidad). Se ve en «Inscripción a finales» y en «Fechas de examen».
 - Cancelar un final que tenía inscriptos ahora borra sus inscripciones en la misma transacción (antes daba error 500).
+- **Inscripción**: se puede inscribir (y cancelar) hasta 48 h antes del examen (`inscripcionAbierta` en `GET /api/finales`).
+- **Nota del examen final por mesa**: en «Notas → Examen final» el docente elige la mesa (un final de la materia que ya
+  se rindió) y carga la nota de sus inscriptos. La nota usa la fecha de la mesa y guarda `Evaluacion.examenId` y
+  `Evaluacion.modalidad`. Regular: cuenta como intento (como antes). Libre: con la nota de aprobación del final aprueba
+  la materia; si desaprueba, sigue libre. Schema: correr `db:push`.
   Tests: `node --test api/test/inscriptosFinal.test.js`.
 
 **Navegación por rol**

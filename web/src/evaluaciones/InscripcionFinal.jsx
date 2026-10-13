@@ -57,7 +57,7 @@ export default function InscripcionFinal() {
   return (
     <div className="page">
       <h2>Inscripción a finales</h2>
-      <p className="text-muted">Finales programados de las materias en las que estás regular o libre.</p>
+      <p className="text-muted">Finales programados de las materias en las que estás regular o libre. La inscripción cierra 48 h antes del examen.</p>
 
       {error && <p className="form-error">{error}</p>}
       {aviso && <p role="status" className="text-muted">{aviso}</p>}
@@ -82,7 +82,12 @@ export default function InscripcionFinal() {
                   {ETIQUETA_ESTADO[ex.modalidadDisponible]}
                 </span>
               </div>
-              {ex.inscripcion ? (
+              {!ex.inscripcionAbierta ? (
+                <span className="text-muted">
+                  {ex.inscripcion ? `Inscripto como ${ETIQUETA_ESTADO[ex.inscripcion.modalidad]?.toLowerCase()}. ` : ""}
+                  La inscripción ya cerró (48 h antes del examen).
+                </span>
+              ) : ex.inscripcion ? (
                 <div className="row-between">
                   <span className="text-muted">Inscripto como {ETIQUETA_ESTADO[ex.inscripcion.modalidad]?.toLowerCase()}.</span>
                   <button className="btn-danger" disabled={enviandoId === ex.id} onClick={() => cancelar(ex)}>
