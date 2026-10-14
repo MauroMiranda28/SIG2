@@ -11,6 +11,7 @@ import MisDatos from "./perfil/MisDatos.jsx";
 import MisNotas from "./notas/MisNotas.jsx";
 import HistorialNotas from "./evaluaciones/HistorialNotas.jsx";
 import InscripcionFinal from "./evaluaciones/InscripcionFinal.jsx";
+import ParcialesYTps from "./evaluaciones/ParcialesYTps.jsx";
 import MiAsistencia from "./asistencia/MiAsistencia.jsx";
 import SimularPromedio from "./promedio/SimularPromedio.jsx";
 import Notificaciones from "./notificaciones/Notificaciones.jsx";
@@ -61,6 +62,7 @@ const NAV_ITEMS = [
   { id: "correlatividades", label: "Correlatividades", grupo: "mi-carrera", roles: ["ALUMNO"], Componente: Correlatividades },
   { id: "mi-carrera", label: "Mi carrera", grupo: "mi-carrera", roles: ["ALUMNO"], Componente: MiCarrera },
   { id: "notas", label: "Mis notas", grupo: "evaluacion", roles: ["ALUMNO"], Componente: MisNotas },
+  { id: "parciales-tps", label: "Parciales y TPs", grupo: "evaluacion", roles: ["ALUMNO"], Componente: ParcialesYTps },
   { id: "historial-notas", label: "Historial de notas", grupo: "evaluacion", roles: ["ALUMNO"], Componente: HistorialNotas },
   { id: "inscripcion-final", label: "Inscripción a finales", grupo: "evaluacion", roles: ["ALUMNO"], Componente: InscripcionFinal },
   { id: "asistencia", label: "Mi asistencia", grupo: "evaluacion", roles: ["ALUMNO"], Componente: MiAsistencia },

@@ -37,6 +37,7 @@ function dbEspia() {
 
 const RUTAS = [
   { nombre: "evaluaciones", crear: crearRouterEvaluaciones, metodo: "GET", ruta: "/" },
+  { nombre: "evaluaciones", crear: crearRouterEvaluaciones, metodo: "GET", ruta: "/proximas" },
   { nombre: "asistencias", crear: crearRouterAsistencias, metodo: "GET", ruta: "/" },
   { nombre: "asistencias", crear: crearRouterAsistencias, metodo: "POST", ruta: "/",
     body: { materiaId: 3, fecha: "2026-01-05", estado: "PRESENTE", alumnoId: OTRO } },

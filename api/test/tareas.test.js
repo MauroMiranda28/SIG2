@@ -18,9 +18,9 @@ const ISO = (s) => new Date(`${s}T00:00:00Z`);
 
 test("validarNuevaTarea: acepta una válida (descripción opcional, entrega hoy vale)", () => {
   assert.deepEqual(validarNuevaTarea({ titulo: "  TP   1 ", fechaEntrega: "2026-10-06" }, AHORA),
-    { titulo: "TP 1", descripcion: null, fechaEntrega: ISO("2026-10-06") });
+    { titulo: "TP 1", descripcion: null, fechaEntrega: ISO("2026-10-06"), horaEntrega: null });
   assert.deepEqual(validarNuevaTarea({ titulo: "TP 2", descripcion: " Entregar   en PDF ", fechaEntrega: "2026-11-01" }, AHORA),
-    { titulo: "TP 2", descripcion: "Entregar en PDF", fechaEntrega: ISO("2026-11-01") });
+    { titulo: "TP 2", descripcion: "Entregar en PDF", fechaEntrega: ISO("2026-11-01"), horaEntrega: null });
 });
 
 test("validarNuevaTarea: rechaza título, descripción o fecha inválidos y entregas pasadas", () => {
@@ -261,4 +261,19 @@ test("HTTP notificaciones: si falla el recordatorio igual se ve el historial", a
     const r = await fetch(`http://127.0.0.1:${server.address().port}/n/`, { headers: { Authorization: `Bearer ${jwt.sign({ id: 21, rol: "ALUMNO" }, process.env.JWT_SECRET)}` } });
     assert.equal(r.status, 200);
   } finally { await new Promise((resolve) => server.close(resolve)); }
+});
+
+test("hora de entrega: opcional, HH:MM; se puede cambiar o vaciar", () => {
+  assert.equal(validarNuevaTarea({ titulo: "TP 3", fechaEntrega: "2026-11-01", horaEntrega: "23:59" }, AHORA).horaEntrega, "23:59");
+  assert.equal(validarNuevaTarea({ titulo: "TP 3", fechaEntrega: "2026-11-01", horaEntrega: "" }, AHORA).horaEntrega, null);
+  for (const hora of ["24:00", "9:00", "mediodía", 1200]) {
+    assert.throws(() => validarNuevaTarea({ titulo: "TP 3", fechaEntrega: "2026-11-01", horaEntrega: hora }, AHORA), (e) => e.status === 400, String(hora));
+  }
+  assert.deepEqual(validarCambioTarea({ horaEntrega: "18:00" }, AHORA), { horaEntrega: "18:00" });
+  assert.deepEqual(validarCambioTarea({ horaEntrega: null }, AHORA), { horaEntrega: null });
+});
+
+test("avisoRecordatorio: si la tarea tiene hora de entrega, la menciona", () => {
+  const aviso = avisoRecordatorio({ titulo: "TP 1", materiaNombre: "Programación I", fechaEntrega: ISO("2026-10-07"), horaEntrega: "23:59" }, HOY);
+  assert.match(aviso.mensaje, /vence mañana: miércoles, 7\/10\/2026 a las 23:59\.$/);
 });

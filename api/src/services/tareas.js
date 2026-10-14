@@ -10,7 +10,11 @@ export const DIAS_ANTICIPACION = 3; // cuántos días antes de la entrega se man
 export const LARGO_TITULO_MAXIMO = 120;
 export const LARGO_DESCRIPCION_MAXIMO = 1000;
 
-export const DATOS_TAREA = { id: true, titulo: true, descripcion: true, fechaEntrega: true, materiaId: true };
+export const DATOS_TAREA = {
+  id: true, titulo: true, descripcion: true, fechaEntrega: true, horaEntrega: true, materiaId: true,
+  archivos: { select: { id: true, nombre: true, tipo: true, tamanio: true }, orderBy: { id: "asc" } },
+};
+const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const esObjeto = (v) => v != null && typeof v === "object" && !Array.isArray(v);
 const limpiar = (texto) => texto.trim().replace(/[ \t]+/g, " ");
@@ -30,6 +34,13 @@ function validarDescripcion(valor) {
   return descripcion || null;
 }
 
+// Hora de entrega opcional (HH:MM): sin hora, se puede entregar en cualquier momento del día.
+function validarHoraEntrega(valor) {
+  if (valor == null || valor === "") return null;
+  if (typeof valor !== "string" || !HORA.test(valor)) throw errorAcceso(400, "La hora de entrega tiene que tener el formato HH:MM.");
+  return valor;
+}
+
 function validarEntrega(valor, ahora) {
   const fecha = validarFecha(valor);
   if (fecha < hoy(ahora)) throw errorAcceso(400, "La fecha de entrega no puede ser anterior a hoy.");
@@ -39,7 +50,10 @@ function validarEntrega(valor, ahora) {
 // Cuerpo de POST /api/tareas/materias/:id.
 export function validarNuevaTarea(body, ahora = new Date()) {
   if (!esObjeto(body)) throw errorAcceso(400, "Faltan los datos de la tarea.");
-  return { titulo: validarTitulo(body.titulo), descripcion: validarDescripcion(body.descripcion), fechaEntrega: validarEntrega(body.fechaEntrega, ahora) };
+  return {
+    titulo: validarTitulo(body.titulo), descripcion: validarDescripcion(body.descripcion),
+    fechaEntrega: validarEntrega(body.fechaEntrega, ahora), horaEntrega: validarHoraEntrega(body.horaEntrega),
+  };
 }
 
 // Cuerpo de PATCH /api/tareas/:id: solo cambian los campos que vienen.
@@ -49,7 +63,8 @@ export function validarCambioTarea(body, ahora = new Date()) {
   if ("titulo" in body) cambios.titulo = validarTitulo(body.titulo);
   if ("descripcion" in body) cambios.descripcion = validarDescripcion(body.descripcion);
   if ("fechaEntrega" in body) cambios.fechaEntrega = validarEntrega(body.fechaEntrega, ahora);
-  if (!Object.keys(cambios).length) throw errorAcceso(400, "Indicá qué querés cambiar: título, descripción o fecha de entrega.");
+  if ("horaEntrega" in body) cambios.horaEntrega = validarHoraEntrega(body.horaEntrega);
+  if (!Object.keys(cambios).length) throw errorAcceso(400, "Indicá qué querés cambiar: título, descripción, fecha u hora de entrega.");
   return cambios;
 }
 
@@ -61,12 +76,12 @@ const diaYFecha = (fecha) => new Date(fecha).toLocaleDateString("es-AR", { weekd
 // Cuántos días faltan desde `desde` (fecha de calendario) hasta la entrega.
 export const diasHasta = (fechaEntrega, desde) => Math.round((new Date(fechaEntrega) - desde) / DIA_MS);
 
-export function avisoRecordatorio({ titulo, materiaNombre, fechaEntrega }, desde) {
+export function avisoRecordatorio({ titulo, materiaNombre, fechaEntrega, horaEntrega }, desde) {
   const dias = diasHasta(fechaEntrega, desde);
   const cuando = dias <= 0 ? "vence hoy" : dias === 1 ? "vence mañana" : `vence en ${dias} días`;
   return {
     titulo: `Se acerca la entrega: ${titulo}`,
-    mensaje: `La entrega de «${titulo}» (${materiaNombre}) ${cuando}: ${diaYFecha(fechaEntrega)}.`,
+    mensaje: `La entrega de «${titulo}» (${materiaNombre}) ${cuando}: ${diaYFecha(fechaEntrega)}${horaEntrega ? ` a las ${horaEntrega}` : ""}.`,
   };
 }
 
@@ -89,11 +104,11 @@ export async function generarRecordatoriosEntrega(db, alumnoId, ahora = new Date
   const hasta = new Date(desde.getTime() + DIAS_ANTICIPACION * DIA_MS);
   const tareas = await db.tarea.findMany({
     where: { fechaEntrega: { gte: desde, lte: hasta }, materia: filtroMateriasDelAlumno(alumnoId) },
-    select: { id: true, titulo: true, fechaEntrega: true, materia: { select: { id: true, nombre: true } } },
+    select: { id: true, titulo: true, fechaEntrega: true, horaEntrega: true, materia: { select: { id: true, nombre: true } } },
     orderBy: [{ fechaEntrega: "asc" }, { id: "asc" }],
   });
   return crearNotificacionesIndividuales(db, tareas.map((t) => ({
     usuarioId: alumnoId, tipo: "RECORDATORIO_ENTREGA", materiaId: t.materia.id, clave: claveRecordatorio(t),
-    ...avisoRecordatorio({ titulo: t.titulo, materiaNombre: t.materia.nombre, fechaEntrega: t.fechaEntrega }, desde),
+    ...avisoRecordatorio({ titulo: t.titulo, materiaNombre: t.materia.nombre, fechaEntrega: t.fechaEntrega, horaEntrega: t.horaEntrega }, desde),
   })));
 }
