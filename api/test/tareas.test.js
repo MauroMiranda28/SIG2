@@ -79,6 +79,7 @@ function dbRecordatorios(tareas) {
           .map((t) => ({ id: t.id, titulo: t.titulo, fechaEntrega: t.fechaEntrega, materia: MATERIAS[t.materiaId] }));
       },
     },
+    preferenciaNotificacion: { findMany: async () => [] },
     notificacion: {
       createMany: async ({ data, skipDuplicates }) => {
         let creadas = 0;
@@ -104,7 +105,7 @@ const TAREAS = [
 test("recordatorio: avisa solo las entregas de hoy a DIAS_ANTICIPACION días de sus materias", async () => {
   assert.equal(DIAS_ANTICIPACION, 3);
   const db = dbRecordatorios(TAREAS);
-  assert.deepEqual(await generarRecordatoriosEntrega(db, 21, AHORA), { creadas: 2 });
+  assert.equal((await generarRecordatoriosEntrega(db, 21, AHORA)).creadas, 2);
   assert.deepEqual(db.estado.notificaciones.map((n) => n.titulo), ["Se acerca la entrega: TP 1", "Se acerca la entrega: TP 2"]);
   for (const n of db.estado.notificaciones) {
     assert.equal(n.usuarioId, 21);
@@ -118,25 +119,25 @@ test("recordatorio: avisa solo las entregas de hoy a DIAS_ANTICIPACION días de 
 test("recordatorio: no se repite aunque el alumno consulte varias veces, y cada alumno recibe el suyo", async () => {
   const db = dbRecordatorios(TAREAS);
   await generarRecordatoriosEntrega(db, 21, AHORA);
-  assert.deepEqual(await generarRecordatoriosEntrega(db, 21, AHORA), { creadas: 0 }, "segunda consulta");
+  assert.equal((await generarRecordatoriosEntrega(db, 21, AHORA)).creadas, 0, "segunda consulta");
   assert.equal(db.estado.notificaciones.length, 2);
   await generarRecordatoriosEntrega(db, 22, AHORA);
   assert.equal(db.estado.notificaciones.length, 4, "el otro alumno de la materia también recibe los suyos");
-  assert.deepEqual(await generarRecordatoriosEntrega(db, 99, AHORA), { creadas: 0 }, "un alumno que no cursa no recibe nada");
+  assert.equal((await generarRecordatoriosEntrega(db, 99, AHORA)).creadas, 0, "un alumno que no cursa no recibe nada");
 });
 
 test("recordatorio: al pasar los días entran las entregas que ya se acercan; si cambia la fecha, vuelve a avisar", async () => {
   const db = dbRecordatorios([...TAREAS]);
   await generarRecordatoriosEntrega(db, 21, AHORA);
   const manana = new Date("2026-10-07T15:00:00Z");
-  assert.deepEqual(await generarRecordatoriosEntrega(db, 21, manana), { creadas: 1 }, "ahora entra el TP 3");
+  assert.equal((await generarRecordatoriosEntrega(db, 21, manana)).creadas, 1, "ahora entra el TP 3");
   db.estado.notificaciones.length = 0;
 
   const db2 = dbRecordatorios([{ id: 2, titulo: "TP 2", materiaId: 5, fechaEntrega: ISO("2026-10-09") }]);
   await generarRecordatoriosEntrega(db2, 21, AHORA);
   const cambiada = dbRecordatorios([{ id: 2, titulo: "TP 2", materiaId: 5, fechaEntrega: ISO("2026-10-08") }]);
   cambiada.estado.notificaciones.push(...db2.estado.notificaciones);
-  assert.deepEqual(await generarRecordatoriosEntrega(cambiada, 21, AHORA), { creadas: 1 }, "la fecha nueva tiene otra clave");
+  assert.equal((await generarRecordatoriosEntrega(cambiada, 21, AHORA)).creadas, 1, "la fecha nueva tiene otra clave");
 });
 
 // ---------- Contrato HTTP del docente ----------

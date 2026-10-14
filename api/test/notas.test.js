@@ -96,6 +96,7 @@ function dbFalsa({
       update: async (args) => { registro.updates.push(args); return { id: args.where.id, nota: args.data.nota, cambios: registro.cambios }; },
     },
     cambioNota: { create: async ({ data }) => { registro.cambios.push(data); return data; } },
+    preferenciaNotificacion: { findMany: async () => [] },
     // Mesas de final: `mesa` es la que devuelve findUnique al cargar la nota de un examen final.
     fechaExamen: { findMany: async () => (mesa ? [mesa] : []), findUnique: async () => mesa },
     notificacion: { createMany: async ({ data }) => { registro.notificaciones.push(...data); return { count: data.length }; } },

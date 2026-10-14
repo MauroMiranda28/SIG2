@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, leerToken, borrarToken } from "./api.js";
 import Login from "./auth/Login.jsx";
 import Registro from "./auth/Registro.jsx";
@@ -15,6 +15,7 @@ import ParcialesYTps from "./evaluaciones/ParcialesYTps.jsx";
 import MiAsistencia from "./asistencia/MiAsistencia.jsx";
 import SimularPromedio from "./promedio/SimularPromedio.jsx";
 import Notificaciones from "./notificaciones/Notificaciones.jsx";
+import PreferenciasNotificaciones from "./notificaciones/PreferenciasNotificaciones.jsx";
 import ActividadesPersonales from "./actividades/ActividadesPersonales.jsx";
 
 import CrearPlan from "./planes/CrearPlan.jsx";
@@ -32,11 +33,26 @@ import MiCarrera from "./carreras/MiCarrera.jsx";
 import ActualizarPrograma from "./programas/ActualizarPrograma.jsx";
 import CargarPrograma from "./programas/CargarPrograma.jsx";
 
-// «Materias» y «Mi horario» son del alumno; el docente arranca en «Mis materias».
-const tabInicial = (rol) => (rol === "DOCENTE" ? "mis-materias" : "materias");
-
 // El alumno recibe avisos de sus materias y el docente, las solicitudes de revisión de sus alumnos.
 const tieneNotificaciones = (rol) => rol === "ALUMNO" || rol === "DOCENTE";
+
+// La sección activa también viaja en la URL (ej. http://localhost:5173/#historial-notas). Así un enlace
+// de una notificación, de un email o de un push abre directo la pantalla correspondiente.
+const seccionDelHash = () => window.location.hash.replace(/^#/, "");
+
+// Solo se abre una sección que existe y que ese rol puede ver.
+function seccionPermitida(id, rol) {
+  if (id === "notificaciones" || id === "preferencias-notificaciones") return tieneNotificaciones(rol);
+  return NAV_ITEMS.some((item) => item.id === id && visibleParaRol(item, rol));
+}
+
+// Pantalla con la que se entra: la del enlace, si hay una válida; si no, «Materias» (alumno) o «Mis materias» (docente).
+// «Materias» y «Mi horario» son del alumno.
+function tabInicial(rol) {
+  const enlace = seccionDelHash();
+  if (seccionPermitida(enlace, rol)) return enlace;
+  return rol === "DOCENTE" ? "mis-materias" : "materias";
+}
 
 // Categorías del menú, en el orden en que se muestran. Una categoría solo aparece si el rol
 // actual tiene al menos un ítem dentro (ver NAV_ITEMS). «roles: null» significa «todos los roles».
@@ -111,6 +127,8 @@ export default function App() {
   const [vista, setVista] = useState("login");
   const [tab, setTab] = useState("materias");
   const [noLeidas, setNoLeidas] = useState(0);
+  const tabAbierta = useRef(tab); // la pantalla abierta, para el listener de hashchange
+  tabAbierta.current = tab;
 
   function iniciarSesion(datos) {
     setUsuario(datos);
@@ -128,6 +146,23 @@ export default function App() {
       .finally(() => setCargando(false));
   }, []);
 
+  // Mantiene la URL al día con la pantalla abierta (sin llenar el historial del navegador).
+  useEffect(() => {
+    if (usuario) window.history.replaceState(null, "", `#${tab}`);
+  }, [tab, usuario]);
+
+  // Si cambia el # con la sesión abierta (un enlace tocado en la misma pestaña), se abre esa sección.
+  useEffect(() => {
+    if (!usuario) return undefined;
+    const alCambiar = () => {
+      const seccion = seccionDelHash();
+      if (seccionPermitida(seccion, usuario.rol)) setTab(seccion);
+      else window.history.replaceState(null, "", `#${tabAbierta.current}`); // una sección que no existe o que no es de tu rol se ignora
+    };
+    window.addEventListener("hashchange", alCambiar);
+    return () => window.removeEventListener("hashchange", alCambiar);
+  }, [usuario]);
+
   // El número de notificaciones sin leer de la campanita (alumnos y docentes).
   useEffect(() => {
     if (!tieneNotificaciones(usuario?.rol)) return;
@@ -136,6 +171,7 @@ export default function App() {
 
   function cerrarSesion() {
     borrarToken();
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
     setNoLeidas(0);
     setUsuario(null);
     setVista("login");
@@ -176,7 +212,7 @@ export default function App() {
           <span>
             Hola, <strong>{usuario.nombre}</strong>
           </span>
-          {tieneNotificaciones(usuario.rol) && <Campana noLeidas={noLeidas} activa={tab === "notificaciones"} onClick={() => setTab("notificaciones")} />}
+          {tieneNotificaciones(usuario.rol) && <Campana noLeidas={noLeidas} activa={tab === "notificaciones" || tab === "preferencias-notificaciones"} onClick={() => setTab("notificaciones")} />}
           <button onClick={cerrarSesion} className="btn btn-secondary">
             Cerrar sesión
           </button>
@@ -209,7 +245,12 @@ export default function App() {
 
         {itemActual?.Componente && <itemActual.Componente />}
         {tab === "mis-datos" && <MisDatos usuario={usuario} onActualizado={(datos) => setUsuario({ ...usuario, ...datos })} />}
-        {tab === "notificaciones" && tieneNotificaciones(usuario.rol) && <Notificaciones onCambioNoLeidas={setNoLeidas} />}
+        {tab === "notificaciones" && tieneNotificaciones(usuario.rol) && (
+          <Notificaciones onCambioNoLeidas={setNoLeidas} onIrA={(seccion) => seccionPermitida(seccion, usuario.rol) && setTab(seccion)} />
+        )}
+        {tab === "preferencias-notificaciones" && tieneNotificaciones(usuario.rol) && (
+          <PreferenciasNotificaciones onVolver={() => setTab("notificaciones")} />
+        )}
       </main>
     </div>
   );

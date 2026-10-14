@@ -137,6 +137,9 @@ model Usuario {
   cambiosDeMateria CambioMateria[]
   notificaciones  Notificacion[] @relation("DestinatarioNotificacion")
   avisosEnviados  Notificacion[] @relation("AutorNotificacion")
+  preferenciasNotificacion PreferenciaNotificacion[]
+  suscripcionesPush        PushSuscripcion[]
+  enviosNotificacion       EnvioNotificacion[]
   examenesProgramados FechaExamen[]
   tareasCreadas   Tarea[]
 }
@@ -245,12 +248,84 @@ model Notificacion {
   materiaId Int?
   materia   Materia? @relation(fields: [materiaId], references: [id])
 
-  // Evita repetir un aviso que el sistema genera solo (ej. el recordatorio de una entrega):
+  // Sección de la app a la que lleva el enlace de la notificación (id de la pestaña, ej. "historial-notas").
+  // Null en las anteriores a este campo: en ese caso se deduce del tipo (ver services/enlaces.js).
+  seccion String?
+
+    // Evita repetir un aviso que el sistema genera solo (ej. el recordatorio de una entrega):
   // el mismo usuario no puede tener dos con la misma clave. Null en las demás.
   clave String?
 
   @@unique([usuarioId, clave])
   @@index([usuarioId, id])
+}
+
+// Medios por los que se puede recibir un aviso. SISTEMA es la campanita; EMAIL y PUSH salen por
+// la bandeja de salida (EnvioNotificacion) y solo funcionan si el servidor los tiene configurados.
+enum CanalNotificacion {
+  SISTEMA
+  EMAIL
+  PUSH
+}
+
+enum EstadoEnvio {
+  PENDIENTE
+  ENVIADO
+  ERROR
+}
+
+// Qué tipos de aviso quiere recibir cada usuario y por qué medio. Guarda solo lo que cambió: sin
+// fila vale el valor por defecto (SISTEMA activado; EMAIL y PUSH desactivados).
+model PreferenciaNotificacion {
+  usuarioId Int
+  usuario   Usuario           @relation(fields: [usuarioId], references: [id])
+  tipo      TipoNotificacion
+  canal     CanalNotificacion
+  activa    Boolean
+
+  @@id([usuarioId, tipo, canal])
+}
+
+// Bandeja de salida de los avisos por EMAIL y PUSH. Se escribe en la misma transacción que el cambio
+// que origina el aviso (si el cambio se revierte, no sale nada) y un proceso de la API la vacía después.
+// Lleva el texto completo: no depende de que exista la fila de Notificacion (el usuario pudo apagar la campanita).
+model EnvioNotificacion {
+  id         Int               @id @default(autoincrement())
+  canal      CanalNotificacion
+  estado     EstadoEnvio       @default(PENDIENTE)
+  intentos   Int               @default(0)
+  error      String?
+  creadoEn   DateTime          @default(now())
+  enviadoEn  DateTime?
+
+  tipo       TipoNotificacion
+  titulo     String
+  mensaje    String
+  seccion    String
+  materiaId  Int?
+
+  usuarioId  Int
+  usuario    Usuario @relation(fields: [usuarioId], references: [id])
+
+  // Mismo criterio que Notificacion.clave: un aviso que el sistema genera solo no sale dos veces.
+  clave      String?
+
+  @@unique([usuarioId, canal, clave])
+  @@index([estado, id])
+}
+
+// Dispositivo del usuario suscripto a las notificaciones push del navegador (Web Push).
+model PushSuscripcion {
+  id        Int      @id @default(autoincrement())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  creadoEn  DateTime @default(now())
+
+  usuarioId Int
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
 }
 
 // Tarea que el docente pide en su materia, con fecha de entrega. Cuando se acerca la fecha, los

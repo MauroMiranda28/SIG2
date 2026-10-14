@@ -50,6 +50,7 @@ function dbResolver({ estado = "PENDIENTE" } = {}) {
         return { count: 1 };
       },
     },
+    preferenciaNotificacion: { findMany: async () => [] },
     notificacion: { createMany: async ({ data }) => { e.notificaciones.push(...data); return { count: data.length }; } },
   };
   // Transacción con rollback: si algo falla se restaura lo que había.
