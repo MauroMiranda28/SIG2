@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { formatFecha } from "../formatFecha.js";
 import { ETIQUETA_ESTADO, COLOR_ESTADO } from "../materias/estadoMateria.js";
+import { textoInscriptos } from "./inscriptos.js";
 
 // Historia: como alumno quiero poder inscribirme a un final seleccionando una materia
 // específica, sin importar si es libre o regular. La API ya calcula con qué modalidad le
@@ -56,7 +57,7 @@ export default function InscripcionFinal() {
   return (
     <div className="page">
       <h2>Inscripción a finales</h2>
-      <p className="text-muted">Finales programados de las materias en las que estás regular o libre.</p>
+      <p className="text-muted">Finales programados de las materias en las que estás regular o libre. La inscripción cierra 48 h antes del examen.</p>
 
       {error && <p className="form-error">{error}</p>}
       {aviso && <p role="status" className="text-muted">{aviso}</p>}
@@ -74,12 +75,19 @@ export default function InscripcionFinal() {
                   {formatFecha(ex.fecha)}
                   {ex.hora ? ` · ${ex.hora}` : ""}
                   {ex.aula ? ` · ${ex.aula.nombre}` : ""}
+                  <br />
+                  <small className="text-muted">{textoInscriptos(ex.inscriptos)}</small>
                 </span>
                 <span className="badge" style={{ background: COLOR_ESTADO[ex.modalidadDisponible] }}>
                   {ETIQUETA_ESTADO[ex.modalidadDisponible]}
                 </span>
               </div>
-              {ex.inscripcion ? (
+              {!ex.inscripcionAbierta ? (
+                <span className="text-muted">
+                  {ex.inscripcion ? `Inscripto como ${ETIQUETA_ESTADO[ex.inscripcion.modalidad]?.toLowerCase()}. ` : ""}
+                  La inscripción ya cerró (48 h antes del examen).
+                </span>
+              ) : ex.inscripcion ? (
                 <div className="row-between">
                   <span className="text-muted">Inscripto como {ETIQUETA_ESTADO[ex.inscripcion.modalidad]?.toLowerCase()}.</span>
                   <button className="btn-danger" disabled={enviandoId === ex.id} onClick={() => cancelar(ex)}>
@@ -98,3 +106,4 @@ export default function InscripcionFinal() {
     </div>
   );
 }
+

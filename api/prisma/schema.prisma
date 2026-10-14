@@ -359,6 +359,12 @@ model Evaluacion {
   observaciones String?
   condicion     CondicionFinal? // solo en CONDICION_FINAL
 
+  // Examen final: la mesa (fecha programada) a la que corresponde la nota y con qué modalidad
+  // estaba inscripto el alumno. Si se cancela la mesa, la nota queda (examenId pasa a null).
+  examenId  Int?
+  examen    FechaExamen?    @relation(fields: [examenId], references: [id], onDelete: SetNull)
+  modalidad ModalidadFinal?
+
   cursadaId Int
   cursada   Cursada @relation(fields: [cursadaId], references: [id])
 
@@ -456,6 +462,7 @@ model FechaExamen {
   creadoPor   Usuario @relation(fields: [creadoPorId], references: [id])
 
   inscripciones InscripcionExamen[]
+  notas         Evaluacion[] // notas cargadas de esta mesa (solo finales)
 
   @@index([materiaId, fecha])
 }

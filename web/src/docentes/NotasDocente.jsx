@@ -15,6 +15,7 @@ const TIPOS = [
 const NOMBRE_TIPO = Object.fromEntries(TIPOS);
 const NOMBRE_CONDICION = { REGULAR: "Regular", PROMOCIONADO: "Promocionado", LIBRE: "Libre" };
 const MAX_INTENTOS_FINAL = 3;
+const soloFecha = (f) => new Date(f).toISOString().slice(0, 10);
 const hoy = () => new Date().toLocaleDateString("en-CA"); // AAAA-MM-DD en hora local
 
 const esRegularVigente = (a) => a.estado === "REGULAR" && a.venceRegularidad && new Date(a.venceRegularidad) >= new Date(`${hoy()}T00:00:00Z`);
@@ -91,7 +92,7 @@ function NotasMateria({ materiaId }) {
 
   return (
     <>
-      <FormCarga alumnos={datos.alumnos} materia={datos.materia} onCargado={cargar} />
+      <FormCarga alumnos={datos.alumnos} materia={datos.materia} mesas={datos.mesas ?? []} onCargado={cargar} />
       <div className="docente-materia">
         <h3>Notas publicadas</h3>
         {datos.alumnos.map((a) => (
@@ -108,9 +109,14 @@ function NotasMateria({ materiaId }) {
   );
 }
 
-function FormCarga({ alumnos, materia, onCargado }) {
+// Texto de una mesa de final para el selector: "15/10/2026 · 18:00 · Aula 1 — 3 inscriptos".
+const textoMesa = (m) => `${formatFecha(m.fecha)}${m.hora ? ` · ${m.hora}` : ""}${m.aula ? ` · ${m.aula.nombre}` : ""} — `
+  + `${m.inscripciones.length} inscripto${m.inscripciones.length === 1 ? "" : "s"}${m.rendida ? "" : " (todavía no se rindió)"}`;
+
+function FormCarga({ alumnos, materia, mesas, onCargado }) {
   const [tipo, setTipo] = useState("PARCIAL");
   const [fecha, setFecha] = useState(hoy());
+  const [mesaId, setMesaId] = useState(""); // examen final: la mesa a la que corresponden las notas
   const [notas, setNotas] = useState({}); // alumnoId -> texto
   const [condiciones, setCondiciones] = useState({}); // alumnoId -> REGULAR | PROMOCIONADO
   const [aviso, setAviso] = useState(null);
@@ -119,15 +125,20 @@ function FormCarga({ alumnos, materia, onCargado }) {
   const cierraCursada = tipo === "CONDICION_FINAL" || tipo === "FINAL";
   const sinCondicion = cierraCursada && !materia.condicionConfigurada;
 
-  // Condición final: a quien sigue cursando. Examen final: solo a los regulares vigentes.
-  // A los libres no se les carga nada: tienen que volver a inscribirse.
+  // Condición final: a quien sigue cursando. Examen final: los inscriptos a la mesa elegida que
+  // todavía no tienen nota de esa mesa (regulares y libres). Al resto de los libres no se les carga nada.
+  const mesa = mesas.find((m) => String(m.id) === mesaId);
+  const modalidadEnMesa = new Map((mesa?.inscripciones ?? []).map((i) => [i.alumnoId, i.modalidad]));
   const lista = tipo === "CONDICION_FINAL"
     ? alumnos.filter((a) => !["APROBADA", "REGULAR", "LIBRE"].includes(a.estado))
-    : tipo === "FINAL" ? alumnos.filter(esRegularVigente) : alumnos.filter((a) => !esLibre(a));
+    : tipo === "FINAL"
+      ? alumnos.filter((a) => modalidadEnMesa.has(a.id) && !mesa.calificados.includes(a.id))
+      : alumnos.filter((a) => !esLibre(a));
   const condicionDe = (id) => condiciones[id] ?? "REGULAR";
 
   function cambiarTipo(nuevo) {
     setTipo(nuevo);
+    setMesaId("");
     setNotas({});
     setCondiciones({});
     setAviso(null);
@@ -144,7 +155,8 @@ function FormCarga({ alumnos, materia, onCargado }) {
     setAviso(null);
     setOcupado(true);
     try {
-      await api(`/notas/materias/${materia.id}`, { method: "POST", body: JSON.stringify({ tipo, fecha, notas: cargadas }) });
+      const cuerpo = tipo === "FINAL" ? { tipo, fecha: soloFecha(mesa.fecha), examenId: mesa.id, notas: cargadas } : { tipo, fecha, notas: cargadas };
+      await api(`/notas/materias/${materia.id}`, { method: "POST", body: JSON.stringify(cuerpo) });
       setNotas({});
       setCondiciones({});
       setAviso({ tipo: "exito", texto: `Se publicaron ${cargadas.length} nota(s). Los alumnos ya pueden verlas.` });
@@ -163,7 +175,8 @@ function FormCarga({ alumnos, materia, onCargado }) {
       + " Libre: no regularizó; deja de cursar y se le quita la comisión.";
   }
   if (tipo === "FINAL" && !sinCondicion) {
-    ayuda = `Con ${materia.notaAprobacionFinal} o más aprueba la materia. Desaprobado el intento ${MAX_INTENTOS_FINAL}, queda libre y se le quita la comisión. Dejá vacía la nota de quien no se presentó.`;
+    ayuda = `Con ${materia.notaAprobacionFinal} o más aprueba la materia. Regular: desaprobado el intento ${MAX_INTENTOS_FINAL}, queda libre. `
+      + "Libre: si desaprueba, sigue libre. Dejá vacía la nota de quien no se presentó.";
   }
 
   return (
@@ -175,7 +188,16 @@ function FormCarga({ alumnos, materia, onCargado }) {
             {TIPOS.map(([valor, texto]) => <option key={valor} value={valor}>{texto}</option>)}
           </select>
         </label>
-        <label>Fecha<input type="date" required value={fecha} onChange={(e) => setFecha(e.target.value)} /></label>
+        {tipo === "FINAL" ? (
+          <label>Mesa
+            <select value={mesaId} onChange={(e) => { setMesaId(e.target.value); setNotas({}); setAviso(null); }}>
+              <option value="">Elegí la fecha del final</option>
+              {mesas.map((m) => <option key={m.id} value={m.id} disabled={!m.rendida}>{textoMesa(m)}</option>)}
+            </select>
+          </label>
+        ) : (
+          <label>Fecha<input type="date" required value={fecha} onChange={(e) => setFecha(e.target.value)} /></label>
+        )}
       </div>
 
       {sinCondicion ? (
@@ -183,9 +205,13 @@ function FormCarga({ alumnos, materia, onCargado }) {
           Para cargar {NOMBRE_TIPO[tipo].toLowerCase()} primero configurá la condición de la materia
           (con cuánto se regulariza, se promociona y se aprueba el final) en «Mis materias».
         </p>
+      ) : tipo === "FINAL" && !mesa ? (
+        <p className="docente-aviso">
+          {mesas.length ? "Elegí la mesa: se cargan las notas de los alumnos inscriptos a ese final." : "Esta materia no tiene finales programados. Programalos en «Fechas de examen»."}
+        </p>
       ) : !lista.length ? (
         <p className="docente-aviso">
-          {tipo === "FINAL" ? "No hay alumnos regulares en esta materia."
+          {tipo === "FINAL" ? (mesa.inscripciones.length ? "Ya cargaste la nota de todos los inscriptos a esta mesa." : "Nadie se inscribió a esta mesa.")
             : tipo === "CONDICION_FINAL" ? "Todos los alumnos ya tienen su condición final cargada." : "No hay alumnos cursando esta materia."}
         </p>
       ) : (
@@ -195,7 +221,7 @@ function FormCarga({ alumnos, materia, onCargado }) {
               <tr>
                 <th>Alumno</th>
                 {tipo === "CONDICION_FINAL" && <th>Condición</th>}
-                {tipo === "FINAL" && <th>Intento</th>}
+                {tipo === "FINAL" && <th>Rinde como</th>}
                 <th>
                   {tipo === "CONDICION_FINAL" ? "Nota de cursada" : tipo === "FINAL" ? "Nota del final" : "Nota (0 a 10)"}
                 </th>
@@ -216,7 +242,11 @@ function FormCarga({ alumnos, materia, onCargado }) {
                     </td>
                   )}
                   {tipo === "FINAL" && (
-                    <td>{a.intentosFinal + 1} de {MAX_INTENTOS_FINAL} <span className="docente-meta">(vence {formatFecha(a.venceRegularidad)})</span></td>
+                    <td>
+                      {modalidadEnMesa.get(a.id) === "LIBRE" ? "Libre" : (
+                        <>Regular · intento {a.intentosFinal + 1} de {MAX_INTENTOS_FINAL} <span className="docente-meta">(vence {formatFecha(a.venceRegularidad)})</span></>
+                      )}
+                    </td>
                   )}
                   <td>
                     <input id={`nota-${a.id}`} type="number" min="0" max="10" step="0.01" inputMode="decimal"

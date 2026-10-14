@@ -3,7 +3,8 @@ import { prisma } from "../db.js";
 import { requiereAuth, requiereRol } from "../middleware/auth.js";
 import { errorAcceso, validarId } from "../services/docentes.js";
 import { hoy } from "../services/examenes.js";
-import { DATOS_INSCRIPCION, modalidadDisponible, validarInscripcion } from "../services/inscripcionesExamen.js";
+import { DATOS_INSCRIPCION, modalidadDisponible, validarInscripcion, inscripcionAbierta, verificarCierre } from "../services/inscripcionesExamen.js";
+import { contarInscriptos } from "../services/inscriptosFinal.js";
 
 async function cursadaDelAlumno(db, alumnoId, materiaId) {
   return db.cursada.findUnique({
@@ -19,7 +20,7 @@ export function crearRouterInscripcionesExamen(db = prisma) {
   router.use(requiereAuth, requiereRol("ALUMNO"));
 
   // Finales futuros de las materias donde el alumno puede inscribirse, con la modalidad que le
-  // corresponde (REGULAR o LIBRE) y si ya se inscribió.
+  // corresponde (REGULAR o LIBRE), si ya se inscribió y cuántos inscriptos hay (regulares y libres).
   router.get("/", async (req, res, next) => {
     try {
       const cursadas = await db.cursada.findMany({
@@ -40,10 +41,13 @@ export function crearRouterInscripcionesExamen(db = prisma) {
         orderBy: [{ fecha: "asc" }, { id: "asc" }],
       });
 
+      const inscriptos = await contarInscriptos(db, examenes.map((e) => e.id));
       res.json(examenes.map(({ inscripciones, materiaId, ...examen }) => ({
         ...examen,
         modalidadDisponible: modalidadDisponible(porMateria.get(materiaId)),
         inscripcion: inscripciones[0] ?? null,
+        inscriptos: inscriptos.get(examen.id),
+        inscripcionAbierta: inscripcionAbierta(examen.fecha),
       })));
     } catch (e) { next(e); }
   });
@@ -72,6 +76,9 @@ export function crearRouterInscripcionesExamen(db = prisma) {
   router.delete("/:id", async (req, res, next) => {
     try {
       const examenId = validarId(req.params.id, "identificador del examen");
+      const examen = await db.fechaExamen.findUnique({ where: { id: examenId }, select: { fecha: true } });
+      if (!examen) throw errorAcceso(404, "El examen no existe.");
+      verificarCierre(examen); // tampoco se puede cancelar una vez cerrada
       const borrada = await db.inscripcionExamen.deleteMany({ where: { examenId, alumnoId: req.usuario.id } });
       if (!borrada.count) throw errorAcceso(404, "No estabas inscripto a ese final.");
       res.json({ ok: true });
