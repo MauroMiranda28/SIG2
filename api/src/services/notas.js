@@ -210,6 +210,12 @@ export function verificarCarga({ tipo, condicion, nota, fecha, modalidad }, { cu
   if (estaLibre(cursada, ahora)) {
     throw errorAcceso(400, `${nombre} está libre: tiene que volver a inscribirse para cursar la materia.`);
   }
+  if (
+    !["CONDICION_FINAL", "FINAL"].includes(tipo) &&
+    (cursada?.estado === "APROBADA" || regularidadVigente(cursada, ahora))
+  ) {
+    throw errorAcceso(409, `${nombre} ya tiene una condición final cargada; no se pueden agregar más evaluaciones de cursada.`);
+  }
   if (tipo === "CONDICION_FINAL") {
     if (cursada?.estado === "APROBADA") throw errorAcceso(409, `${nombre} ya aprobó la materia.`);
     if (regularidadVigente(cursada, ahora)) {

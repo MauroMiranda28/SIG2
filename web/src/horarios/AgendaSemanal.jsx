@@ -10,7 +10,28 @@ const CATEGORIAS = [
   ["OCIO", "Ocio"],
   ["OTRA", "Otra"],
 ];
-const nombreCategoria = (categoria) => CATEGORIAS.find(([valor]) => valor === categoria)?.[1] ?? "Otra";
+const CATEGORIAS_DOCENTE = [
+  ["TRABAJO", "Gestión personal"],
+  ["ESTUDIO", "Planificación académica"],
+  ["CORRECCION_EXAMENES", "Corrección de exámenes"],
+  ["PREPARACION_CLASE", "Preparación de clase"],
+  ["PREPARACION_EXAMEN", "Preparación de exámenes"],
+  ["OTRA_ACADEMICA", "Otra actividad académica"],
+];
+const nombreCategoria = (categoria, esDocente = false) => {
+  if (esDocente) {
+    return CATEGORIAS_DOCENTE.find(([valor]) => valor === categoria)?.[1] ?? "Otra actividad académica";
+  }
+  return CATEGORIAS.find(([valor]) => valor === categoria)?.[1] ?? "Otra";
+};
+const nombreTipoExamen = (tipo) => ({
+  PARCIAL: "Parcial",
+  RECUPERATORIO: "Recuperatorio",
+  FINAL: "Examen final",
+}[tipo] ?? "Examen");
+const HORA_INICIO_BASE = 7;
+const HORA_FIN_BASE = 23;
+const PIXELES_POR_HORA = 64;
 const hoyLocal = () => {
   const hoy = new Date();
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
@@ -26,7 +47,37 @@ function fechaCorta(fecha) {
   return new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(fecha));
 }
 
-function resumir(eventos) {
+function minutosDeHora(hora) {
+  if (!hora) return null;
+  const [horas, minutos] = hora.split(":").map(Number);
+  return horas * 60 + minutos;
+}
+
+function distribuirEventos(eventos) {
+  const conHorario = eventos
+    .filter((evento) => evento.horaInicio)
+    .map((evento) => {
+      const inicio = minutosDeHora(evento.horaInicio);
+      const fin = minutosDeHora(evento.horaFin) ?? inicio + 60;
+      return { evento, inicio, fin, carril: 0 };
+    })
+    .sort((a, b) => a.inicio - b.inicio || a.fin - b.fin);
+  const finesPorCarril = [];
+
+  for (const item of conHorario) {
+    let carril = finesPorCarril.findIndex((fin) => fin <= item.inicio);
+    if (carril === -1) carril = finesPorCarril.length;
+    item.carril = carril;
+    finesPorCarril[carril] = item.fin;
+  }
+
+  return {
+    eventos: conHorario,
+    cantidadCarriles: Math.max(finesPorCarril.length, 1),
+  };
+}
+
+function resumir(eventos, esDocente) {
   const personales = eventos.filter((evento) => evento.tipoEvento === "ACTIVIDAD");
   const porCategoria = new Map();
   const porEtiqueta = new Map();
@@ -39,17 +90,18 @@ function resumir(eventos) {
   const ordenar = (mapa) => [...mapa].sort(([a], [b]) => a.localeCompare(b, "es"));
   return {
     total: personales.reduce((suma, actividad) => suma + actividad.duracion, 0),
-    porCategoria: ordenar(porCategoria).map(([categoria, minutos]) => [nombreCategoria(categoria), minutos]),
+    porCategoria: ordenar(porCategoria).map(([categoria, minutos]) => [nombreCategoria(categoria, esDocente), minutos]),
     porEtiqueta: ordenar(porEtiqueta),
   };
 }
 
 // Horarios U-01 + ACT-02: la agenda semanal reemplaza la grilla de solo clases,
 // porque ya reúne las comisiones elegidas junto con las actividades personales.
-export default function AgendaSemanal() {
+export default function AgendaSemanal({ esDocente = false }) {
   const [fechaReferencia, setFechaReferencia] = useState(hoyLocal());
   const [agenda, setAgenda] = useState(null);
   const [error, setError] = useState(null);
+  const [eventoExpandido, setEventoExpandido] = useState(null);
 
   useEffect(() => {
     api(`/actividades-personales/agenda?fecha=${fechaReferencia}`)
@@ -57,13 +109,30 @@ export default function AgendaSemanal() {
       .catch((e) => setError(e.message));
   }, [fechaReferencia]);
 
-  const resumen = useMemo(() => resumir(agenda?.eventos ?? []), [agenda]);
+  const resumen = useMemo(() => resumir(agenda?.eventos ?? [], esDocente), [agenda, esDocente]);
   const lunesSemana = agenda?.desde ? fechaLocal(agenda.desde) : fechaReferencia;
+  const horaInicioGrilla = Math.min(
+    HORA_INICIO_BASE,
+    ...((agenda?.eventos ?? []).filter((evento) => evento.horaInicio).map((evento) => Math.floor(minutosDeHora(evento.horaInicio) / 60))),
+  );
+  const horaFinGrilla = Math.max(
+    HORA_FIN_BASE,
+    ...((agenda?.eventos ?? []).filter((evento) => evento.horaInicio).map((evento) => Math.ceil((minutosDeHora(evento.horaFin) ?? minutosDeHora(evento.horaInicio) + 60) / 60))),
+  );
+  const totalHoras = horaFinGrilla - horaInicioGrilla;
+  const etiquetasHora = Array.from({ length: totalHoras + 1 }, (_, indice) => horaInicioGrilla + indice);
+  const eventosSinHora = (agenda?.dias ?? []).flatMap(({ dia, nombre, eventos }) =>
+    eventos.filter((evento) => !evento.horaInicio).map((evento) => ({ ...evento, dia, nombreDia: nombre })),
+  );
 
   return (
-    <section className="actividades">
+    <section className="actividades agenda-semanal">
       <h2>Mi horario</h2>
-      <p>Clases y actividades personales, en una lista ordenada por día y hora.</p>
+      <p>
+        {esDocente
+          ? "Consultá las clases que dictás y organizá tus actividades personales, de preparación y corrección en el calendario semanal."
+          : "Consultá tus actividades, clases y exámenes en el calendario semanal."}
+      </p>
 
       {error && <p className="actividad-mensaje error" role="alert">No se pudo cargar tu agenda: {error}</p>}
 
@@ -84,11 +153,14 @@ export default function AgendaSemanal() {
         {agenda ? (
           <>
             <p className="actividad-rango-semana">{fechaCorta(agenda.desde)} – {fechaCorta(agenda.hasta)}</p>
-            <p>Tiempo personal planificado: <strong>{Math.floor(resumen.total / 60)} h {resumen.total % 60} min</strong></p>
+            <p>
+              {esDocente ? "Dedicación extra-áulica registrada: " : "Tiempo personal planificado: "}
+              <strong>{Math.floor(resumen.total / 60)} h {resumen.total % 60} min</strong>
+            </p>
             {resumen.porCategoria.length > 0 && (
               <div className="actividad-resumen">
                 <div>
-                  <h4>Por categoría</h4>
+                  <h4>{esDocente ? "Por tipo de dedicación" : "Por categoría"}</h4>
                   <ul>{resumen.porCategoria.map(([categoria, minutos]) => <li key={categoria}>{categoria}: {Math.floor(minutos / 60)} h {minutos % 60} min</li>)}</ul>
                 </div>
                 {resumen.porEtiqueta.length > 0 && (
@@ -100,25 +172,108 @@ export default function AgendaSemanal() {
                 )}
               </div>
             )}
-            {agenda.dias.map(({ dia, nombre, fecha, eventos }) => (
-              <section className="actividad-dia" key={dia}>
-                <h4>{nombre} <span>{fechaCorta(fecha)}</span></h4>
-                {eventos.length === 0 ? <p>Sin clases ni actividades planificadas.</p> : (
-                  <ul className="actividad-lista">
-                    {eventos.map((evento, indice) => (
-                      <li className={`actividad-tarjeta ${evento.tipoEvento === "CLASE" ? "clase" : ""}`} key={`${evento.tipoEvento}-${evento.id ?? evento.titulo}-${indice}`}>
-                        <div>
-                          <span className="actividad-tipo-evento">{evento.tipoEvento === "CLASE" ? "Clase" : "Actividad personal"}</span>
-                          <h5>{evento.titulo}</h5>
-                          <p><strong>{evento.horaInicio}–{evento.horaFin}</strong>{evento.categoria ? ` · ${nombreCategoria(evento.categoria)}` : ""}</p>
-                          {evento.etiquetas?.length > 0 && <p className="actividad-etiquetas-texto">{evento.etiquetas.join(" · ")}</p>}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+            <div className="actividad-leyenda" aria-label="Tipos de eventos">
+              {esDocente ? (
+                <>
+                  <span><i className="actividad-leyenda-muestra actividad" aria-hidden="true" /> Actividad de dedicación</span>
+                  <span><i className="actividad-leyenda-muestra clase" aria-hidden="true" /> Clase que dicto</span>
+                </>
+              ) : (
+                <>
+                  <span><i className="actividad-leyenda-muestra actividad" aria-hidden="true" /> Actividad personal</span>
+                  <span><i className="actividad-leyenda-muestra clase" aria-hidden="true" /> Clase</span>
+                  <span><i className="actividad-leyenda-muestra examen" aria-hidden="true" /> Examen</span>
+                </>
+              )}
+            </div>
+            {eventosSinHora.length > 0 && (
+              <section className="actividad-sin-horario" aria-label="Eventos sin hora confirmada">
+                <h3>Horarios a confirmar</h3>
+                <ul>
+                  {eventosSinHora.map((evento) => (
+                    <li key={`${evento.tipoEvento}-${evento.id ?? evento.titulo}`}>
+                      <strong>{evento.nombreDia} {fechaCorta(evento.fecha)}:</strong>{" "}
+                      {evento.tipoEvento === "EXAMEN" ? `${nombreTipoExamen(evento.tipoExamen)} · ` : ""}
+                      {evento.titulo}
+                    </li>
+                  ))}
+                </ul>
               </section>
-            ))}
+            )}
+            <div className="actividad-calendario-scroll" role="region" aria-label="Calendario semanal" tabIndex="0">
+              <div
+                className="actividad-grilla"
+                style={{ "--actividad-cantidad-horas": totalHoras, "--actividad-alto-hora": `${PIXELES_POR_HORA}px` }}
+              >
+                <div className="actividad-grilla-esquina" aria-hidden="true" />
+                {agenda.dias.map(({ dia, nombre, fecha }) => (
+                  <div className="actividad-grilla-cabecera" key={dia}>
+                    <strong>{nombre}</strong>
+                    <span>{fechaCorta(fecha)}</span>
+                  </div>
+                ))}
+                <div className="actividad-columna-horas" aria-hidden="true">
+                  {etiquetasHora.map((hora) => (
+                    <span key={hora} style={{ top: `${(hora - horaInicioGrilla) * PIXELES_POR_HORA}px` }}>
+                      {String(hora).padStart(2, "0")}:00
+                    </span>
+                  ))}
+                </div>
+                {agenda.dias.map(({ dia, eventos }) => {
+                  const distribucion = distribuirEventos(eventos);
+                  return (
+                    <div className="actividad-columna-dia" key={dia} aria-label={`${dia}, eventos por horario`}>
+                      {distribucion.eventos.map(({ evento, inicio, fin, carril }) => {
+                        const esClase = evento.tipoEvento === "CLASE";
+                        const esExamen = evento.tipoEvento === "EXAMEN";
+                        const titulo = esExamen
+                          ? `${nombreTipoExamen(evento.tipoExamen)} · ${evento.titulo}`
+                          : evento.titulo;
+                        const claveEvento = `${dia}-${evento.tipoEvento}-${evento.id ?? evento.titulo}`;
+                        const estaExpandido = eventoExpandido === claveEvento;
+                        const detalles = esClase
+                          ? [
+                            evento.comision,
+                            evento.aula ? `Aula: ${evento.aula}` : null,
+                          ]
+                          : esExamen
+                            ? [evento.aula ? `Aula: ${evento.aula}` : null]
+                            : [
+                              nombreCategoria(evento.categoria, esDocente),
+                              ...(evento.etiquetas ?? []),
+                            ];
+                        return (
+                          <button
+                            type="button"
+                            className={`actividad-evento ${esClase ? "clase" : ""} ${esExamen ? "examen" : ""}`}
+                            key={claveEvento}
+                            aria-expanded={estaExpandido}
+                            aria-label={`${titulo}${estaExpandido ? ", detalles abiertos" : ", mostrar detalles"}`}
+                            onClick={() => setEventoExpandido(estaExpandido ? null : claveEvento)}
+                            style={{
+                              top: `${(inicio - horaInicioGrilla * 60) * PIXELES_POR_HORA / 60}px`,
+                              height: `${Math.max((fin - inicio) * PIXELES_POR_HORA / 60, 44)}px`,
+                              left: `calc(${carril * 100 / distribucion.cantidadCarriles}% + 2px)`,
+                              width: `calc(${100 / distribucion.cantidadCarriles}% - 4px)`,
+                            }}
+                          >
+                            <strong>{titulo}</strong>
+                            {estaExpandido && (
+                              <span className="actividad-evento-detalles">
+                                {detalles.filter(Boolean).map((detalle, indice) => (
+                                  <span key={`${detalle}-${indice}`}>{detalle}</span>
+                                ))}
+                                {detalles.every((detalle) => !detalle) && <span>Sin detalles adicionales</span>}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </>
         ) : !error && <p>Cargando tu horario...</p>}
       </section>

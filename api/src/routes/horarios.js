@@ -6,6 +6,139 @@ import { crearBloqueConRegistro, quitarBloqueConRegistro } from "../services/aud
 
 const router = Router();
 
+export function validarAsignacionDocente(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body) || !("docenteId" in body)) {
+    throw errorAcceso(400, "Indicá el docente asignado o null para dejar el bloque sin asignar.");
+  }
+  return body.docenteId == null || body.docenteId === ""
+    ? null
+    : validarId(body.docenteId, "identificador del docente");
+}
+
+export function docenteTieneSuperposicion(bloque, otrosBloques) {
+  return otrosBloques.find((otro) =>
+    otro.id !== bloque.id &&
+    otro.dia === bloque.dia &&
+    otro.horaInicio < bloque.horaFin &&
+    otro.horaFin > bloque.horaInicio);
+}
+
+export function crearRouterAsignacionesDocentes(db = prisma) {
+  const router = Router();
+  router.use(requiereAuth, requiereRol("ADMIN"));
+
+  router.get("/", async (req, res, next) => {
+    try {
+      const materias = await db.materia.findMany({
+        select: {
+          id: true,
+          nombre: true,
+          codigo: true,
+          docentes: {
+            select: {
+              docente: { select: { id: true, nombre: true, apellido: true, email: true } },
+            },
+            orderBy: { docente: { apellido: "asc" } },
+          },
+          comisiones: {
+            select: {
+              id: true,
+              nombre: true,
+              bloques: {
+                select: {
+                  id: true,
+                  dia: true,
+                  horaInicio: true,
+                  horaFin: true,
+                  docenteId: true,
+                  aula: { select: { nombre: true } },
+                  docente: { select: { id: true, nombre: true, apellido: true } },
+                },
+                orderBy: [{ dia: "asc" }, { horaInicio: "asc" }],
+              },
+            },
+            orderBy: { nombre: "asc" },
+          },
+        },
+        orderBy: [{ nombre: "asc" }],
+      });
+      res.json(materias);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  router.put("/bloques/:id/docente", async (req, res, next) => {
+    try {
+      const id = validarId(req.params.id, "identificador del bloque");
+      const docenteId = validarAsignacionDocente(req.body);
+      const bloque = await db.bloqueHorario.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          dia: true,
+          horaInicio: true,
+          horaFin: true,
+          comision: {
+            select: {
+              nombre: true,
+              materiaId: true,
+              materia: { select: { nombre: true } },
+            },
+          },
+        },
+      });
+      if (!bloque) throw errorAcceso(404, "No existe ese bloque horario.");
+
+      if (docenteId !== null) {
+        const asignacion = await db.materiaDocente.findUnique({
+          where: { materiaId_docenteId: { materiaId: bloque.comision.materiaId, docenteId } },
+          select: { docenteId: true },
+        });
+        if (!asignacion) {
+          throw errorAcceso(400, "El docente elegido no está asignado a esta materia.");
+        }
+
+        const otrosBloques = await db.bloqueHorario.findMany({
+          where: { docenteId, dia: bloque.dia },
+          select: {
+            id: true,
+            dia: true,
+            horaInicio: true,
+            horaFin: true,
+            comision: { select: { nombre: true, materia: { select: { nombre: true } } } },
+          },
+        });
+        const choque = docenteTieneSuperposicion(bloque, otrosBloques);
+        if (choque) {
+          throw errorAcceso(
+            409,
+            `El docente ya tiene ${choque.comision.materia.nombre} (${choque.comision.nombre}) asignada ese día entre ${choque.horaInicio} y ${choque.horaFin}.`,
+          );
+        }
+      }
+
+      const actualizado = await db.bloqueHorario.update({
+        where: { id },
+        data: { docenteId },
+        select: {
+          id: true,
+          dia: true,
+          horaInicio: true,
+          horaFin: true,
+          docenteId: true,
+          docente: { select: { id: true, nombre: true, apellido: true } },
+        },
+      });
+      res.json(actualizado);
+    } catch (e) {
+      next(e);
+    }
+  });
+
+  return router;
+}
+
 // Dos bloques se pisan si caen el mismo día y sus rangos horarios se cruzan.
 // "HH:MM" compara bien como string porque siempre tiene 2 dígitos.
 function seSuperponen(a, b) {

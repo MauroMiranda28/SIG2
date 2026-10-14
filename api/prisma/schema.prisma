@@ -126,6 +126,7 @@ model Usuario {
 
   cursadas        Cursada[]
   materiasQueDicta MateriaDocente[]
+  bloquesQueDicta BloqueHorario[] @relation("DocenteBloqueHorario")
   actividades     ActividadPersonal[]
   inscripciones   InscripcionComision[]
   inscripcionesExamen InscripcionExamen[]
@@ -597,6 +598,11 @@ model BloqueHorario {
 
   aulaId Int?
   aula   Aula? @relation(fields: [aulaId], references: [id])
+
+  docenteId Int?
+  docente   Usuario? @relation("DocenteBloqueHorario", fields: [docenteId], references: [id], onDelete: SetNull)
+
+  @@index([docenteId, dia, horaInicio])
 }
 
 // ACT-01 a ACT-06

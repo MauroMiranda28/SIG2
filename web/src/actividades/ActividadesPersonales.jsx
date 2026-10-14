@@ -19,7 +19,17 @@ const CATEGORIAS = [
   ["OCIO", "Ocio"],
   ["OTRA", "Otra"],
 ];
-const nombreCategoria = (categoria) => CATEGORIAS.find(([valor]) => valor === categoria)?.[1] ?? "Otra";
+const CATEGORIAS_DOCENTE = [
+  ["TRABAJO", "Gestión personal"],
+  ["ESTUDIO", "Planificación académica"],
+  ["CORRECCION_EXAMENES", "Corrección de exámenes"],
+  ["PREPARACION_CLASE", "Preparación de clase"],
+  ["PREPARACION_EXAMEN", "Preparación de exámenes"],
+  ["OTRA_ACADEMICA", "Otra actividad académica"],
+];
+const nombreCategoria = (categoria, esDocente = false) => (
+  (esDocente ? CATEGORIAS_DOCENTE : CATEGORIAS).find(([valor]) => valor === categoria)?.[1] ?? "Otra"
+);
 const hoyLocal = () => {
   const hoy = new Date();
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
@@ -63,9 +73,13 @@ function fechaCorta(fecha) {
   return new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(fecha));
 }
 
-export default function ActividadesPersonales() {
+export default function ActividadesPersonales({ esDocente = false }) {
+  const categorias = esDocente ? CATEGORIAS_DOCENTE : CATEGORIAS;
+  const formularioVacio = esDocente
+    ? { ...FORMULARIO_VACIO, categoria: "TRABAJO" }
+    : FORMULARIO_VACIO;
   const [actividades, setActividades] = useState(null);
-  const [formulario, setFormulario] = useState(FORMULARIO_VACIO);
+  const [formulario, setFormulario] = useState(formularioVacio);
   const [actividadEditando, setActividadEditando] = useState(null);
   const [etiquetaSeleccionada, setEtiquetaSeleccionada] = useState("");
   const [error, setError] = useState(null);
@@ -94,7 +108,6 @@ export default function ActividadesPersonales() {
   const actividadesFiltradas = (actividades ?? []).filter(
     (actividad) => !etiquetaSeleccionada || actividad.etiquetas.includes(etiquetaSeleccionada),
   );
-
   function actualizarCampo(evento) {
     setFormulario((actual) => ({ ...actual, [evento.target.name]: evento.target.value }));
   }
@@ -104,10 +117,10 @@ export default function ActividadesPersonales() {
     setFormulario({
       titulo: actividad.titulo,
       duracion: actividad.duracion == null ? "" : String(actividad.duracion),
-      categoria: CATEGORIAS.some(([valor]) => valor === actividad.categoria) ? actividad.categoria : "OTRA",
+      categoria: categorias.some(([valor]) => valor === actividad.categoria) ? actividad.categoria : categorias.at(-1)[0],
       etiquetas: [
         ...actividad.etiquetas,
-        ...(CATEGORIAS.some(([valor]) => valor === actividad.categoria) ? [] : [actividad.categoria]),
+        ...(categorias.some(([valor]) => valor === actividad.categoria) ? [] : [actividad.categoria]),
       ].join(", "),
       programacion: actividad.programacion ?? "PUNTUAL",
       dia: actividad.dia ?? "LUNES",
@@ -121,7 +134,7 @@ export default function ActividadesPersonales() {
 
   function cancelarEdicion() {
     setActividadEditando(null);
-    setFormulario({ ...FORMULARIO_VACIO, fecha: hoyLocal() });
+    setFormulario({ ...formularioVacio, fecha: hoyLocal() });
   }
 
   async function refrescar() {
@@ -141,7 +154,9 @@ export default function ActividadesPersonales() {
         ? await api("/actividades-personales", { method: "POST", body: cuerpo })
         : await api(`/actividades-personales/${actividadEditando}`, { method: "PATCH", body: cuerpo });
       setConflictos(respuesta.conflictos ?? []);
-      setMensaje(actividadEditando === null ? "Actividad guardada." : "Actividad actualizada.");
+      setMensaje(actividadEditando === null
+        ? esDocente ? "Bloque guardado." : "Actividad guardada."
+        : esDocente ? "Bloque actualizado." : "Actividad actualizada.");
       cancelarEdicion();
       await refrescar();
     } catch (e) {
@@ -158,7 +173,7 @@ export default function ActividadesPersonales() {
     setConflictos([]);
     try {
       await api(`/actividades-personales/${actividad.id}`, { method: "DELETE" });
-      setMensaje("Actividad eliminada.");
+      setMensaje(esDocente ? "Bloque eliminado." : "Actividad eliminada.");
       if (actividadEditando === actividad.id) cancelarEdicion();
       await refrescar();
     } catch (e) {
@@ -168,13 +183,21 @@ export default function ActividadesPersonales() {
 
   return (
     <section className="actividades">
-      <h2>Mis actividades personales</h2>
-      <p>Planificá tus ocupaciones junto con las clases, sin necesidad de usar un calendario.</p>
+      <h2>{esDocente ? "Mi dedicación extra-áulica" : "Mis actividades personales"}</h2>
+      <p>
+        {esDocente
+          ? "Registrá tus bloques de gestión personal y planificación académica para llevar un seguimiento de tu dedicación."
+          : "Planificá tus ocupaciones junto con las clases, sin necesidad de usar un calendario."}
+      </p>
 
       <form className="actividad-formulario" onSubmit={guardar}>
-        <h3>{actividadEditando === null ? "Agregar actividad" : "Editar actividad"}</h3>
+        <h3>
+          {actividadEditando === null
+            ? esDocente ? "Agregar bloque" : "Agregar actividad"
+            : esDocente ? "Editar bloque" : "Editar actividad"}
+        </h3>
         <label>
-          Título
+          {esDocente ? "Nombre del bloque" : "Título"}
           <input name="titulo" value={formulario.titulo} onChange={actualizarCampo} maxLength={120} required />
         </label>
         <div className="actividad-formulario-fila">
@@ -184,12 +207,16 @@ export default function ActividadesPersonales() {
           </label>
         </div>
         <label>
-          Categoría
+          {esDocente ? "Tipo de dedicación" : "Categoría"}
           <select name="categoria" value={formulario.categoria} onChange={actualizarCampo} required>
-            {CATEGORIAS.map(([valor, nombre]) => <option key={valor} value={valor}>{nombre}</option>)}
+            {categorias.map(([valor, nombre]) => <option key={valor} value={valor}>{nombre}</option>)}
           </select>
         </label>
-        <small>¿De qué área es? Elegí un grupo general. Por ejemplo, “Trabajo”.</small>
+        <small>
+          {esDocente
+            ? "Elegí el tipo de dedicación: gestión personal, preparación o corrección académica."
+            : "¿De qué área es? Elegí un grupo general. Por ejemplo, “Trabajo”."}
+        </small>
         <label>
           Frecuencia
           <select name="programacion" value={formulario.programacion} onChange={actualizarCampo}>
@@ -216,11 +243,25 @@ export default function ActividadesPersonales() {
         </label>
         <label>
           Etiquetas
-          <input name="etiquetas" value={formulario.etiquetas} onChange={actualizarCampo} placeholder="Remoto, gimnasio, equipo" aria-describedby="actividad-etiquetas-ayuda" />
+          <input
+            name="etiquetas"
+            value={formulario.etiquetas}
+            onChange={actualizarCampo}
+            placeholder={esDocente ? "Correos, reuniones, preparación de clase" : "Remoto, gimnasio, equipo"}
+            aria-describedby="actividad-etiquetas-ayuda"
+          />
         </label>
-        <small id="actividad-etiquetas-ayuda">¿Qué detalle querés recordar? Agregá etiquetas libres, por ejemplo “remoto” o “gimnasio”; separalas con comas.</small>
+        <small id="actividad-etiquetas-ayuda">
+          {esDocente
+            ? "Agregá detalles para clasificar el bloque, separados por comas."
+            : "¿Qué detalle querés recordar? Agregá etiquetas libres, por ejemplo “remoto” o “gimnasio”; separalas con comas."}
+        </small>
         <div className="actividad-acciones">
-          <button type="submit" className="btn" disabled={guardando}>{guardando ? "Guardando..." : actividadEditando === null ? "Guardar actividad" : "Guardar cambios"}</button>
+          <button type="submit" className="btn" disabled={guardando}>
+            {guardando ? "Guardando..." : actividadEditando === null
+              ? esDocente ? "Guardar bloque" : "Guardar actividad"
+              : "Guardar cambios"}
+          </button>
           {actividadEditando !== null && <button type="button" onClick={cancelarEdicion} disabled={guardando}>Cancelar</button>}
         </div>
       </form>
@@ -238,14 +279,22 @@ export default function ActividadesPersonales() {
               </li>
             ))}
           </ul>
-          <p>La actividad se guardó igualmente; podés editarla si querés cambiar el horario.</p>
+          <p>
+            {esDocente
+              ? "El bloque se guardó igualmente; podés editarlo si querés cambiar el horario."
+              : "La actividad se guardó igualmente; podés editarla si querés cambiar el horario."}
+          </p>
         </section>
       )}
 
-      <p className="actividad-mensaje-info">Para ver tus clases y actividades juntas en una semana, andá a la pestaña «Mi horario».</p>
+      <p className="actividad-mensaje-info">
+        {esDocente
+          ? "Consultá tus bloques en la grilla de la pestaña «Mi horario»."
+          : "Para ver tus clases y actividades juntas en una semana, andá a la pestaña «Mi horario»."}
+      </p>
 
       <section>
-        <h3>Todas mis actividades</h3>
+        <h3>{esDocente ? "Mis bloques de dedicación" : "Todas mis actividades"}</h3>
         <div className="actividad-filtro">
           <label htmlFor="filtro-etiqueta">Filtrar por etiqueta</label>
           <select id="filtro-etiqueta" value={etiquetaSeleccionada} onChange={(evento) => setEtiquetaSeleccionada(evento.target.value)}>
@@ -254,14 +303,18 @@ export default function ActividadesPersonales() {
           </select>
         </div>
         {actividades === null ? <p className="loading">Cargando actividades...</p> : actividadesFiltradas.length === 0 ? (
-          <p className="empty-state">{actividades.length === 0 ? "Todavía no registraste actividades." : "No hay actividades con esa etiqueta."}</p>
+          <p className="empty-state">
+            {actividades.length === 0
+              ? esDocente ? "Todavía no registraste bloques de dedicación." : "Todavía no registraste actividades."
+              : "No hay actividades con esa etiqueta."}
+          </p>
         ) : (
           <ul className="actividad-lista">
             {actividadesFiltradas.map((actividad) => (
               <li className="actividad-tarjeta" key={actividad.id}>
                 <div>
                   <h4>{actividad.titulo}</h4>
-                  <p>{nombreCategoria(actividad.categoria)} · {actividad.duracion ?? "Duración sin registrar"} min</p>
+                  <p>{nombreCategoria(actividad.categoria, esDocente)} · {actividad.duracion ?? "Duración sin registrar"} min</p>
                   <p>
                     {actividad.programacion === "RECURRENTE"
                       ? `Cada ${DIAS.find(([dia]) => dia === actividad.dia)?.[1] ?? actividad.dia}`

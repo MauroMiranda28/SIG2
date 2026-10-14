@@ -51,8 +51,8 @@ function validarDuracion(valor) {
   return valor;
 }
 
-function validarCategoria(valor) {
-  if (!CATEGORIAS_ACTIVIDAD.includes(valor)) {
+function validarCategoria(valor, categorias = CATEGORIAS_ACTIVIDAD) {
+  if (!categorias.includes(valor)) {
     throw errorAcceso(400, "Elegí una categoría general de la lista.");
   }
   return valor;
@@ -127,23 +127,23 @@ function validarProgramacion(body, cambios = false) {
   return { programacion, dia: null, fecha: validarFechaActividad(body.fecha), horaInicio };
 }
 
-export function validarNuevaActividadPersonal(body) {
+export function validarNuevaActividadPersonal(body, categorias = CATEGORIAS_ACTIVIDAD) {
   if (!esObjeto(body)) throw errorAcceso(400, "Faltan los datos de la actividad.");
   return {
     titulo: validarTexto(body.titulo, "el título", MAX_TITULO),
     duracion: validarDuracion(body.duracion),
-    categoria: validarCategoria(body.categoria),
+    categoria: validarCategoria(body.categoria, categorias),
     etiquetas: validarEtiquetas(body.etiquetas),
     ...validarProgramacion(body),
   };
 }
 
-export function validarCambioActividadPersonal(body) {
+export function validarCambioActividadPersonal(body, categorias = CATEGORIAS_ACTIVIDAD) {
   if (!esObjeto(body)) throw errorAcceso(400, "Faltan los datos del cambio.");
   const cambios = {};
   if ("titulo" in body) cambios.titulo = validarTexto(body.titulo, "el título", MAX_TITULO);
   if ("duracion" in body) cambios.duracion = validarDuracion(body.duracion);
-  if ("categoria" in body) cambios.categoria = validarCategoria(body.categoria);
+  if ("categoria" in body) cambios.categoria = validarCategoria(body.categoria, categorias);
   if ("etiquetas" in body) cambios.etiquetas = validarEtiquetas(body.etiquetas);
   if (!Object.keys(cambios).length && !["programacion", "dia", "fecha", "horaInicio"].some((campo) => campo in body)) {
     throw errorAcceso(400, "Indicá qué querés cambiar: título, duración, categoría o etiquetas.");

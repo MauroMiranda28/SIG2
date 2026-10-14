@@ -56,6 +56,10 @@
   margin: 2rem 0;
 }
 
+.actividades.agenda-semanal {
+  max-width: 90rem;
+}
+
 .actividad-navegacion-semana {
   display: flex;
   flex-wrap: wrap;
@@ -97,7 +101,7 @@
 }
 
 .actividad-resumen h4,
-.actividad-dia h4 {
+.actividad-grilla-cabecera strong {
   margin: 0 0 0.5rem;
 }
 
@@ -106,26 +110,237 @@
   padding-left: 1.2rem;
 }
 
-.actividad-dia {
-  margin: 1.25rem 0;
-}
-
-.actividad-dia h4 {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-bottom: 0.35rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.actividad-dia h4 span,
 .actividad-etiquetas-texto {
   color: var(--color-text-muted);
   font-size: 0.9rem;
 }
 
-.actividad-tarjeta.clase {
-  border-left: 4px solid var(--color-primary);
+.actividad-calendario-scroll {
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.actividad-grilla {
+  display: grid;
+  grid-template-columns: 4.25rem repeat(7, minmax(8.5rem, 1fr));
+  grid-template-rows: 3.5rem calc(var(--actividad-cantidad-horas) * var(--actividad-alto-hora));
+  min-width: 70rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: visible;
+  background: var(--color-white);
+}
+
+.actividad-grilla-esquina,
+.actividad-grilla-cabecera {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-primary-soft);
+}
+
+.actividad-grilla-esquina {
+  left: 0;
+  z-index: 4;
+}
+
+.actividad-grilla-cabecera {
+  border-left: 1px solid var(--color-border);
+}
+
+.actividad-grilla-cabecera span {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.actividad-columna-horas {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  height: calc(var(--actividad-cantidad-horas) * var(--actividad-alto-hora));
+  background: var(--color-white);
+}
+
+.actividad-columna-horas span {
+  position: absolute;
+  right: 0.4rem;
+  z-index: 1;
+  padding: 0 0.15rem;
+  color: var(--color-text-muted);
+  background: var(--color-white);
+  font-size: 0.75rem;
+  transform: translateY(-50%);
+}
+
+.actividad-columna-horas span:first-child {
+  transform: none;
+}
+
+.actividad-columna-horas span:last-child {
+  transform: translateY(-100%);
+}
+
+.actividad-columna-dia {
+  position: relative;
+  min-width: 0;
+  height: calc(var(--actividad-cantidad-horas) * var(--actividad-alto-hora));
+  border-left: 1px solid var(--color-border);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--actividad-alto-hora) - 1px),
+    var(--color-border) calc(var(--actividad-alto-hora) - 1px),
+    var(--color-border) var(--actividad-alto-hora)
+  );
+}
+
+.actividad-evento {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.35rem 0.45rem;
+  overflow: visible;
+  border: 1px solid #c4c9d0;
+  border-left: 4px solid #6b7280;
+  border-radius: var(--radius-sm);
+  background: #f1f3f5;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.actividad-evento[aria-expanded="true"] {
+  z-index: 5;
+}
+
+.actividad-evento:not(.clase):not(.examen):hover:not(:disabled) {
+  border-color: #9ca3af;
+  background: #e5e7eb;
+}
+
+.actividad-evento.clase {
+  border-color: var(--color-primary);
+  border-left-width: 4px;
+  background: var(--color-primary-soft);
+}
+
+.actividad-evento.clase:hover:not(:disabled) {
+  border-color: var(--color-primary-dark);
+  background-color: #dce7f8;
+}
+
+.actividad-evento.examen {
+  border-color: var(--color-danger);
+  border-left-width: 4px;
+  background: var(--color-danger-bg);
+}
+
+.actividad-evento.examen:hover:not(:disabled) {
+  border-color: #8f001b;
+  background-color: #f5d4da;
+}
+
+.actividad-evento strong {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.actividad-evento:focus-visible {
+  outline: 3px solid var(--color-primary-light);
+  outline-offset: 1px;
+}
+
+.actividad-evento-detalles {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: -1px;
+  z-index: 6;
+  display: grid;
+  gap: 0.3rem;
+  width: max-content;
+  min-width: min(12rem, calc(100vw - 2rem));
+  max-width: min(16rem, calc(100vw - 2rem));
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 400;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.actividad-evento.examen .actividad-evento-detalles {
+  border-color: var(--color-danger);
+}
+
+.actividad-evento-detalles span {
+  display: block;
+}
+
+.actividad-sin-horario {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+}
+
+.actividad-sin-horario h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+}
+
+.actividad-sin-horario ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.actividad-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1rem 0 0.5rem;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.actividad-leyenda span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.actividad-leyenda-muestra {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 0.2rem;
+  background: var(--color-primary-dark);
+}
+
+.actividad-leyenda-muestra.clase {
+  background: var(--color-primary);
+}
+
+.actividad-leyenda-muestra.examen {
+  background: var(--color-danger);
 }
 
 .actividad-tipo-evento {
@@ -143,6 +358,11 @@
 .actividad-tarjeta.clase .actividad-tipo-evento {
   color: var(--color-white);
   background: var(--color-primary);
+}
+
+.actividad-tarjeta.examen .actividad-tipo-evento {
+  color: var(--color-white);
+  background: var(--color-danger);
 }
 
 .actividad-tarjeta h5 {
@@ -227,8 +447,4 @@
     flex-direction: column;
   }
 
-  .actividad-dia h4 {
-    flex-direction: column;
-    gap: 0.2rem;
-  }
 }

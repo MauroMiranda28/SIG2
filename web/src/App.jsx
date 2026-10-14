@@ -7,6 +7,7 @@ import Bibliografia from "./materias/Bibliografia.jsx";
 import Correlatividades from "./correlatividades/Correlatividades.jsx";
 import CargarCorrelatividades from "./correlatividades/CargarCorrelatividades.jsx";
 import AgendaSemanal from "./horarios/AgendaSemanal.jsx";
+import AsignarDocentesHorario from "./horarios/AsignarDocentesHorario.jsx";
 import MisDatos from "./perfil/MisDatos.jsx";
 import MisNotas from "./notas/MisNotas.jsx";
 import HistorialNotas from "./evaluaciones/HistorialNotas.jsx";
@@ -28,10 +29,19 @@ import EnviarAviso from "./docentes/EnviarAviso.jsx";
 import FechasExamen from "./docentes/FechasExamen.jsx";
 import Tareas from "./docentes/Tareas.jsx";
 import Revisiones from "./docentes/Revisiones.jsx";
+import ProgramaDocente from "./docentes/ProgramaDocente.jsx";
 
 import MiCarrera from "./carreras/MiCarrera.jsx";
 import ActualizarPrograma from "./programas/ActualizarPrograma.jsx";
 import CargarPrograma from "./programas/CargarPrograma.jsx";
+
+function AgendaSemanalDocente() {
+  return <AgendaSemanal esDocente />;
+}
+
+function DedicacionDocente() {
+  return <ActividadesPersonales esDocente />;
+}
 
 // El alumno recibe avisos de sus materias y el docente, las solicitudes de revisión de sus alumnos.
 const tieneNotificaciones = (rol) => rol === "ALUMNO" || rol === "DOCENTE";
@@ -51,7 +61,7 @@ function seccionPermitida(id, rol) {
 function tabInicial(rol) {
   const enlace = seccionDelHash();
   if (seccionPermitida(enlace, rol)) return enlace;
-  return rol === "DOCENTE" ? "mis-materias" : "materias";
+  return rol === "DOCENTE" ? "mis-materias" : rol === "ADMIN" ? "asignar-docentes-horario" : "materias";
 }
 
 // Categorías del menú, en el orden en que se muestran. Una categoría solo aparece si el rol
@@ -64,15 +74,18 @@ const GRUPOS = [
   { id: "mis-materias", label: "Mis materias" },
   { id: "evaluacion-docente", label: "Evaluación" },
   { id: "comunicacion", label: "Comunicación" },
+  { id: "organizacion-academica", label: "Organización académica" },
   { id: "planes", label: "Carreras y planes" },
   { id: "programas", label: "Programas" },
   { id: "cuenta", label: "Cuenta" },
 ];
 
 const NAV_ITEMS = [
-  { id: "materias", label: "Materias", grupo: "materias", roles: ["ALUMNO", "ADMIN"], Componente: MateriasCarrera },
+  { id: "materias", label: "Materias", grupo: "materias", roles: ["ALUMNO"], Componente: MateriasCarrera },
   { id: "horario", label: "Mi horario", grupo: "agenda", roles: ["ALUMNO"], Componente: AgendaSemanal },
   { id: "actividades-personales", label: "Actividades personales", grupo: "agenda", roles: ["ALUMNO"], Componente: ActividadesPersonales },
+  { id: "horario-docente", label: "Mi horario", grupo: "agenda", roles: ["DOCENTE"], Componente: AgendaSemanalDocente },
+  { id: "dedicacion-docente", label: "Dedicación extra-áulica", grupo: "agenda", roles: ["DOCENTE"], Componente: DedicacionDocente },
   { id: "mi-plan", label: "Mi plan de estudios", grupo: "mi-carrera", roles: ["ALUMNO"], Componente: MiPlan },
   { id: "bibliografia", label: "Bibliografía", grupo: "mi-carrera", roles: ["ALUMNO"], Componente: Bibliografia },
   { id: "correlatividades", label: "Correlatividades", grupo: "mi-carrera", roles: ["ALUMNO"], Componente: Correlatividades },
@@ -95,6 +108,8 @@ const NAV_ITEMS = [
   { id: "correlatividades-admin", label: "Correlatividades", grupo: "planes", roles: ["ADMIN"], Componente: CargarCorrelatividades },
   { id: "cargar-programa", label: "Cargar programa", grupo: "programas", roles: ["ADMIN"], Componente: CargarPrograma },
   { id: "actualizar-programa", label: "Actualizar programa", grupo: "programas", roles: ["ADMIN"], Componente: ActualizarPrograma },
+  { id: "programa-docente", label: "Consultar programa", grupo: "programas", roles: ["DOCENTE"], Componente: ProgramaDocente },
+  { id: "asignar-docentes-horario", label: "Asignar docentes a clases", grupo: "organizacion-academica", roles: ["ADMIN"], Componente: AsignarDocentesHorario },
   // «Mis datos» se renderiza aparte porque necesita props (usuario, onActualizado); va igual en NAV_ITEMS para que el menú lo agrupe.
   { id: "mis-datos", label: "Mis datos", grupo: "cuenta", roles: null, Componente: null },
 ];

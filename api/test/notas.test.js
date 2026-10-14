@@ -404,6 +404,20 @@ test("verificarCarga: el examen final solo para regulares y dentro del plazo", (
   assert.throws(() => verificarCarga(final("2028-07-02"), contexto(esRegular)), /venció el 1\/7\/2028/);
 });
 
+test("verificarCarga: no admite evaluaciones de cursada después de la condición final", () => {
+  const parcial = { tipo: "PARCIAL", nota: 8, fecha: fecha("2026-08-01") };
+  const regular = { estado: "REGULAR", regularDesde: fecha("2026-07-01") };
+  const aprobada = { estado: "APROBADA", regularDesde: null };
+
+  for (const cursada of [regular, aprobada]) {
+    assert.throws(
+      () => verificarCarga(parcial, contexto(cursada)),
+      (error) => error.status === 409 && /condición final cargada/.test(error.message),
+    );
+  }
+  verificarCarga({ ...parcial, tipo: "FINAL" }, contexto(regular));
+});
+
 // ---------- HTTP: condición final y examen final ----------
 
 test("HTTP: sin la condición de la materia configurada no se cargan condiciones ni finales", async () => {
@@ -543,4 +557,23 @@ test("HTTP: solo a inscriptos de la mesa, solo mesas de final de la materia ya r
     assert.match((await r.json()).error, /mesa de final de esta materia/);
   });
   for (const db of [noInscripto, futura, deOtra]) assert.equal(db.registro.evaluaciones.length, 0);
+});
+
+test("HTTP: no carga parciales después de una condición final aprobada o regular", async () => {
+  for (const cursada of [
+    { estado: "APROBADA", regularDesde: null },
+    { estado: "REGULAR", regularDesde: fecha("2026-07-01") },
+  ]) {
+    const db = dbFalsa({ cursada });
+    await conAPI(db, async (request) => {
+      const r = await request("POST", "/materias/5", "DOCENTE", {
+        ...carga(),
+        notas: [{ alumnoId: 2, nota: 8 }],
+      });
+      assert.equal(r.status, 409);
+      assert.match((await r.json()).error, /condición final cargada/);
+    });
+    assert.equal(db.registro.evaluaciones.length, 0, `${cursada.estado}: no debe guardar evaluaciones`);
+    assert.equal(db.registro.notificaciones.length, 0, `${cursada.estado}: no debe notificar`);
+  }
 });

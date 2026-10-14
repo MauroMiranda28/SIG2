@@ -184,8 +184,10 @@ Lo que ya está implementado, para no repetir trabajo:
 - Las actividades previas con un tipo libre conservan su texto original como etiqueta y pasan a la
   categoría «Otra».
 - Cada actividad se programa con fecha (puntual) o día de la semana (recurrente) y hora de inicio.
-  La vista «Agenda semanal» presenta en listas por día las actividades y las clases de «Mi horario»;
-  permite cambiar de semana sin requerir una vista de calendario.
+  La vista «Mi horario» presenta una grilla semanal con días en columnas y horas en filas, donde ubica
+  actividades, clases y exámenes de las materias del alumno según su horario; permite cambiar de semana
+  y resalta clases y exámenes. Las tarjetas muestran solo el título; al seleccionarlas se despliega la
+  comisión y el aula de una clase, el aula de un examen o la categoría y las etiquetas de una actividad.
 - Al guardar, se avisa si la actividad coincide con una clase o con otra actividad personal; el aviso
   no impide guardarla. La agenda resume el tiempo personal planificado por categoría y etiqueta.
 - La lista de actividades se puede filtrar por etiqueta. La API expone `GET` y `POST /api/actividades-personales`,
@@ -194,11 +196,26 @@ Lo que ya está implementado, para no repetir trabajo:
 - Tras actualizar el esquema, correr `npm run db:push --workspace=api`. Tests:
   `node --test api/test/actividadesPersonales.test.js`.
 
+**Dedicación extra-áulica (DOCENTE)**
+- «Mi horario» muestra en la grilla semanal las clases que dicta, con comisión y aula, a partir de
+  las materias asignadas al docente. También muestra sus bloques propios, independientes de la agenda
+  de alumnos.
+- El docente registra, edita y elimina bloques de gestión personal, planificación académica,
+  preparación de clase, preparación de examen y corrección de exámenes, indicando duración, etiquetas
+  y si ocurren una vez o semanalmente.
+- Los bloques se guardan asociados al usuario autenticado; solo sus propios registros aparecen en
+  su grilla y en su resumen de dedicación.
+- Las rutas `/api/actividades-personales` admiten ALUMNO y DOCENTE, validan categorías según el rol
+  y limitan cada operación a los bloques del usuario autenticado.
+- Historia de usuario: «Como docente, quiero ver las clases que debo dictar y registrar actividades
+  personales, de preparación y corrección como bloques independientes, para organizar y llevar un
+  seguimiento de mi dedicación extra-áulica».
+
 **Historias de usuario cubiertas**
 - Como alumno, quiero planificar una actividad personal puntual con fecha, hora y duración o una
   actividad recurrente con día, hora y duración, para organizar mis ocupaciones dentro de la semana.
-- Como alumno, quiero consultar una agenda semanal en listas por día que reúna mis clases y actividades
-  personales, para ver cuándo tengo tiempo ocupado sin depender de un calendario.
+- Como alumno, quiero consultar un calendario semanal que reúna mis clases, exámenes y actividades
+  personales en cada día, para ver cómo se distribuye mi tiempo.
 - Como alumno, quiero recibir una advertencia cuando una actividad se superponga con una clase u otra
   actividad, para poder ajustar mi organización antes de guardarla; puedo conservarla si decido hacerlo.
 - Como alumno, quiero consultar el tiempo personal planificado por semana, categoría y etiqueta, para entender
@@ -466,11 +483,10 @@ Lo que ya está implementado, para no repetir trabajo:
   token y son solo para ALUMNO. `api/test/privacidad.test.js` lo verifica para que no se rompa.
 - Los errores internos (500) ya no muestran el mensaje de Prisma al cliente: podía incluir datos de la
   base, como el hash de una contraseña. El detalle queda solo en la consola de la API.
-- Regla para el módulo de calendario cuando se haga: las actividades se filtran siempre por
-  `req.usuario.id`, nunca por un id que venga en la URL o el body.
+- Las actividades y los eventos académicos de la agenda se limitan a la identidad autenticada del alumno.
 
 Las notificaciones (historial, avisos del docente, cambio de horario, calificaciones, fechas de examen y
-recordatorio de entregas) están completas. Todo lo demás (calendario) está sin empezar.
+recordatorio de entregas) están completas. La agenda semanal está disponible para alumnos.
 
 ## Una cosa para definir en grupo
 
