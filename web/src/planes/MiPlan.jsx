@@ -25,7 +25,7 @@ export default function MiPlan() {
       <div className="plan-tabla"><table>
         <caption>Materias de {anio}.º año</caption>
         <thead><tr><th scope="col">Código</th><th scope="col">Materia</th><th scope="col">Cuatrimestre</th><th scope="col">Carga horaria</th></tr></thead>
-        <tbody>{materias.map(m => <tr key={m.id}><td>{m.codigo}</td><td>{m.nombre}</td><td>{m.cuatrimestre ? `${m.cuatrimestre}.º` : "Sin especificar"}</td><td>{m.cargaHoraria == null ? "Sin especificar" : `${m.cargaHoraria} h`}</td></tr>)}</tbody>
+        <tbody>{materias.map(m => <tr key={m.id}><td>{m.codigo}</td><td>{m.nombre}</td><td>{m.cuatrimestre === 1 ? "1.º cuatrimestre" : m.cuatrimestre === 2 ? "2.º cuatrimestre" : "Anual"}</td><td>{m.cargaHoraria == null ? "Sin especificar" : `${m.cargaHoraria} h`}</td></tr>)}</tbody>
       </table></div>
     </section>)}
   </section>;

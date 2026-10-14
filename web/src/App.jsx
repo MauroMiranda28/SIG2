@@ -8,6 +8,7 @@ import Correlatividades from "./correlatividades/Correlatividades.jsx";
 import CargarCorrelatividades from "./correlatividades/CargarCorrelatividades.jsx";
 import AgendaSemanal from "./horarios/AgendaSemanal.jsx";
 import AsignarDocentesHorario from "./horarios/AsignarDocentesHorario.jsx";
+import PaginaCalendarioAnual from "./horarios/PaginaCalendarioAnual.jsx";
 import MisDatos from "./perfil/MisDatos.jsx";
 import MisNotas from "./notas/MisNotas.jsx";
 import HistorialNotas from "./evaluaciones/HistorialNotas.jsx";
@@ -18,6 +19,7 @@ import SimularPromedio from "./promedio/SimularPromedio.jsx";
 import Notificaciones from "./notificaciones/Notificaciones.jsx";
 import PreferenciasNotificaciones from "./notificaciones/PreferenciasNotificaciones.jsx";
 import ActividadesPersonales from "./actividades/ActividadesPersonales.jsx";
+import CalendarioAcademico from "./calendario/CalendarioAcademico.jsx";
 
 import CrearPlan from "./planes/CrearPlan.jsx";
 import MiPlan from "./planes/MiPlan.jsx";
@@ -83,8 +85,10 @@ const GRUPOS = [
 const NAV_ITEMS = [
   { id: "materias", label: "Materias", grupo: "materias", roles: ["ALUMNO"], Componente: MateriasCarrera },
   { id: "horario", label: "Mi horario", grupo: "agenda", roles: ["ALUMNO"], Componente: AgendaSemanal },
+  { id: "calendario-anual-alumno", label: "Calendario académico", grupo: "agenda", roles: ["ALUMNO"], Componente: PaginaCalendarioAnual },
   { id: "actividades-personales", label: "Actividades personales", grupo: "agenda", roles: ["ALUMNO"], Componente: ActividadesPersonales },
   { id: "horario-docente", label: "Mi horario", grupo: "agenda", roles: ["DOCENTE"], Componente: AgendaSemanalDocente },
+  { id: "calendario-anual-docente", label: "Calendario académico", grupo: "agenda", roles: ["DOCENTE"], Componente: PaginaCalendarioAnual },
   { id: "dedicacion-docente", label: "Dedicación extra-áulica", grupo: "agenda", roles: ["DOCENTE"], Componente: DedicacionDocente },
   { id: "mi-plan", label: "Mi plan de estudios", grupo: "mi-carrera", roles: ["ALUMNO"], Componente: MiPlan },
   { id: "bibliografia", label: "Bibliografía", grupo: "mi-carrera", roles: ["ALUMNO"], Componente: Bibliografia },
@@ -110,6 +114,7 @@ const NAV_ITEMS = [
   { id: "actualizar-programa", label: "Actualizar programa", grupo: "programas", roles: ["ADMIN"], Componente: ActualizarPrograma },
   { id: "programa-docente", label: "Consultar programa", grupo: "programas", roles: ["DOCENTE"], Componente: ProgramaDocente },
   { id: "asignar-docentes-horario", label: "Asignar docentes a clases", grupo: "organizacion-academica", roles: ["ADMIN"], Componente: AsignarDocentesHorario },
+  { id: "calendario-academico", label: "Calendario académico", grupo: "organizacion-academica", roles: ["ADMIN"], Componente: CalendarioAcademico },
   // «Mis datos» se renderiza aparte porque necesita props (usuario, onActualizado); va igual en NAV_ITEMS para que el menú lo agrupe.
   { id: "mis-datos", label: "Mis datos", grupo: "cuenta", roles: null, Componente: null },
 ];

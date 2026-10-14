@@ -22,6 +22,10 @@ test("validarNuevoExamen: acepta uno válido, con hora y aula opcionales", () =>
     { tipo: "PARCIAL", fecha: new Date("2026-10-20T00:00:00Z"), hora: null, aulaId: null });
   assert.deepEqual(validarNuevoExamen({ tipo: "FINAL", fecha: "2026-10-06", hora: "18:30", aulaId: "3" }, AHORA),
     { tipo: "FINAL", fecha: new Date("2026-10-06T00:00:00Z"), hora: "18:30", aulaId: 3 }, "hoy mismo vale");
+  for (const tipo of ["PARCIAL", "RECUPERATORIO", "FINAL"]) {
+    assert.throws(() => validarNuevoExamen({ tipo, fecha: "2026-10-11" }, AHORA),
+      (error) => error.status === 400 && /domingo/i.test(error.message));
+  }
 });
 
 test("validarNuevoExamen: rechaza tipo, fecha, hora o aula inválidos y fechas pasadas", () => {
@@ -69,7 +73,11 @@ test("cambioRelevante: fecha, hora o aula; lo demás no", () => {
 // ---------- Contrato HTTP (DB en memoria) ----------
 
 // Materia 5 dictada por el docente 7 (alumnos 21 y 22); la 6 es de otro docente.
-function dbExamenes({ alumnos = [{ id: 21 }, { id: 22 }], aulas = [{ id: 1, nombre: "Aula 1" }] } = {}) {
+function dbExamenes({
+  alumnos = [{ id: 21 }, { id: 22 }],
+  aulas = [{ id: 1, nombre: "Aula 1" }],
+  periodos = [{ tipo: "EXAMENES_FINALES", fechaInicio: new Date("1900-01-01T00:00:00Z"), fechaFin: new Date("2100-12-31T00:00:00Z") }],
+} = {}) {
   const estado = { examenes: [], notificaciones: [], sig: 1, filtroAlumnos: null };
   const MATERIAS = { 5: { id: 5, nombre: "Programación I", codigo: "PROG1" }, 6: { id: 6, nombre: "Base de Datos", codigo: "BD1" } };
   const conAula = (e) => ({ ...e, aula: aulas.find((a) => a.id === e.aulaId) ?? null });
@@ -78,6 +86,12 @@ function dbExamenes({ alumnos = [{ id: 21 }, { id: 22 }], aulas = [{ id: 1, nomb
     estado,
     materia: { findUnique: async ({ where }) => MATERIAS[where.id] ?? null },
     materiaDocente: { findUnique: async ({ where }) => (where.materiaId_docenteId.materiaId === 5 && where.materiaId_docenteId.docenteId === 7 ? { materiaId: 5 } : null) },
+    periodoAcademico: {
+      findFirst: async ({ where }) => periodos.find((periodo) =>
+        periodo.tipo === where.tipo &&
+        periodo.fechaInicio <= where.fechaInicio.lte &&
+        periodo.fechaFin >= where.fechaFin.gte) ?? null,
+    },
     aula: { findUnique: async ({ where }) => aulas.find((a) => a.id === where.id) ?? null },
     usuario: { findMany: async ({ where }) => { estado.filtroAlumnos = where; return alumnos; } },
     fechaExamen: {
@@ -173,6 +187,29 @@ test("HTTP: ADMIN puede programar en cualquier materia", async () => {
     assert.equal((await request("POST", "/materias/6", "ADMIN", { tipo: "FINAL", fecha: futuro(30) }, 1)).status, 201);
   });
   assert.equal(db.estado.notificaciones[0].materiaId, 6);
+});
+
+test("HTTP: los finales deben quedar en períodos configurados y pueden programarse en varios llamados", async () => {
+  const primeraFecha = futuro(10);
+  const ultimaFecha = new Date(`${primeraFecha}T00:00:00.000Z`);
+  ultimaFecha.setUTCDate(ultimaFecha.getUTCDate() + 2);
+  const siguienteLlamado = new Date(ultimaFecha);
+  siguienteLlamado.setUTCDate(siguienteLlamado.getUTCDate() + 1);
+  const fueraDePeriodo = new Date(siguienteLlamado);
+  fueraDePeriodo.setUTCDate(fueraDePeriodo.getUTCDate() + 3);
+  const fecha = (date) => date.toISOString().slice(0, 10);
+  const db = dbExamenes({ periodos: [
+    { tipo: "EXAMENES_FINALES", fechaInicio: new Date(`${primeraFecha}T00:00:00.000Z`), fechaFin: ultimaFecha },
+    { tipo: "EXAMENES_FINALES", fechaInicio: siguienteLlamado, fechaFin: fueraDePeriodo },
+  ] });
+  await conAPI(db, async (request) => {
+    assert.equal((await request("POST", "/materias/5", "DOCENTE", { tipo: "FINAL", fecha: primeraFecha })).status, 201);
+    assert.equal((await request("POST", "/materias/5", "DOCENTE", { tipo: "FINAL", fecha: fecha(siguienteLlamado) })).status, 201);
+    assert.equal((await request("POST", "/materias/5", "DOCENTE", { tipo: "FINAL", fecha: futuro(40) })).status, 400);
+    assert.equal((await request("PATCH", "/1", "DOCENTE", { fecha: futuro(40) })).status, 400);
+  });
+  assert.equal(db.estado.examenes.length, 2);
+  assert.equal(db.estado.notificaciones.length, 4);
 });
 
 test("HTTP: validaciones (fecha pasada, tipo, aula inexistente) no guardan ni avisan", async () => {

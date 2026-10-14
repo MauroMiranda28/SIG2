@@ -3,6 +3,9 @@ import { prisma } from "../db.js";
 import { requiereAuth, requiereRol } from "../middleware/auth.js";
 import { errorAcceso, validarId } from "../services/docentes.js";
 import {
+  aniosCalendarioPublicados, claseOcurreEnFecha, marcasCalendarioParaFecha,
+} from "../services/calendarioAcademico.js";
+import {
   DATOS_ACTIVIDAD_PERSONAL,
   DIAS_SEMANA,
   etiquetaDiaDeFecha,
@@ -149,7 +152,10 @@ export function crearRouterActividadesPersonales(db = prisma) {
       fin.setUTCDate(fin.getUTCDate() + 7);
 
       const esAlumno = req.usuario.rol === "ALUMNO";
-      const [actividades, inscripciones, cursadas, materiasDocente] = await Promise.all([
+      const hasta = new Date(fin.getTime() - 86400000);
+      const aniosSemana = [...new Set([inicio.getUTCFullYear(), hasta.getUTCFullYear()])];
+      const aniosPublicados = await aniosCalendarioPublicados(db, aniosSemana);
+      const [actividades, inscripciones, cursadas, materiasDocente, periodos] = await Promise.all([
         db.actividadPersonal.findMany({
           where: { usuarioId: req.usuario.id },
           select: DATOS_ACTIVIDAD_PERSONAL,
@@ -161,7 +167,13 @@ export function crearRouterActividadesPersonales(db = prisma) {
             comision: {
               select: {
                 nombre: true,
-                materia: { select: { nombre: true } },
+                materia: {
+                  select: {
+                    nombre: true,
+                    cuatrimestre: true,
+                    cursadas: { where: { alumnoId: req.usuario.id }, select: { estado: true } },
+                  },
+                },
                 bloques: {
                   select: {
                     dia: true,
@@ -182,6 +194,7 @@ export function crearRouterActividadesPersonales(db = prisma) {
           where: { docentes: { some: { docenteId: req.usuario.id } } },
           select: {
             nombre: true,
+            cuatrimestre: true,
             comisiones: {
               select: {
                 nombre: true,
@@ -197,6 +210,14 @@ export function crearRouterActividadesPersonales(db = prisma) {
               },
             },
           },
+        }),
+        db.periodoAcademico.findMany({
+          where: {
+            anio: { in: aniosPublicados },
+            fechaInicio: { lte: hasta },
+            fechaFin: { gte: inicio },
+          },
+          select: { anio: true, tipo: true, nombre: true, fechaInicio: true, fechaFin: true },
         }),
       ]);
       const eventos = [];
@@ -217,15 +238,22 @@ export function crearRouterActividadesPersonales(db = prisma) {
       }
 
       for (const { comision } of inscripciones) {
+        if (["REGULAR", "LIBRE", "APROBADA"].includes(comision.materia.cursadas?.[0]?.estado)) continue;
         for (const bloque of comision.bloques) {
-          eventos.push(eventoClase(inicio, comision.materia.nombre, comision, bloque));
+          const fecha = fechaParaDia(inicio, bloque.dia);
+          if (claseOcurreEnFecha(comision.materia, fecha, periodos)) {
+            eventos.push(eventoClase(inicio, comision.materia.nombre, comision, bloque));
+          }
         }
       }
 
       for (const materia of materiasDocente) {
         for (const comision of materia.comisiones) {
           for (const bloque of comision.bloques) {
-            eventos.push(eventoClase(inicio, materia.nombre, comision, bloque));
+            const fecha = fechaParaDia(inicio, bloque.dia);
+            if (claseOcurreEnFecha(materia, fecha, periodos)) {
+              eventos.push(eventoClase(inicio, materia.nombre, comision, bloque));
+            }
           }
         }
       }
@@ -264,11 +292,12 @@ export function crearRouterActividadesPersonales(db = prisma) {
         a.titulo.localeCompare(b.titulo, "es"));
       res.json({
         desde: inicio,
-        hasta: new Date(fin.getTime() - 86400000),
+        hasta,
         dias: DIAS_SEMANA.map((dia) => ({
           dia,
           nombre: NOMBRE_DIA[dia],
           fecha: fechaParaDia(inicio, dia),
+          calendario: marcasCalendarioParaFecha(fechaParaDia(inicio, dia), periodos),
           eventos: eventos.filter((evento) => evento.dia === dia),
         })),
         eventos,

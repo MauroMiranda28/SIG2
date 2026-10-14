@@ -47,6 +47,125 @@
   cursor: pointer;
 }
 
+.calendario-anual {
+  margin: 1.5rem 0 2rem;
+}
+
+.calendario-anual-selector {
+  display: grid;
+  width: min(100%, 12rem);
+  gap: 0.35rem;
+}
+
+.calendario-anual-selector input {
+  padding: 0.45rem 0.6rem;
+}
+
+.calendario-anual h3 {
+  margin-bottom: 0.75rem;
+}
+
+.calendario-anual-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+}
+
+.calendario-anual-leyenda span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.calendario-anual-muestra {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 1px solid currentColor;
+  border-radius: 0.2rem;
+}
+
+.calendario-anual-meses {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.85rem;
+}
+
+.calendario-anual-mes {
+  padding: 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+}
+
+.calendario-anual-mes h4 {
+  margin: 0 0 0.55rem;
+  text-align: center;
+}
+
+.calendario-anual-grilla {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.2rem;
+  text-align: center;
+}
+
+.calendario-anual-dia-semana,
+.calendario-anual-numero,
+.calendario-anual-vacio {
+  display: grid;
+  min-height: 1.8rem;
+  place-items: center;
+}
+
+.calendario-anual-dia-semana {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.calendario-anual-numero {
+  border: 1px solid transparent;
+  border-radius: 50%;
+  font-size: 0.85rem;
+}
+
+.calendario-anual-numero.calendario-feriado,
+.calendario-anual-muestra.calendario-feriado {
+  border-color: #991b1b;
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.calendario-anual-numero.calendario-vacaciones,
+.calendario-anual-muestra.calendario-vacaciones {
+  border-color: #155e75;
+  background: #cffafe;
+  color: #155e75;
+  font-weight: 700;
+}
+
+.calendario-anual-numero.calendario-examenes_finales,
+.calendario-anual-muestra.calendario-examenes_finales {
+  border-color: #5b21b6;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-weight: 700;
+}
+
+.calendario-anual-numero.calendario-inicio_cuatrimestre,
+.calendario-anual-numero.calendario-fin_cuatrimestre,
+.calendario-anual-muestra.calendario-inicio_cuatrimestre,
+.calendario-anual-muestra.calendario-fin_cuatrimestre {
+  border-color: #92400e;
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 700;
+}
+
 .actividad-filtro {
   max-width: 20rem;
   margin: 1rem 0;
@@ -123,7 +242,7 @@
 .actividad-grilla {
   display: grid;
   grid-template-columns: 4.25rem repeat(7, minmax(8.5rem, 1fr));
-  grid-template-rows: 3.5rem calc(var(--actividad-cantidad-horas) * var(--actividad-alto-hora));
+  grid-template-rows: minmax(3.5rem, auto) calc(var(--actividad-cantidad-horas) * var(--actividad-alto-hora));
   min-width: 70rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -157,6 +276,50 @@
 .actividad-grilla-cabecera span {
   color: var(--color-text-muted);
   font-size: 0.85rem;
+}
+
+.actividad-grilla-cabecera .actividad-calendario-marcas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+.actividad-calendario-marcas span {
+  border-radius: 0.25rem;
+  background: var(--color-white);
+  padding: 0.1rem 0.25rem;
+  font-size: 0.7rem;
+}
+
+.actividad-calendario-marca.calendario-feriado,
+.actividad-grilla-cabecera.calendario-feriado {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.actividad-calendario-marca.calendario-vacaciones,
+.actividad-grilla-cabecera.calendario-vacaciones {
+  background: #cffafe;
+  color: #155e75;
+}
+
+.actividad-calendario-marca.calendario-examenes_finales,
+.actividad-grilla-cabecera.calendario-examenes_finales {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.actividad-calendario-marca.calendario-inicio_cuatrimestre,
+.actividad-calendario-marca.calendario-fin_cuatrimestre,
+.actividad-grilla-cabecera.calendario-inicio_cuatrimestre,
+.actividad-grilla-cabecera.calendario-fin_cuatrimestre {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.actividad-calendario-marca {
+  border: 1px solid currentColor;
+  font-weight: 600;
 }
 
 .actividad-columna-horas {

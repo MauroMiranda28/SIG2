@@ -67,6 +67,15 @@ enum ModalidadFinal {
   LIBRE
 }
 
+enum TipoPeriodoAcademico {
+  CLASES_ANUALES
+  CLASES_CUATRIMESTRE_1
+  CLASES_CUATRIMESTRE_2
+  EXAMENES_FINALES
+  VACACIONES
+  FERIADO
+}
+
 enum EstadoSolicitud {
   PENDIENTE
   RESUELTA
@@ -171,6 +180,24 @@ model PlanEstudio {
 
   materias Materia[]
   alumnos Usuario[]
+}
+
+model PeriodoAcademico {
+  id          Int                 @id @default(autoincrement())
+  anio        Int
+  tipo        TipoPeriodoAcademico
+  nombre      String
+  fechaInicio DateTime            @db.Date
+  fechaFin    DateTime            @db.Date
+  creadoEn    DateTime            @default(now())
+
+  @@index([anio, tipo, fechaInicio, fechaFin])
+}
+
+model PublicacionCalendario {
+  anio        Int      @id
+  publicado   Boolean  @default(false)
+  actualizadoEn DateTime @updatedAt
 }
 
 // Mat-01 a Mat-07

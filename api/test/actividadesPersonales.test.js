@@ -58,7 +58,9 @@ test("validación: edición parcial, campos vacíos y filtros de etiqueta", () =
   assert.throws(() => validarFechaAgenda("2026-02-30"), (error) => error.status === 400);
 });
 
-function crearDB(filas = [], inscripciones = [], cursadas = [], examenes = [], materiasDocente = []) {
+function crearDB(filas = [], inscripciones = [], cursadas = [], examenes = [], materiasDocente = [], periodos = [{
+  anio: 2026, tipo: "CLASES_ANUALES", nombre: "Ciclo lectivo", fechaInicio: new Date("2026-01-01T00:00:00Z"), fechaFin: new Date("2026-12-31T00:00:00Z"),
+}], aniosPublicados = [2026]) {
   let siguienteId = Math.max(0, ...filas.map((fila) => fila.id)) + 1;
   const cumple = (fila, where) => fila.id === where.id && fila.usuarioId === where.usuarioId;
   const seleccionar = (fila, select) => Object.fromEntries(Object.keys(select).map((campo) => [campo, fila[campo]]));
@@ -104,6 +106,16 @@ function crearDB(filas = [], inscripciones = [], cursadas = [], examenes = [], m
     materia: {
       findMany: async ({ where }) => materiasDocente
         .filter((materia) => materia.docenteId === where.docentes.some.docenteId),
+    },
+    publicacionCalendario: {
+      findMany: async ({ where }) => (where.anio.in ?? [])
+        .filter((anio) => aniosPublicados.includes(anio))
+        .map((anio) => ({ anio })),
+    },
+    periodoAcademico: {
+      findMany: async ({ where }) => periodos.filter((periodo) =>
+        (!where.anio?.in || where.anio.in.includes(periodo.anio)) &&
+        periodo.fechaInicio <= where.fechaInicio.lte && periodo.fechaFin >= where.fechaFin.gte),
     },
   };
 }
@@ -256,6 +268,54 @@ test("HTTP: agenda semanal ordena clases y actividades puntuales y recurrentes",
     assert.equal(miercoles.eventos[3].aula, "Aula 1");
     assert.ok(agenda.eventos.every((evento) => evento.titulo !== "Otra semana"));
     assert.equal(agenda.dias.length, 7);
+  });
+});
+
+test("HTTP: limita clases al cuatrimestre configurado y omite feriados y vacaciones", async () => {
+  const periodos = [
+    { anio: 2026, tipo: "CLASES_CUATRIMESTRE_1", nombre: "Cursada", fechaInicio: new Date("2026-10-07T00:00:00Z"), fechaFin: new Date("2026-10-09T00:00:00Z") },
+    { anio: 2026, tipo: "FERIADO", nombre: "Feriado", fechaInicio: new Date("2026-10-07T00:00:00Z"), fechaFin: new Date("2026-10-07T00:00:00Z") },
+    { anio: 2026, tipo: "VACACIONES", nombre: "Receso", fechaInicio: new Date("2026-10-09T00:00:00Z"), fechaFin: new Date("2026-10-09T00:00:00Z") },
+  ];
+  const db = crearDB([], [{
+    comision: {
+      nombre: "Comisión A",
+      materia: { nombre: "Programación", cuatrimestre: 1, cursadas: [] },
+      bloques: ["MIERCOLES", "JUEVES", "VIERNES"].map((dia) => ({
+        dia, horaInicio: "18:00", horaFin: "20:00", aula: null,
+      })),
+    },
+  }], [], [], [], periodos);
+  await conAPI(db, async (request) => {
+    const respuesta = await request("GET", "/agenda?fecha=2026-10-07");
+    const agenda = await respuesta.json();
+    assert.deepEqual(agenda.eventos.filter((evento) => evento.tipoEvento === "CLASE").map((evento) => evento.dia), ["JUEVES"]);
+    assert.equal(agenda.dias.find((dia) => dia.dia === "MIERCOLES").calendario.esHabil, false);
+    assert.ok(agenda.dias.find((dia) => dia.dia === "MIERCOLES").calendario.marcas.some((marca) => marca.tipo === "FERIADO" && marca.nombre === "Feriado"));
+    assert.equal(agenda.dias.find((dia) => dia.dia === "JUEVES").calendario.esHabil, true);
+    assert.ok(agenda.dias.find((dia) => dia.dia === "VIERNES").calendario.marcas.some((marca) => marca.tipo === "VACACIONES" && marca.nombre === "Receso"));
+  });
+});
+
+test("HTTP: la agenda no expone clases ni marcas del calendario mientras el año no esté publicado", async () => {
+  const db = crearDB([], [{
+    comision: {
+      nombre: "Comisión A",
+      materia: { nombre: "Programación", cuatrimestre: 1, cursadas: [] },
+      bloques: [{ dia: "MIERCOLES", horaInicio: "18:00", horaFin: "20:00", aula: null }],
+    },
+  }], [], [], [], [{
+    anio: 2026,
+    tipo: "CLASES_CUATRIMESTRE_1",
+    nombre: "Cursada",
+    fechaInicio: new Date("2026-10-07T00:00:00Z"),
+    fechaFin: new Date("2026-10-09T00:00:00Z"),
+  }], []);
+  await conAPI(db, async (request) => {
+    const respuesta = await request("GET", "/agenda?fecha=2026-10-07");
+    const agenda = await respuesta.json();
+    assert.equal(agenda.eventos.some((evento) => evento.tipoEvento === "CLASE"), false);
+    assert.deepEqual(agenda.dias.find((dia) => dia.dia === "MIERCOLES").calendario.marcas, []);
   });
 });
 

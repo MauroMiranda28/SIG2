@@ -58,7 +58,7 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion }) {
       <div>
         <p style={{ margin: "0 0 0.25rem 0" }}>
           <strong>Año</strong> {materia.anio}
-          {materia.cuatrimestre && <> · <strong>Cuatrimestre</strong> {materia.cuatrimestre}</>}
+          · <strong>Duración</strong> {materia.cuatrimestre === 1 ? "1.º cuatrimestre" : materia.cuatrimestre === 2 ? "2.º cuatrimestre" : "Anual"}
           {materia.cargaHoraria && <> · <strong>Carga horaria</strong> {materia.cargaHoraria}hs</>}
         </p>
         {materia.plan?.carrera && (
@@ -88,6 +88,14 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion }) {
 
         {comisiones.length === 0 && <p className="empty-state">Todavía no hay comisiones cargadas para esta materia.</p>}
 
+        {comisiones.length > 0 && !comisiones[0].puedeElegirComision && (
+          <p className="text-muted" role="status">
+            {comisiones[0].estadoCursada === "APROBADA"
+              ? "La materia ya está aprobada; no podés elegir una comisión ni inscribirte a finales."
+              : "La cursada finalizó. Ya no podés elegir una comisión; podés inscribirte a un examen final desde «Evaluación», si la materia todavía no está aprobada."}
+          </p>
+        )}
+
         {errorEleccion && <p className="form-error">{errorEleccion}</p>}
 
         <ul className="list-clean" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
@@ -112,9 +120,11 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion }) {
                 </div>
               </div>
 
-              <button onClick={() => elegirComision(comision.id)} disabled={comision.elegidaPorMi || eligiendoId === comision.id}>
-                {comision.elegidaPorMi ? "Elegida" : eligiendoId === comision.id ? "Guardando..." : "Elegir"}
-              </button>
+              {comision.puedeElegirComision && (
+                <button onClick={() => elegirComision(comision.id)} disabled={comision.elegidaPorMi || eligiendoId === comision.id}>
+                  {comision.elegidaPorMi ? "Elegida" : eligiendoId === comision.id ? "Guardando..." : "Elegir"}
+                </button>
+              )}
             </li>
           ))}
         </ul>

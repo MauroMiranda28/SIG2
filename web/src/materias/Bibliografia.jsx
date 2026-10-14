@@ -59,7 +59,7 @@ export default function Bibliografia() {
             {m.nombre} <span className="text-muted" style={{ fontWeight: "normal" }}>({m.codigo})</span>
           </h3>
           <p className="text-muted" style={{ margin: "0 0 0.5rem 0", fontSize: "0.85rem" }}>
-            {m.anio}° año{m.cuatrimestre ? ` · ${m.cuatrimestre}° cuatrimestre` : ""}
+            {m.anio}° año · {m.cuatrimestre === 1 ? "1.º cuatrimestre" : m.cuatrimestre === 2 ? "2.º cuatrimestre" : "Anual"}
             {m.actualizadoEn && ` · actualizada el ${formatFecha(m.actualizadoEn)}`}
           </p>
           {m.bibliografia.length === 0 ? (

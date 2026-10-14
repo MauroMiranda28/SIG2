@@ -492,7 +492,7 @@ test("HTTP: al quedar libre se le quita la comisión de esa materia; si no, no",
   await conAPI(regularizo, async (request) => {
     await request("POST", "/materias/5", "DOCENTE", { tipo: "CONDICION_FINAL", fecha: "2026-07-01", notas: [{ alumnoId: 2, nota: 5, condicion: "REGULAR" }] });
   });
-  assert.equal(regularizo.registro.bajas, undefined);
+  assert.deepEqual(regularizo.registro.bajas, [{ alumnoId: 2, comision: { materiaId: 5 } }]);
 });
 
 test("HTTP: a un alumno libre no se le cargan más notas", async () => {

@@ -1,0 +1,155 @@
+.calendario-academico {
+  max-width: 850px;
+}
+
+.calendario-academico > label,
+.calendario-academico form label {
+  display: grid;
+  gap: .35rem;
+  margin: .75rem 0;
+}
+
+.calendario-lista {
+  list-style: none;
+  padding: 0;
+}
+
+.calendario-lista li {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  border-bottom: 1px solid #ddd;
+  padding: .7rem 0;
+}
+
+.calendario-lista li div {
+  display: grid;
+  gap: .2rem;
+  flex: 1;
+}
+
+.calendario-lista li span {
+  font-size: .9rem;
+}
+
+.calendario-academico fieldset {
+  border: 1px solid #ccc;
+  padding: 1rem;
+}
+
+.calendario-acciones {
+  display: flex;
+  gap: .5rem;
+}
+
+.calendario-publicacion,
+.calendario-vista-previa-admin {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: .4rem;
+}
+
+.calendario-vista-previa {
+  padding: .5rem;
+  border: 1px dashed #777;
+  border-radius: .3rem;
+  background: #f7f7f7;
+}
+
+.calendario-selector-rango {
+  width: min(100%, 18rem);
+  margin: 1rem 0;
+}
+
+.calendario-selector-rango > p {
+  min-height: 1.5rem;
+}
+
+.calendario-selector-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .5rem;
+  text-transform: capitalize;
+}
+
+.calendario-selector-cabecera button {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  font-size: 1.25rem;
+}
+
+.calendario-selector-grilla {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(1.75rem, 1fr));
+  gap: .15rem;
+  text-align: center;
+}
+
+.calendario-selector-dia-semana,
+.calendario-selector-vacio,
+.calendario-selector-numero {
+  display: grid;
+  min-height: 1.8rem;
+  place-items: center;
+}
+
+.calendario-selector-dia-semana {
+  color: #555;
+  font-weight: 700;
+}
+
+.calendario-selector-numero {
+  border: 1px solid transparent;
+  border-radius: .3rem;
+  background: #f6f7f8;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  font-size: .85rem;
+}
+
+.calendario-selector-numero:hover {
+  border-color: #315a85;
+}
+
+.calendario-selector-numero.seleccion-rango {
+  background: #dbeafe;
+}
+
+.calendario-selector-numero.seleccion-extremo {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #fff;
+  font-weight: 700;
+}
+
+.calendario-selector-rango > button {
+  margin-top: .5rem;
+}
+
+@media (max-width: 360px) {
+  .calendario-selector-rango {
+    width: 100%;
+  }
+
+  .calendario-selector-grilla {
+    grid-template-columns: repeat(7, minmax(1.5rem, 1fr));
+  }
+}
+
+.calendario-error {
+  color: #a40000;
+}
+
+.calendario-aviso {
+  color: #176b36;
+}
+
+@media (max-width: 600px) {
+  .calendario-lista li {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}

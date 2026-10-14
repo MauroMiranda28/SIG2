@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 import jwt from "jsonwebtoken";
-import { crearRouterAsignacionesDocentes } from "../src/routes/horarios.js";
+import { crearRouterAsignacionesDocentes, validarEleccionComision } from "../src/routes/horarios.js";
 import { manejarErrores } from "../src/middleware/errores.js";
 
 function crearDB() {
@@ -111,4 +111,14 @@ test("HTTP: valida la materia del docente, bloqueos superpuestos y desasignació
     assert.equal((await request("PUT", "/bloques/999/docente", { body: { docenteId: 8 } })).status, 404);
     assert.equal((await request("PUT", "/bloques/101/docente", { body: {} })).status, 400);
   });
+});
+
+test("validarEleccionComision: solo permite elegir una comisión mientras cursa", () => {
+  assert.doesNotThrow(() => validarEleccionComision(null));
+  assert.doesNotThrow(() => validarEleccionComision({ estado: "EN_CURSO" }));
+  for (const estado of ["REGULAR", "LIBRE", "APROBADA"]) {
+    assert.throws(() => validarEleccionComision({ estado }), (error) => error.status === 409);
+  }
+  assert.throws(() => validarEleccionComision({ estado: "APROBADA" }), /ya está aprobada/);
+  assert.throws(() => validarEleccionComision({ estado: "REGULAR" }), /inscribirte a un examen final/);
 });

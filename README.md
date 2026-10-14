@@ -228,7 +228,27 @@ Lo que ya está implementado, para no repetir trabajo:
 - `POST /api/horarios/inscripcion` — el alumno elige con qué comisión cursa cada materia;
   rechaza con 409 si se superpone con otra materia ya elegida, y reemplaza la elección
   anterior si es la misma materia.
-- `GET /api/horarios/mi-grilla` — grilla semanal armada con las comisiones elegidas.
+- `GET /api/horarios/mi-grilla?fecha=AAAA-MM-DD` — grilla de la semana indicada, limitada por
+  los períodos lectivos configurados y excluyendo feriados y receso de invierno.
+
+**Calendario académico**
+- ADMIN administra desde «Organización académica → Calendario académico» los períodos de clases
+  anuales y de cada cuatrimestre, los llamados de exámenes finales (se admiten varios por año),
+  receso de invierno y feriados. Un feriado es de un solo día; los períodos del mismo tipo no se superponen.
+- Administración puede previsualizar el calendario anual y debe confirmar cada año cuando esté
+  terminado. Hasta entonces, docentes y alumnos no reciben sus períodos ni marcas de calendario.
+  Si ADMIN agrega, edita o elimina una fecha después de publicarlo, el calendario vuelve a borrador
+  y requiere una nueva confirmación. La confirmación exige que estén definidos ambos cuatrimestres.
+- La agenda semanal de alumnos y docentes muestra días hábiles y las marcas del calendario. Las clases
+  aparecen solo dentro del período lectivo asociado a la duración de su materia y no se dictan en
+  feriados ni receso de invierno. Las materias existentes sin duración asignada se consideran anuales.
+- La fecha de un final nuevo o reprogramado debe pertenecer a un período de exámenes finales. No se
+  puede borrar un llamado que todavía contiene finales programados.
+- API: `GET /api/calendario-academico?anio=AAAA` (usuarios autenticados) y operaciones
+  `POST`, `PUT /:id` y `DELETE /:id` (ADMIN).
+- Para crear materias, se debe elegir «Anual», «1.º cuatrimestre» o «2.º cuatrimestre».
+- Tras actualizar el esquema, correr `npm run db:push --workspace=api`. Tests:
+  `node --test api/test/calendarioAcademico.test.js api/test/actividadesPersonales.test.js api/test/examenes.test.js api/test/planes.test.js`.
 
 **Planes de estudio** (ver [`docs/PLANES_ESTUDIO.md`](docs/PLANES_ESTUDIO.md) para el detalle)
 - `POST /api/planes` (ADMIN) — crea un plan con sus materias en una transacción.

@@ -22,6 +22,7 @@ import inscripcionesExamenRouter from "./routes/inscripcionesExamen.js";
 import tareasRouter from "./routes/tareas.js";
 import archivosTareaRouter from "./routes/archivosTarea.js";
 import actividadesPersonalesRouter from "./routes/actividadesPersonales.js";
+import calendarioAcademicoRouter from "./routes/calendarioAcademico.js";
 import { manejarErrores } from "./middleware/errores.js";
 import { prisma } from "./db.js";
 import { configuracionCanales, crearTransporteEmail, crearTransportePush } from "./services/canales.js";
@@ -57,6 +58,7 @@ app.use("/api/finales", inscripcionesExamenRouter);
 app.use("/api/tareas", tareasRouter);
 app.use("/api/archivos-tarea", archivosTareaRouter);
 app.use("/api/actividades-personales", actividadesPersonalesRouter);
+app.use("/api/calendario-academico", calendarioAcademicoRouter);
 
 // Cada módulo agrega su router acá. Un archivo por módulo en src/routes/.
 

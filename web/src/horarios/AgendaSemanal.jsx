@@ -206,10 +206,27 @@ export default function AgendaSemanal({ esDocente = false }) {
                 style={{ "--actividad-cantidad-horas": totalHoras, "--actividad-alto-hora": `${PIXELES_POR_HORA}px` }}
               >
                 <div className="actividad-grilla-esquina" aria-hidden="true" />
-                {agenda.dias.map(({ dia, nombre, fecha }) => (
-                  <div className="actividad-grilla-cabecera" key={dia}>
+                {agenda.dias.map(({ dia, nombre, fecha, calendario }) => (
+                  <div
+                    className={[
+                      "actividad-grilla-cabecera",
+                      ...(calendario?.marcas ?? []).map((marca) => `calendario-${marca.tipo.toLowerCase()}`),
+                    ].join(" ")}
+                    key={dia}
+                  >
                     <strong>{nombre}</strong>
                     <span>{fechaCorta(fecha)}</span>
+                    <span className="actividad-calendario-marcas">
+                      {calendario?.marcas.map((marca) => (
+                        <span
+                          className={`actividad-calendario-marca calendario-${marca.tipo.toLowerCase()}`}
+                          key={`${marca.tipo}-${marca.nombre}`}
+                          title={marca.tipo.replaceAll("_", " ")}
+                        >
+                          {marca.nombre}
+                        </span>
+                      ))}
+                    </span>
                   </div>
                 ))}
                 <div className="actividad-columna-horas" aria-hidden="true">

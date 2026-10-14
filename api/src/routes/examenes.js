@@ -4,8 +4,10 @@ import { requiereAuth, requiereRol } from "../middleware/auth.js";
 import { errorAcceso, requiereMateriaAsignada, validarId } from "../services/docentes.js";
 import {
   DATOS_EXAMEN, avisarAlumnosDeExamen, avisoExamen, cambioRelevante, validarCambioExamen, validarNuevoExamen,
+  validarFechaNoDomingo,
 } from "../services/examenes.js";
 import { inscriptosPorFinal } from "../services/inscriptosFinal.js";
+import { validarFechaEnPeriodoFinal } from "../services/calendarioAcademico.js";
 
 const materiaDelParametro = (req) => validarId(req.params.id, "identificador de la materia");
 
@@ -49,6 +51,7 @@ export function crearRouterExamenes(db = prisma) {
       const { tipo, fecha, hora, aulaId } = validarNuevoExamen(req.body);
       await verificarAula(db, aulaId);
       const examen = await db.$transaction(async (tx) => {
+        if (tipo === "FINAL") await validarFechaEnPeriodoFinal(tx, fecha);
         const creado = await tx.fechaExamen.create({
           data: { tipo, fecha, hora, aulaId, materiaId: req.materia.id, creadoPorId: req.usuario.id }, select: DATOS_EXAMEN,
         });
@@ -70,6 +73,8 @@ export function crearRouterExamenes(db = prisma) {
       const actualizado = await db.$transaction(async (tx) => {
         const anterior = await tx.fechaExamen.findUnique({ where: { id }, select: DATOS_EXAMEN });
         if (!anterior) throw errorAcceso(404, "El examen no existe.");
+        validarFechaNoDomingo(cambios.fecha ?? anterior.fecha);
+        if (anterior.tipo === "FINAL") await validarFechaEnPeriodoFinal(tx, cambios.fecha ?? anterior.fecha);
         const nuevo = await tx.fechaExamen.update({ where: { id }, data: cambios, select: DATOS_EXAMEN });
         if (!cambioRelevante(anterior, nuevo)) throw errorAcceso(400, "Los datos nuevos son iguales a los actuales.");
         await avisarAlumnosDeExamen(tx, {

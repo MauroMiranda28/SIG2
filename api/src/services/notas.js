@@ -183,8 +183,8 @@ export function estadoDeCursada(evaluaciones, materia) {
   return estado;
 }
 
-// `cursada` trae id, alumnoId y materiaId. Si queda LIBRE, se le quita la comisión elegida:
-// deja de cursar (sale de «Mi horario») hasta que vuelva a inscribirse.
+// `cursada` trae id, alumnoId y materiaId. Al cerrar la cursada se quita la comisión elegida:
+// desde ese momento solo corresponde inscribirse a finales, salvo que ya haya aprobado.
 export async function recalcularCursada(tx, cursada, materia) {
   const evaluaciones = await tx.evaluacion.findMany({
     where: { cursadaId: cursada.id, tipo: { in: ["CONDICION_FINAL", "FINAL"] } },
@@ -194,7 +194,7 @@ export async function recalcularCursada(tx, cursada, materia) {
   if (!calculado) return;
   const { intentos, ...estado } = calculado;
   await tx.cursada.update({ where: { id: cursada.id }, data: estado });
-  if (estado.estado === "LIBRE") {
+  if (["APROBADA", "REGULAR", "LIBRE"].includes(estado.estado)) {
     await tx.inscripcionComision.deleteMany({ where: { alumnoId: cursada.alumnoId, comision: { materiaId: cursada.materiaId } } });
   }
 }

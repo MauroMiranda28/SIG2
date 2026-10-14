@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../db.js";
+import { aniosCalendarioPublicados, claseOcurreEnFecha } from "../services/calendarioAcademico.js";
+import { DIAS_SEMANA } from "../services/actividadesPersonales.js";
 import { requiereAuth, requiereRol } from "../middleware/auth.js";
 import { validarBloqueHorario, verificarAccesoMateria, validarId, errorAcceso } from "../services/docentes.js";
 import { crearBloqueConRegistro, quitarBloqueConRegistro } from "../services/auditoriaMateria.js";
@@ -21,6 +23,14 @@ export function docenteTieneSuperposicion(bloque, otrosBloques) {
     otro.dia === bloque.dia &&
     otro.horaInicio < bloque.horaFin &&
     otro.horaFin > bloque.horaInicio);
+}
+
+export function validarEleccionComision(cursada) {
+  if (["REGULAR", "LIBRE", "APROBADA"].includes(cursada?.estado)) {
+    throw errorAcceso(409, cursada.estado === "APROBADA"
+      ? "La materia ya está aprobada; no podés elegir una comisión."
+      : "La cursada ya finalizó; podés inscribirte a un examen final, pero no elegir una comisión.");
+  }
 }
 
 export function crearRouterAsignacionesDocentes(db = prisma) {
@@ -227,7 +237,7 @@ router.delete("/bloques/:id", requiereAuth, requiereRol("DOCENTE", "ADMIN"), asy
 // Si ya tenía otra comisión elegida para esa misma materia, la reemplaza.
 // Antes de guardar, chequea que los bloques de la comisión nueva no se
 // superpongan con los de otra materia que ya tenga elegida.
-router.post("/inscripcion", requiereAuth, async (req, res, next) => {
+router.post("/inscripcion", requiereAuth, requiereRol("ALUMNO"), async (req, res, next) => {
   try {
     const { comisionId } = req.body;
 
@@ -236,6 +246,12 @@ router.post("/inscripcion", requiereAuth, async (req, res, next) => {
       include: { bloques: true },
     });
     if (!comisionElegida) return res.status(404).json({ error: "No existe esa comisión" });
+
+    const cursada = await prisma.cursada.findUnique({
+      where: { alumnoId_materiaId: { alumnoId: req.usuario.id, materiaId: comisionElegida.materiaId } },
+      select: { estado: true },
+    });
+    validarEleccionComision(cursada);
 
     const otrasInscripciones = await prisma.inscripcionComision.findMany({
       where: {
@@ -274,20 +290,59 @@ router.post("/inscripcion", requiereAuth, async (req, res, next) => {
 // Horarios U-01: grilla semanal armada con las comisiones que el alumno eligió.
 router.get("/mi-grilla", requiereAuth, async (req, res, next) => {
   try {
+    const referencia = req.query.fecha ?? new Date().toISOString().slice(0, 10);
+    if (typeof referencia !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(referencia)) {
+      throw errorAcceso(400, "Indicá una fecha válida para consultar la grilla.");
+    }
+    const diaReferencia = new Date(`${referencia}T00:00:00.000Z`);
+    if (Number.isNaN(diaReferencia.getTime()) || diaReferencia.toISOString().slice(0, 10) !== referencia) {
+      throw errorAcceso(400, "Indicá una fecha válida para consultar la grilla.");
+    }
+    const inicioSemana = new Date(diaReferencia);
+    inicioSemana.setUTCDate(inicioSemana.getUTCDate() - ((inicioSemana.getUTCDay() + 6) % 7));
+    const finSemana = new Date(inicioSemana);
+    finSemana.setUTCDate(finSemana.getUTCDate() + 6);
+    const aniosSemana = [...new Set([inicioSemana.getUTCFullYear(), finSemana.getUTCFullYear()])];
+    const aniosPublicados = await aniosCalendarioPublicados(prisma, aniosSemana);
     const inscripciones = await prisma.inscripcionComision.findMany({
       where: { alumnoId: req.usuario.id },
       include: {
         comision: {
           include: {
-            materia: { select: { id: true, nombre: true, codigo: true } },
+            materia: {
+              select: {
+                id: true,
+                nombre: true,
+                codigo: true,
+                cuatrimestre: true,
+                cursadas: {
+                  where: { alumnoId: req.usuario.id },
+                  select: { estado: true },
+                },
+              },
+            },
             bloques: { include: { aula: true } },
           },
         },
       },
     });
+    const periodos = await prisma.periodoAcademico.findMany({
+      where: {
+        anio: { in: aniosPublicados },
+        fechaInicio: { lte: finSemana },
+        fechaFin: { gte: inicioSemana },
+      },
+      select: { anio: true, tipo: true, nombre: true, fechaInicio: true, fechaFin: true },
+    });
 
-    const bloques = inscripciones.flatMap(({ comision }) =>
-      comision.bloques.map((bloque) => ({
+    const cursando = inscripciones.filter(({ comision }) =>
+      !["REGULAR", "LIBRE", "APROBADA"].includes(comision.materia.cursadas[0]?.estado));
+    const bloques = cursando.flatMap(({ comision }) =>
+      comision.bloques.filter((bloque) => {
+        const fecha = new Date(inicioSemana);
+        fecha.setUTCDate(fecha.getUTCDate() + DIAS_SEMANA.indexOf(bloque.dia));
+        return claseOcurreEnFecha(comision.materia, fecha, periodos);
+      }).map((bloque) => ({
         dia: bloque.dia,
         horaInicio: bloque.horaInicio,
         horaFin: bloque.horaFin,

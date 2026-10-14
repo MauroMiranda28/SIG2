@@ -12,10 +12,11 @@ const valido = () => ({ nombre: " Plan 2026 ", anio: 2026, carreraId: 1, materia
 test("normaliza datos y permite crear un plan vacío", () => {
   const plan = validarPlan(valido());
   assert.equal(plan.nombre, "Plan 2026"); assert.equal(plan.materias[0].codigo, "PROG26");
+  assert.equal(validarPlan({ ...valido(), materias: [{ ...valido().materias[0], cuatrimestre: 0 }] }).materias[0].cuatrimestre, 0);
   assert.equal(validarPlan({ ...valido(), materias: [] }).materias.length, 0);
 });
 test("rechaza datos inválidos y códigos repetidos antes de acceder a DB", () => {
-  const casos = [{ nombre: " " }, { anio: 1.5 }, { carreraId: 0 }, { vigente: "true" }, { materias: {} }, { materias: [null] }, { materias: [{ ...valido().materias[0], cuatrimestre: 3 }] }, { materias: [{ ...valido().materias[0], cargaHoraria: -1 }] }, { materias: [valido().materias[0], { ...valido().materias[0], codigo: "PROG26" }] }];
+  const casos = [{ nombre: " " }, { anio: 1.5 }, { carreraId: 0 }, { vigente: "true" }, { materias: {} }, { materias: [null] }, { materias: [{ ...valido().materias[0], cuatrimestre: null }] }, { materias: [{ ...valido().materias[0], cuatrimestre: 3 }] }, { materias: [{ ...valido().materias[0], cargaHoraria: -1 }] }, { materias: [valido().materias[0], { ...valido().materias[0], codigo: "PROG26" }] }];
   for (const cambio of casos) assert.throws(() => validarPlan({ ...valido(), ...cambio }), e => e.status === 400);
 });
 function dbAlumno(alumno, planes = [], asignado = null) {
