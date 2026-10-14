@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import { crearRouterAsistencias } from "../src/routes/asistencias.js";
 import { calcularPresentismo, validarAsistencia, validarEstadoAsistencia, validarFechaAsistencia, validarIdMateria } from "../src/services/asistencias.js";
 
-const hoy = () => new Date().toISOString().slice(0, 10);
+const hoy = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
 const valida = () => ({ materiaId: 2, fecha: hoy(), estado: "PRESENTE" });
 
 // ---------- Validación (sin DB) ----------
@@ -27,8 +27,13 @@ test("validarFechaAsistencia: exige AAAA-MM-DD y no admite fechas futuras", () =
     if (valor === "2026-01-01") continue;
     assert.throws(() => validarFechaAsistencia(valor), (e) => e.status === 400, JSON.stringify(valor));
   }
-  const manana = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const manana = new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
   assert.throws(() => validarFechaAsistencia(manana), (e) => e.status === 400);
+
+  // De noche en Argentina ya es el día siguiente en UTC: la fecha de hoy tiene que seguir siendo válida.
+  const nocheDel13 = new Date("2026-10-14T00:30:00Z"); // 21:30 del 13/10 en Argentina
+  assert.equal(validarFechaAsistencia("2026-10-13", nocheDel13).toISOString().slice(0, 10), "2026-10-13");
+  assert.throws(() => validarFechaAsistencia("2026-10-14", nocheDel13), (e) => e.status === 400);
 });
 
 test("validarIdMateria y validarEstadoAsistencia", () => {
