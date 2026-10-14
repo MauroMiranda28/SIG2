@@ -128,10 +128,11 @@ export function crearRouterDocentes(db = prisma) {
       const alumnos = await db.usuario.findMany({ where: filtroAlumnosDeMateria(req.materia.id), select: { id: true } });
       if (!alumnos.length) throw errorAcceso(409, "La materia todavía no tiene alumnos a quienes avisar.");
 
-      const { creadas } = await crearNotificaciones(db, alumnos.map((a) => a.id), {
+      // `destinatarios`: a cuántos alumnos les llega por algún medio (algunos pueden haber apagado este tipo de aviso).
+      const { destinatarios } = await crearNotificaciones(db, alumnos.map((a) => a.id), {
         tipo: "AVISO_DOCENTE", titulo, mensaje, materiaId: req.materia.id, autorId: req.usuario.id,
       });
-      res.status(201).json({ materia: req.materia, enviadas: creadas });
+      res.status(201).json({ materia: req.materia, enviadas: destinatarios });
     } catch (e) { next(e); }
   });
 

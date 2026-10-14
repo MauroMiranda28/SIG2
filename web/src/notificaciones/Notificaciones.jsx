@@ -17,10 +17,11 @@ function formatFechaHora(fecha) {
   return new Date(fecha).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" });
 }
 
-// Historia: como alumno quiero ver un historial de todas mis notificaciones dentro del
-// sistema, para revisar avisos anteriores que no leí a tiempo.
-// `onCambioNoLeidas` le avisa a App cuántas quedan sin leer (el número del menú).
-export default function Notificaciones({ onCambioNoLeidas }) {
+// Historias: ver el historial de notificaciones, marcarlas como leídas o no leídas, y abrir
+// el enlace directo a la sección a la que se refiere cada una.
+// `onCambioNoLeidas` le avisa a App cuántas quedan sin leer (el número de la campanita) y
+// `onIrA(seccion)` lleva a otra pantalla (la de un aviso, o las preferencias).
+export default function Notificaciones({ onCambioNoLeidas, onIrA }) {
   const [notificaciones, setNotificaciones] = useState(null);
   const [hayMas, setHayMas] = useState(false);
   const [noLeidas, setNoLeidas] = useState(0);
@@ -75,6 +76,22 @@ export default function Notificaciones({ onCambioNoLeidas }) {
     }
   }
 
+  async function marcarNoLeida(id) {
+    try {
+      await api(`/notificaciones/${id}/no-leida`, { method: "POST" });
+      setNotificaciones((lista) => lista.map((n) => (n.id === id ? { ...n, leida: false, leidaEn: null } : n)));
+      actualizarNoLeidas(noLeidas + 1);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  // Seguir el enlace de un aviso también lo marca como leído: ya lo vio.
+  async function abrir(n) {
+    if (!n.leida) await marcarLeida(n.id);
+    onIrA?.(n.enlace.seccion);
+  }
+
   async function marcarTodas() {
     try {
       await api("/notificaciones/leer-todas", { method: "POST" });
@@ -91,7 +108,10 @@ export default function Notificaciones({ onCambioNoLeidas }) {
 
   return (
     <div className="page">
-      <h2>Notificaciones</h2>
+      <div className="row-between" style={{ flexWrap: "wrap" }}>
+        <h2 style={{ marginTop: 0 }}>Notificaciones</h2>
+        {onIrA && <button onClick={() => onIrA("preferencias-notificaciones")}>Configurar notificaciones</button>}
+      </div>
 
       <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", marginBottom: "1rem" }}>
         <label style={{ display: "flex", gap: "0.4rem", alignItems: "center", fontWeight: 400 }}>
@@ -128,11 +148,23 @@ export default function Notificaciones({ onCambioNoLeidas }) {
               </div>
               <strong style={{ display: "block", marginTop: "0.25rem" }}>{n.titulo}</strong>
               <p style={{ margin: "0.25rem 0 0", whiteSpace: "pre-line" }}>{n.mensaje}</p>
-              {!n.leida && (
-                <button onClick={() => marcarLeida(n.id)} style={{ marginTop: "0.5rem" }}>
-                  Marcar como leída
-                </button>
-              )}
+              <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.5rem" }}>
+                {n.enlace && (
+                  <a
+                    href={`#${n.enlace.seccion}`}
+                    onClick={(e) => {
+                      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return; // abrir en otra pestaña sigue funcionando
+                      e.preventDefault();
+                      abrir(n);
+                    }}
+                  >
+                    {n.enlace.texto}
+                  </a>
+                )}
+                {n.leida
+                  ? <button onClick={() => marcarNoLeida(n.id)}>Marcar como no leída</button>
+                  : <button onClick={() => marcarLeida(n.id)}>Marcar como leída</button>}
+              </div>
             </li>
           ))}
         </ul>

@@ -3,6 +3,8 @@
 // `crearNotificaciones` es lo que usan las demás historias para avisarle algo a los usuarios.
 
 import { errorAcceso } from "./docentes.js";
+import { canalesDe, cargarPreferencias } from "./preferencias.js";
+import { seccionDe } from "./enlaces.js";
 
 export const TIPOS_NOTIFICACION = [
   "AVISO_DOCENTE", "HORARIO_MODIFICADO", "CALIFICACION_PUBLICADA", "FECHA_EXAMEN", "RECORDATORIO_ENTREGA", "SOLICITUD_REVISION", "REVISION_RESUELTA",
@@ -14,7 +16,7 @@ export const LARGO_TITULO_MAXIMO = 120;
 export const LARGO_MENSAJE_MAXIMO = 1000;
 
 export const DATOS_NOTIFICACION = {
-  id: true, tipo: true, titulo: true, mensaje: true, creadoEn: true, leidaEn: true,
+  id: true, tipo: true, titulo: true, mensaje: true, creadoEn: true, leidaEn: true, seccion: true,
   materia: { select: { id: true, nombre: true, codigo: true } },
   autor: { select: { nombre: true, apellido: true } }, // quién lo envió; null si lo generó el sistema
 };
@@ -131,21 +133,57 @@ export function avisoRevisionResuelta({ estado, materiaNombre, tipo, nota, fecha
   };
 }
 
+// Reparte cada aviso según lo que eligió su destinatario (ver services/preferencias.js):
+// - SISTEMA: una fila en Notificacion, la que se ve en la campanita.
+// - EMAIL / PUSH: una fila en la bandeja de salida (EnvioNotificacion), que un proceso de la API envía después.
+// Si el destinatario apagó todos los medios para ese tipo, no se guarda nada. Las dos escrituras usan la misma
+// `db` (o transacción) que el cambio que origina el aviso: si el cambio se revierte, no sale ningún email ni push.
+// Cada fila: { usuarioId, tipo, titulo, mensaje, materiaId, autorId, clave, seccion }, ya con el texto limpio.
+// Devuelve cuántas notificaciones quedaron en el sistema y a cuántas personas les llega por algún medio.
+async function repartirAvisos(db, filas) {
+  if (!filas.length) return { creadas: 0, destinatarios: 0 };
+  const preferencias = await cargarPreferencias(db, [...new Set(filas.map((f) => f.usuarioId))], [...new Set(filas.map((f) => f.tipo))]);
+
+  const enSistema = [];
+  const envios = [];
+  const alcanzados = new Set();
+  for (const f of filas) {
+    const canales = canalesDe(preferencias, f.usuarioId, f.tipo);
+    if (!canales.size) continue;
+    alcanzados.add(f.usuarioId);
+    if (canales.has("SISTEMA")) {
+      enSistema.push({
+        usuarioId: f.usuarioId, tipo: f.tipo, materiaId: f.materiaId ?? null, autorId: f.autorId ?? null,
+        clave: f.clave ?? null, seccion: f.seccion ?? null, titulo: f.titulo, mensaje: f.mensaje,
+      });
+    }
+    for (const canal of ["EMAIL", "PUSH"]) {
+      if (!canales.has(canal)) continue;
+      envios.push({
+        usuarioId: f.usuarioId, canal, tipo: f.tipo, titulo: f.titulo, mensaje: f.mensaje,
+        materiaId: f.materiaId ?? null, clave: f.clave ?? null, seccion: seccionDe(f),
+      });
+    }
+  }
+
+  let creadas = 0;
+  if (enSistema.length) creadas = (await db.notificacion.createMany({ data: enSistema, skipDuplicates: true })).count;
+  if (envios.length) await db.envioNotificacion.createMany({ data: envios, skipDuplicates: true });
+  return { creadas, destinatarios: alcanzados.size };
+}
+
 // Crea varias notificaciones con texto distinto para cada destinatario, de una sola vez.
-// Cada fila: { usuarioId, tipo, titulo, mensaje, materiaId, autorId, clave }. Como pasa con las demás
+// Cada fila: { usuarioId, tipo, titulo, mensaje, materiaId, autorId, clave, seccion }. Como pasa con las demás
 // notificaciones generadas por el sistema, un texto largo se acorta y nunca hace fallar el cambio.
 // Con `clave`, el mismo usuario no recibe dos veces el mismo aviso: la repetida se ignora.
+// `seccion` (opcional) es la pantalla a la que lleva el enlace; si falta, la del tipo (ver services/enlaces.js).
 export async function crearNotificacionesIndividuales(db, filas) {
-  if (!filas.length) return { creadas: 0 };
-  const data = filas.map((f) => {
+  if (!filas.length) return { creadas: 0, destinatarios: 0 };
+  const limpias = filas.map((f) => {
     if (!TIPOS_NOTIFICACION.includes(f.tipo)) throw errorAcceso(400, "El tipo de notificación no es válido.");
-    return {
-      usuarioId: f.usuarioId, tipo: f.tipo, materiaId: f.materiaId ?? null, autorId: f.autorId ?? null, clave: f.clave ?? null,
-      titulo: acortar(f.titulo, LARGO_TITULO_MAXIMO), mensaje: acortar(f.mensaje, LARGO_MENSAJE_MAXIMO),
-    };
+    return { ...f, titulo: acortar(f.titulo, LARGO_TITULO_MAXIMO), mensaje: acortar(f.mensaje, LARGO_MENSAJE_MAXIMO) };
   });
-  const { count } = await db.notificacion.createMany({ data, skipDuplicates: true });
-  return { creadas: count };
+  return repartirAvisos(db, limpias);
 }
 
 // Cuerpo de POST /api/docentes/materias/:id/avisos: título y mensaje del aviso.
@@ -159,7 +197,7 @@ export function validarAviso(body) {
 
 // Crea la misma notificación para cada destinatario (una fila por persona, sin repetidos).
 // Recibe `db` o una transacción: así quien la usa puede hacerlo junto con su propio cambio.
-export async function crearNotificaciones(db, destinatarioIds, { tipo, titulo, mensaje, materiaId = null, autorId = null }) {
+export async function crearNotificaciones(db, destinatarioIds, { tipo, titulo, mensaje, materiaId = null, autorId = null, seccion = null }) {
   if (!TIPOS_NOTIFICACION.includes(tipo)) throw errorAcceso(400, "El tipo de notificación no es válido.");
   const datos = {
     tipo,
@@ -167,11 +205,9 @@ export async function crearNotificaciones(db, destinatarioIds, { tipo, titulo, m
     mensaje: limpiarTexto(mensaje, "mensaje", LARGO_MENSAJE_MAXIMO),
     materiaId,
     autorId,
+    seccion,
   };
   const destinatarios = [...new Set(destinatarioIds)];
-  if (!destinatarios.length) return { creadas: 0 };
-  const { count } = await db.notificacion.createMany({
-    data: destinatarios.map((usuarioId) => ({ ...datos, usuarioId })),
-  });
-  return { creadas: count };
+  if (!destinatarios.length) return { creadas: 0, destinatarios: 0 };
+  return repartirAvisos(db, destinatarios.map((usuarioId) => ({ ...datos, usuarioId })));
 }

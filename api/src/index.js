@@ -22,6 +22,9 @@ import inscripcionesExamenRouter from "./routes/inscripcionesExamen.js";
 import tareasRouter from "./routes/tareas.js";
 import actividadesPersonalesRouter from "./routes/actividadesPersonales.js";
 import { manejarErrores } from "./middleware/errores.js";
+import { prisma } from "./db.js";
+import { configuracionCanales, crearTransporteEmail, crearTransportePush } from "./services/canales.js";
+import { iniciarEnvios } from "./services/envios.js";
 
 import programasRouter from "./routes/programas.js";
 
@@ -59,3 +62,10 @@ app.use(manejarErrores);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`API escuchando en http://localhost:${PORT}`));
+
+// Avisos por email y push: solo si el servidor tiene configurado alguno de los dos (ver api/.env.example).
+const { disponibles } = configuracionCanales();
+if (disponibles.EMAIL || disponibles.PUSH) {
+  iniciarEnvios(prisma, { transportes: { email: crearTransporteEmail(), push: crearTransportePush() }, baseUrl: process.env.APP_URL });
+  console.log(`Avisos por ${[disponibles.EMAIL && "email", disponibles.PUSH && "push"].filter(Boolean).join(" y ")} habilitados.`);
+}

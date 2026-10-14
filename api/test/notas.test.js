@@ -95,6 +95,7 @@ function dbFalsa({
       update: async (args) => { registro.updates.push(args); return { id: args.where.id, nota: args.data.nota, cambios: registro.cambios }; },
     },
     cambioNota: { create: async ({ data }) => { registro.cambios.push(data); return data; } },
+    preferenciaNotificacion: { findMany: async () => [] },
     notificacion: { createMany: async ({ data }) => { registro.notificaciones.push(...data); return { count: data.length }; } },
     solicitudRevision: { updateMany: async (args) => { registro.resoluciones = [...(registro.resoluciones ?? []), args]; return { count: 1 }; } },
     inscripcionComision: { deleteMany: async (args) => { registro.bajas = [...(registro.bajas ?? []), args.where]; return { count: 1 }; } },

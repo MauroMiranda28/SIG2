@@ -407,6 +407,37 @@ Lo que ya está implementado, para no repetir trabajo:
   Correr `db:push`. Las solicitudes que ya estaban pendientes se pueden resolver desde la pestaña.
   Tests: `node --test api/test/revisiones-docente.test.js`.
 
+**Notificaciones: leídas y no leídas, enlaces y preferencias**
+- **Leída / no leída:** `POST /api/notificaciones/:id/no-leida` deja una notificación como no leída (la inversa de `/:id/leer`) y el
+  contador de la campanita vuelve a contarla. Una ajena responde 404. En la pantalla cada aviso tiene el botón «Marcar como leída» o
+  «Marcar como no leída», y seguir el enlace de un aviso lo marca como leído.
+- **Enlace directo:** cada notificación de `GET /api/notificaciones` trae `enlace: { seccion, texto }` (ej. `historial-notas` /
+  «Ver mi historial de notas»). `services/enlaces.js` es la única tabla tipo → sección (también la usan el email y el push), y las
+  secciones son los ids de las pestañas de `App.jsx`. `Notificacion.seccion` guarda una sección puntual (ej. el aviso de un final lleva
+  a «Inscripción a finales»); si es null se deduce del tipo, así que las notificaciones anteriores también tienen enlace.
+- **La app abre la sección que dice la URL** (`http://localhost:5173/#historial-notas`) y la mantiene al día al navegar. Un enlace de un
+  email o de un push funciona aunque no hayas iniciado sesión (entrás y caés en esa pantalla). Una sección que no existe o que no es de
+  tu rol se ignora. Hoy los enlaces llevan a la pantalla, no a una materia o evaluación puntual (la app no tiene rutas por id).
+- **Preferencias (tipo × medio):** `GET` y `PUT /api/notificaciones/preferencias` (ALUMNO y DOCENTE; cada rol ve solo sus tipos).
+  Por cada tipo de aviso se elige si llega **en el sistema** (la campanita), por **email** o por **push**. Por defecto todo sigue como
+  antes (solo en el sistema); solo se guardan los cambios (`PreferenciaNotificacion`). Si se apagan todos los medios de un tipo, ese aviso
+  no se guarda ni se envía. Se aplica en un solo lugar, `repartirAvisos` de `services/notificaciones.js`, por donde pasan todos los avisos.
+  Pantalla «Configurar notificaciones», dentro de la campanita.
+- **Email y push se envían de verdad, pero solo si el servidor los tiene configurados** (variables en `api/.env.example`). Si no, la
+  pantalla los muestra como no disponibles y la API rechaza activarlos (409) en vez de guardar algo que no puede funcionar.
+  - Email: `SMTP_HOST` (y `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`). Va al correo personal si el usuario lo cargó, si no al institucional.
+  - Push (Web Push): `VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY` (se generan con `npx web-push generate-vapid-keys`). Cada navegador es un
+    «dispositivo» (`PushSuscripcion`): el alumno lo permite desde las preferencias (`POST` y `DELETE /api/notificaciones/push/suscripcion`)
+    y `web/public/sw.js` muestra el aviso y abre el enlace. Hace falta un contexto seguro (https o `localhost`).
+  - `APP_URL` arma la URL de los enlaces de los emails y los push.
+- **Bandeja de salida:** los avisos por email y push se escriben en `EnvioNotificacion` en la misma transacción que el cambio que los origina
+  (si el cambio se revierte, no sale nada) y un proceso de la API los envía cada 10 segundos, con hasta 3 intentos. Un push que el
+  navegador rechaza por caducado (404 o 410) borra esa suscripción. Los envíos que fallan quedan en `EnvioNotificacion` con estado
+  `ERROR` y el motivo (todavía no hay una pantalla para verlos: se consultan desde la base).
+- Schema: modelos `PreferenciaNotificacion`, `EnvioNotificacion` y `PushSuscripcion`, enums `CanalNotificacion` y `EstadoEnvio`, y
+  `Notificacion.seccion`. Correr `db:push`. Dependencias nuevas en `api`: `nodemailer` y `web-push`.
+  Tests: `node --test api/test/notificaciones-preferencias.test.js`.
+
 **Privacidad del seguimiento académico**
 - Notas, historial, asistencias, promedio, revisiones y certificado filtran siempre por el alumno del
   token y son solo para ALUMNO. `api/test/privacidad.test.js` lo verifica para que no se rompa.

@@ -87,6 +87,7 @@ function dbExamenes({ alumnos = [{ id: 21 }, { id: 22 }], aulas = [{ id: 1, nomb
       update: async ({ where, data }) => { const e = estado.examenes.find((x) => x.id === where.id); Object.assign(e, data); return proyectar(e); },
       delete: async ({ where }) => { estado.examenes = estado.examenes.filter((e) => e.id !== where.id); return {}; },
     },
+    preferenciaNotificacion: { findMany: async () => [] },
     notificacion: { createMany: async ({ data }) => { estado.notificaciones.push(...data); return { count: data.length }; } },
   };
   // Transacción con rollback: si algo falla se restaura lo que había.

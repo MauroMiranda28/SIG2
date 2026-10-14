@@ -24,6 +24,7 @@ function dbAvisos({ alumnos = [{ id: 21 }, { id: 22 }] } = {}) {
     materia: { findUnique: async ({ where }) => ({ 5: { id: 5, nombre: "Programación I", codigo: "PROG1" }, 6: { id: 6, nombre: "Base de Datos", codigo: "BD1" } })[where.id] ?? null },
     materiaDocente: { findUnique: async ({ where }) => (where.materiaId_docenteId.materiaId === 5 && where.materiaId_docenteId.docenteId === 7 ? { materiaId: 5 } : null) },
     usuario: { findMany: async ({ where }) => { guardado.filtroAlumnos = where; return alumnos; } },
+    preferenciaNotificacion: { findMany: async () => [] },
     notificacion: { createMany: async ({ data }) => { guardado.notificaciones.push(...data); return { count: data.length }; } },
   };
 }
