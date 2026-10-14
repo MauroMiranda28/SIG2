@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import { crearRouterNotas } from "../src/routes/notas.js";
 import {
   validarNota, validarFecha, validarCargaNotas, validarCorreccionNota, validarCondicionMateria,
-  estadoDeCursada, verificarCarga, vencimientoRegularidad,
+  estadoDeCursada, verificarCarga, vencimientoRegularidad, recalcularCursada,
 } from "../src/services/notas.js";
 import { manejarErrores } from "../src/middleware/errores.js";
 
@@ -488,6 +488,20 @@ test("HTTP: a un alumno libre no se le cargan más notas", async () => {
     assert.match((await r.json()).error, /Ana Díaz está libre/);
   });
   assert.equal(db.registro.evaluaciones.length, 0);
+});
+
+test("recalcularCursada: solo cuenta las evaluaciones posteriores al corte de la reinscripción", async () => {
+  // Caso real: la cursada anterior quedó libre con finales de fechas posteriores a la nueva condición regular.
+  let consulta;
+  const actualizaciones = [];
+  const tx = {
+    evaluacion: { findMany: async (args) => { consulta = args.where; return [regular("2026-10-13", 8)].map((e) => ({ ...e, id: 12 })); } },
+    cursada: { update: async (args) => { actualizaciones.push(args.data); } },
+    inscripcionComision: { deleteMany: async () => { throw new Error("no debería quitar la comisión"); } },
+  };
+  await recalcularCursada(tx, { id: 2, alumnoId: 7, materiaId: 3, evaluacionesDesdeId: 11 }, CONDICION);
+  assert.deepEqual(consulta.id, { gt: 11 });
+  assert.equal(actualizaciones[0].estado, "REGULAR");
 });
 
 // ---------- Examen final por mesa (regulares y libres) ----------

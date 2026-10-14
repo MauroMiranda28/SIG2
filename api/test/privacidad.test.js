@@ -11,6 +11,7 @@ import { crearRouterAsistencias } from "../src/routes/asistencias.js";
 import { crearRouterRevisiones } from "../src/routes/revisiones.js";
 import { crearRouterPromedio } from "../src/routes/promedio.js";
 import { crearRouterCorrelatividades } from "../src/routes/correlatividades.js";
+import { crearRouterInscripcionesCursada } from "../src/routes/inscripcionesCursada.js";
 import { manejarErrores } from "../src/middleware/errores.js";
 
 const YO = 2;
@@ -36,6 +37,8 @@ function dbEspia() {
 }
 
 const RUTAS = [
+  { nombre: "inscripciones-cursada", crear: crearRouterInscripcionesCursada, metodo: "GET", ruta: "/4" },
+  { nombre: "inscripciones-cursada", crear: crearRouterInscripcionesCursada, metodo: "POST", ruta: "/", body: { materiaId: 4, alumnoId: OTRO } },
   { nombre: "evaluaciones", crear: crearRouterEvaluaciones, metodo: "GET", ruta: "/" },
   { nombre: "asistencias", crear: crearRouterAsistencias, metodo: "GET", ruta: "/" },
   { nombre: "asistencias", crear: crearRouterAsistencias, metodo: "POST", ruta: "/",
