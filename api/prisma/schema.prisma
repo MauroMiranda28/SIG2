@@ -335,6 +335,7 @@ model Tarea {
   titulo       String
   descripcion  String?
   fechaEntrega DateTime @db.Date
+  horaEntrega  String? // "23:59"; null si se puede entregar en cualquier momento del día
   creadaEn     DateTime @default(now())
 
   materiaId Int
@@ -344,7 +345,24 @@ model Tarea {
   creadaPorId Int
   creadaPor   Usuario @relation(fields: [creadaPorId], references: [id])
 
+  archivos ArchivoTarea[]
+
   @@index([materiaId, fechaEntrega])
+}
+
+// Archivo adjunto a una tarea (consigna, plantilla, datos). Se guarda en api/uploads/tareas/
+// con un nombre generado por el servidor (`archivo`); `nombre` es el original, para mostrar y descargar.
+// Si se borra la tarea, se borran sus adjuntos.
+model ArchivoTarea {
+  id       Int      @id @default(autoincrement())
+  nombre   String
+  archivo  String   @unique
+  tipo     String
+  tamanio  Int // bytes
+  creadoEn DateTime @default(now())
+
+  tareaId Int
+  tarea   Tarea @relation(fields: [tareaId], references: [id], onDelete: Cascade)
 }
 
 // Para cursar `materia` hace falta `requiere`, regular (DEBIL) o aprobada (FUERTE).
@@ -415,6 +433,12 @@ model Evaluacion {
   fecha         DateTime       @default(now())
   observaciones String?
   condicion     CondicionFinal? // solo en CONDICION_FINAL
+
+  // Examen final: la mesa (fecha programada) a la que corresponde la nota y con qué modalidad
+  // estaba inscripto el alumno. Si se cancela la mesa, la nota queda (examenId pasa a null).
+  examenId  Int?
+  examen    FechaExamen?    @relation(fields: [examenId], references: [id], onDelete: SetNull)
+  modalidad ModalidadFinal?
 
   cursadaId Int
   cursada   Cursada @relation(fields: [cursadaId], references: [id])
@@ -513,6 +537,7 @@ model FechaExamen {
   creadoPor   Usuario @relation(fields: [creadoPorId], references: [id])
 
   inscripciones InscripcionExamen[]
+  notas         Evaluacion[] // notas cargadas de esta mesa (solo finales)
 
   @@index([materiaId, fecha])
 }

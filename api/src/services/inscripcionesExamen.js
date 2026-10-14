@@ -25,11 +25,25 @@ export function modalidadDisponible(cursada, ahora = new Date()) {
   return null;
 }
 
-// Valida que el examen sea un final futuro y que la cursada habilite inscribirse; devuelve la
-// modalidad que le corresponde a esta inscripción.
+// La inscripción (y su cancelación) cierra 48 h antes: hasta dos días antes de la fecha del examen.
+export const DIAS_CIERRE_INSCRIPCION = 2;
+export function inscripcionAbierta(fechaExamen, ahora = new Date()) {
+  const limite = new Date(hoy(ahora));
+  limite.setUTCDate(limite.getUTCDate() + DIAS_CIERRE_INSCRIPCION);
+  return new Date(fechaExamen) >= limite;
+}
+const CERRADA = "La inscripción a ese final ya cerró: cierra 48 h antes del examen.";
+
+export function verificarCierre(examen, ahora = new Date()) {
+  if (!inscripcionAbierta(examen.fecha, ahora)) throw errorAcceso(400, CERRADA);
+}
+
+// Valida que el examen sea un final con la inscripción abierta y que la cursada habilite inscribirse;
+// devuelve la modalidad que le corresponde a esta inscripción.
 export function validarInscripcion({ examen, cursada }, ahora = new Date()) {
   if (examen.tipo !== "FINAL") throw errorAcceso(400, "Solo te podés inscribir a exámenes finales.");
   if (new Date(examen.fecha) < hoy(ahora)) throw errorAcceso(400, "Ese final ya pasó: no te podés inscribir.");
+  verificarCierre(examen, ahora);
   const modalidad = modalidadDisponible(cursada, ahora);
   if (!modalidad) throw errorAcceso(400, "Para inscribirte a un final tenés que estar regular o libre en la materia.");
   return modalidad;

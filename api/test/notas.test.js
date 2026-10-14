@@ -70,7 +70,8 @@ const CONDICION = { esPromocional: true, notaRegularizacion: 4, notaPromocion: 7
 // `finales` son las condiciones/exámenes que devuelve la base al recalcular.
 function dbFalsa({
   asignada = true, alumnosValidos = [2, 3], repetidas = [], finales = [], condicion = CONDICION, cursada = { estado: "EN_CURSO", regularDesde: null },
-  evaluacion = { nota: 4, tipo: "PARCIAL", condicion: null, cursadaId: 102, cursada: { materiaId: 5, materia: CONDICION } }, ...extra
+  evaluacion = { nota: 4, tipo: "PARCIAL", condicion: null, cursadaId: 102, cursada: { materiaId: 5, materia: CONDICION } },
+  mesa = null, ...extra
 } = {}) {
   const registro = { cursadas: [], evaluaciones: [], cambios: [], updates: [], cierres: [], notificaciones: [] };
   const db = {
@@ -96,6 +97,8 @@ function dbFalsa({
     },
     cambioNota: { create: async ({ data }) => { registro.cambios.push(data); return data; } },
     preferenciaNotificacion: { findMany: async () => [] },
+    // Mesas de final: `mesa` es la que devuelve findUnique al cargar la nota de un examen final.
+    fechaExamen: { findMany: async () => (mesa ? [mesa] : []), findUnique: async () => mesa },
     notificacion: { createMany: async ({ data }) => { registro.notificaciones.push(...data); return { count: data.length }; } },
     solicitudRevision: { updateMany: async (args) => { registro.resoluciones = [...(registro.resoluciones ?? []), args]; return { count: 1 }; } },
     inscripcionComision: { deleteMany: async (args) => { registro.bajas = [...(registro.bajas ?? []), args.where]; return { count: 1 }; } },
@@ -423,10 +426,14 @@ test("HTTP: la condición final guarda la condición y recalcula la cursada", as
   assert.deepEqual(db.registro.cierres, [{ where: { id: 102 }, data: { estado: "APROBADA", nota: 8, regularDesde: null, intentosFinal: 0 } }]);
 });
 
+const MESA = (modalidad = "REGULAR", fecha = "2026-08-01") => ({
+  id: 30, tipo: "FINAL", fecha: new Date(`${fecha}T00:00:00Z`), materiaId: 5, inscripciones: [{ alumnoId: 2, modalidad }],
+});
+
 test("HTTP: un examen final a alguien que no es regular se rechaza sin guardar nada", async () => {
-  const db = dbFalsa();
+  const db = dbFalsa({ mesa: MESA() });
   await conAPI(db, async (request) => {
-    const r = await request("POST", "/materias/5", "DOCENTE", { tipo: "FINAL", fecha: "2026-08-01", notas: [{ alumnoId: 2, nota: 8 }] });
+    const r = await request("POST", "/materias/5", "DOCENTE", { tipo: "FINAL", fecha: "2026-08-01", examenId: 30, notas: [{ alumnoId: 2, nota: 8 }] });
     assert.equal(r.status, 400);
     assert.match((await r.json()).error, /Ana Díaz no está regular/);
   });
@@ -482,4 +489,58 @@ test("HTTP: a un alumno libre no se le cargan más notas", async () => {
     assert.match((await r.json()).error, /Ana Díaz está libre/);
   });
   assert.equal(db.registro.evaluaciones.length, 0);
+});
+
+// ---------- Examen final por mesa (regulares y libres) ----------
+
+test("validarCargaNotas: el examen final exige la mesa", () => {
+  const final = { tipo: "FINAL", fecha: "2026-08-01", notas: [{ alumnoId: 2, nota: 8 }] };
+  assert.throws(() => validarCargaNotas(final), /mesa de examen/);
+  assert.equal(validarCargaNotas({ ...final, examenId: "30" }).examenId, 30);
+  assert.equal(validarCargaNotas(carga()).examenId, null, "un parcial no tiene mesa");
+});
+
+test("estado: un final rendido como libre aprueba con la nota de aprobación; si no, sigue libre", () => {
+  const libre = ev(1, "CONDICION_FINAL", "2026-07-01", 2, "LIBRE");
+  const finalLibre = (nota) => ({ ...ev(2, "FINAL", "2026-08-01", nota), modalidad: "LIBRE" });
+  assert.deepEqual([estadoDeCursada([libre, finalLibre(9)], CONDICION).estado, estadoDeCursada([libre, finalLibre(9)], CONDICION).nota], ["APROBADA", 9]);
+  const desaprobado = estadoDeCursada([libre, finalLibre(2)], CONDICION);
+  assert.deepEqual([desaprobado.estado, desaprobado.intentosFinal], ["LIBRE", 0], "no consume intentos");
+});
+
+test("verificarCarga: el libre inscripto a la mesa puede rendir; si ya aprobó, no", () => {
+  const final = { tipo: "FINAL", nota: 9, fecha: fecha("2026-08-01"), modalidad: "LIBRE" };
+  verificarCarga(final, contexto({ estado: "LIBRE" }));
+  verificarCarga(final, contexto({ estado: "REGULAR", regularDesde: fecha("2020-01-01") }), new Date("2026-10-13T12:00:00Z"));
+  assert.throws(() => verificarCarga(final, contexto({ estado: "APROBADA" })), (e) => e.status === 409);
+});
+
+test("HTTP: la nota del final usa la fecha de la mesa y guarda mesa y modalidad", async () => {
+  const db = dbFalsa({ mesa: MESA("LIBRE"), cursada: { estado: "LIBRE", regularDesde: null } });
+  await conAPI(db, async (request) => {
+    const r = await request("POST", "/materias/5", "DOCENTE", { tipo: "FINAL", fecha: "2026-10-01", examenId: 30, notas: [{ alumnoId: 2, nota: 9 }] });
+    assert.equal(r.status, 201);
+  });
+  const [guardada] = db.registro.evaluaciones;
+  assert.deepEqual([guardada.examenId, guardada.modalidad], [30, "LIBRE"]);
+  assert.equal(guardada.fecha.toISOString(), "2026-08-01T00:00:00.000Z", "la fecha es la de la mesa, no la del formulario");
+});
+
+test("HTTP: solo a inscriptos de la mesa, solo mesas de final de la materia ya rendidas", async () => {
+  const noInscripto = dbFalsa({ mesa: MESA() });
+  await conAPI(noInscripto, async (request) => {
+    const r = await request("POST", "/materias/5", "DOCENTE", { tipo: "FINAL", fecha: "2026-08-01", examenId: 30, notas: [{ alumnoId: 3, nota: 8 }] });
+    assert.match((await r.json()).error, /inscriptos a esa mesa/);
+  });
+  const futura = dbFalsa({ mesa: MESA("REGULAR", "2099-01-01") });
+  await conAPI(futura, async (request) => {
+    const r = await request("POST", "/materias/5", "DOCENTE", { tipo: "FINAL", fecha: "2026-08-01", examenId: 30, notas: [{ alumnoId: 2, nota: 8 }] });
+    assert.match((await r.json()).error, /todavía no se rindió/);
+  });
+  const deOtra = dbFalsa({ mesa: { ...MESA(), materiaId: 6 } });
+  await conAPI(deOtra, async (request) => {
+    const r = await request("POST", "/materias/5", "DOCENTE", { tipo: "FINAL", fecha: "2026-08-01", examenId: 30, notas: [{ alumnoId: 2, nota: 8 }] });
+    assert.match((await r.json()).error, /mesa de final de esta materia/);
+  });
+  for (const db of [noInscripto, futura, deOtra]) assert.equal(db.registro.evaluaciones.length, 0);
 });

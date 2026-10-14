@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { formatFecha } from "../formatFecha.js";
+import { textoInscriptos } from "../evaluaciones/inscriptos.js";
 import "./docentes.css";
 
 const TIPOS = [["PARCIAL", "Parcial"], ["RECUPERATORIO", "Recuperatorio"], ["FINAL", "Examen final"]];
@@ -157,6 +158,7 @@ export default function FechasExamen() {
                       <span>
                         <strong>{NOMBRE_TIPO[ex.tipo]}</strong> · {formatFecha(ex.fecha)}
                         {ex.hora ? ` · ${ex.hora}` : ""}{ex.aula ? ` · ${ex.aula.nombre}` : ""}
+                        {ex.inscriptos && <Inscriptos inscriptos={ex.inscriptos} />}
                       </span>
                       <span style={{ display: "flex", gap: "0.5rem" }}>
                         <button onClick={() => setEditando({ id: ex.id, fecha: soloFecha(ex.fecha), hora: ex.hora ?? "", aulaId: ex.aula ? String(ex.aula.id) : "" })} style={{ cursor: "pointer" }}>Reprogramar</button>
@@ -171,5 +173,26 @@ export default function FechasExamen() {
         </>
       )}
     </section>
+  );
+}
+
+// Inscriptos a un final: cuántos regulares y libres, y la lista desplegable.
+function Inscriptos({ inscriptos }) {
+  return (
+    <span style={{ display: "block", marginTop: "0.25rem" }}>
+      <small className="text-muted">{textoInscriptos(inscriptos)}</small>
+      {inscriptos.total > 0 && (
+        <details style={{ marginTop: "0.25rem" }}>
+          <summary style={{ cursor: "pointer", fontSize: "0.9rem" }}>Ver inscriptos</summary>
+          <ul style={{ margin: "0.35rem 0 0", paddingLeft: "1.2rem", fontSize: "0.9rem" }}>
+            {inscriptos.alumnos.map((a) => (
+              <li key={a.id}>
+                {a.apellido}, {a.nombre} <span className="text-muted">· {a.modalidad === "REGULAR" ? "Regular" : "Libre"} · {a.email}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </span>
   );
 }

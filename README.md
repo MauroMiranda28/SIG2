@@ -361,6 +361,17 @@ Lo que ya está implementado, para no repetir trabajo:
 - Pestaña «Fechas de examen» del DOCENTE (programar, reprogramar, cancelar).
 - Schema: modelo `FechaExamen` y enum `TipoExamen`. Correr `db:push`. Tests: `node --test api/test/examenes.test.js`.
 
+**Parciales y trabajos prácticos del alumno**
+- `GET /api/evaluaciones/proximas` (ALUMNO) — parciales y recuperatorios (de las fechas de examen) y trabajos prácticos
+  (las tareas, con fecha y hora de entrega) de hoy en adelante, de las materias que cursa (cursada en curso o comisión
+  elegida, sin contar las ya aprobadas, regulares o libres). Ordenados por fecha y hora. Pestaña «Parciales y TPs».
+- Las tareas suman una hora de entrega opcional (`Tarea.horaEntrega`); el recordatorio la menciona. Correr `db:push`.
+- **Adjuntos de las tareas** (modelo `ArchivoTarea`): el docente sube hasta 5 archivos por vez (10 MB c/u; PDF, Word,
+  Excel, PowerPoint, imágenes, ZIP, texto) con `POST /api/archivos-tarea/tareas/:id` y los quita con
+  `DELETE /api/archivos-tarea/:id`. `GET /api/archivos-tarea/:id` los descarga el docente de la materia o un alumno que
+  la cursa. Se guardan en `api/uploads/tareas/` con nombre del servidor; borrar la tarea borra sus adjuntos.
+  Tests: `node --test api/test/proximasEvaluaciones.test.js`.
+
 **Notificaciones: recordatorio de entrega de tareas**
 - El DOCENTE asignado (o ADMIN) carga las tareas de su materia con fecha de entrega: `GET /api/tareas/materias/:id`,
   `POST /api/tareas/materias/:id` (`titulo`, `descripcion` opcional, `fechaEntrega`), `PATCH /api/tareas/:id` y
@@ -375,6 +386,18 @@ Lo que ya está implementado, para no repetir trabajo:
 - Schema: modelo `Tarea` y `Notificacion.clave` con restricción única `[usuarioId, clave]`. Correr
   `db:push --accept-data-loss`: Prisma avisa por la restricción nueva, pero es seguro porque las notificaciones existentes
   quedan con `clave` nula y los nulos no cuentan como duplicados. Tests: `node --test api/test/tareas.test.js`.
+
+**Inscriptos a los finales**
+- `GET /api/finales` (ALUMNO) suma `inscriptos: { total, regulares, libres }` en cada final: solo los números.
+- `GET /api/examenes/materias/:id` (docente de la materia o ADMIN) suma en cada final `inscriptos` con los números y la
+  lista de alumnos (nombre, correo y modalidad). Se ve en «Inscripción a finales» y en «Fechas de examen».
+- Cancelar un final que tenía inscriptos ahora borra sus inscripciones en la misma transacción (antes daba error 500).
+- **Inscripción**: se puede inscribir (y cancelar) hasta 48 h antes del examen (`inscripcionAbierta` en `GET /api/finales`).
+- **Nota del examen final por mesa**: en «Notas → Examen final» el docente elige la mesa (un final de la materia que ya
+  se rindió) y carga la nota de sus inscriptos. La nota usa la fecha de la mesa y guarda `Evaluacion.examenId` y
+  `Evaluacion.modalidad`. Regular: cuenta como intento (como antes). Libre: con la nota de aprobación del final aprueba
+  la materia; si desaprueba, sigue libre. Schema: correr `db:push`.
+  Tests: `node --test api/test/inscriptosFinal.test.js`.
 
 **Navegación por rol**
 - El DOCENTE no ve «Materias» ni «Mi horario» (son del alumno) y arranca en «Mis materias».
