@@ -35,3 +35,27 @@ export async function bibliografiaDelAlumno(db, alumnoId) {
     };
   });
 }
+
+// Bibliografía de las materias que dicta el docente. Igual que la del alumno, van todas las materias
+// (las que no tienen bibliografía publicada con la lista vacía) y se suma si la materia tiene el PDF del programa.
+export async function bibliografiaDelDocente(db, docenteId) {
+  const materias = await db.materia.findMany({
+    where: { docentes: { some: { docenteId } } },
+    select: {
+      id: true, nombre: true, codigo: true, anio: true, cuatrimestre: true, programaUrl: true,
+      programa: { select: { bibliografia: true, vigente: true, version: true, actualizadoEn: true } },
+    },
+    orderBy: [{ anio: "asc" }, { cuatrimestre: "asc" }, { nombre: "asc" }],
+  });
+
+  return materias.map(({ programa, programaUrl, ...materia }) => {
+    const publicada = programa?.vigente ? programa : null;
+    return {
+      ...materia,
+      bibliografia: separarBibliografia(publicada?.bibliografia),
+      version: publicada?.version ?? null,
+      actualizadoEn: publicada?.actualizadoEn ?? null,
+      tienePdf: Boolean(programaUrl),
+    };
+  });
+}

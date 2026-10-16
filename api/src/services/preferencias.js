@@ -13,7 +13,7 @@ export const POR_DEFECTO = { SISTEMA: true, EMAIL: false, PUSH: false };
 // Los tipos que puede configurar cada rol (los que realmente le llegan).
 export const TIPOS_POR_ROL = {
   ALUMNO: ["AVISO_DOCENTE", "HORARIO_MODIFICADO", "CALIFICACION_PUBLICADA", "FECHA_EXAMEN", "RECORDATORIO_ENTREGA", "REVISION_RESUELTA"],
-  DOCENTE: ["SOLICITUD_REVISION"],
+  DOCENTE: ["SOLICITUD_REVISION", "PROPUESTA_PROGRAMA_RESUELTA"],
 };
 
 const MAX_CAMBIOS = 50;
