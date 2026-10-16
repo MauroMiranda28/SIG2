@@ -5,6 +5,7 @@ import { errorAcceso, requiereMateriaAsignada, validarId } from "../services/doc
 import { filtroAlumnosDeMateria, validarCondicionMateria } from "../services/notas.js";
 import { crearNotificaciones, validarAviso } from "../services/notificaciones.js";
 import { DATOS_INFO_MATERIA, armarInfoMateria, armarRelacionadas, datosMateriaRelacionada } from "../services/consultaMaterias.js";
+import { bibliografiaDelDocente } from "../services/bibliografia.js";
 import { DATOS_CAMBIO_MATERIA, MAX_CAMBIOS_POR_CONSULTA } from "../services/auditoriaMateria.js";
 
 // Inyección de DB para probar el contrato HTTP sin credenciales reales (igual que planes/carreras).
@@ -44,6 +45,13 @@ export function crearRouterDocentes(db = prisma) {
         tienePdf: Boolean(programaUrl),
         tieneProgramaTexto: Boolean(programa?.vigente),
       })));
+    } catch (e) { next(e); }
+  });
+
+  // Bibliografía de las materias que dicta el docente logueado (sale del programa vigente de cada una).
+  router.get("/bibliografia", requiereRol("DOCENTE"), async (req, res, next) => {
+    try {
+      res.json(await bibliografiaDelDocente(db, req.usuario.id));
     } catch (e) { next(e); }
   });
 

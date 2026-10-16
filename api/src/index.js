@@ -29,6 +29,7 @@ import { configuracionCanales, crearTransporteEmail, crearTransportePush } from 
 import { iniciarEnvios } from "./services/envios.js";
 
 import programasRouter from "./routes/programas.js";
+import propuestasProgramaRouter from "./routes/propuestasPrograma.js";
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use("/api/asistencias", asistenciasRouter);
 app.use("/api/promedio", promedioRouter);
 app.use("/api/docentes", docentesRouter);
 app.use("/api/programas", programasRouter);
+app.use("/api/propuestas-programa", propuestasProgramaRouter);
 app.use("/api/notas", notasRouter);
 app.use("/api/correlatividades", correlatividadesRouter);
 app.use("/api/notificaciones", notificacionesRouter);

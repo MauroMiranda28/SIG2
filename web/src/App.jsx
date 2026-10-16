@@ -32,10 +32,13 @@ import FechasExamen from "./docentes/FechasExamen.jsx";
 import Tareas from "./docentes/Tareas.jsx";
 import Revisiones from "./docentes/Revisiones.jsx";
 import ProgramaDocente from "./docentes/ProgramaDocente.jsx";
+import BibliografiaDocente from "./docentes/BibliografiaDocente.jsx";
+import PropuestasPrograma from "./docentes/PropuestasPrograma.jsx";
 
 import MiCarrera from "./carreras/MiCarrera.jsx";
 import ActualizarPrograma from "./programas/ActualizarPrograma.jsx";
 import CargarPrograma from "./programas/CargarPrograma.jsx";
+import PropuestasDocentes from "./programas/PropuestasDocentes.jsx";
 
 function AgendaSemanalDocente() {
   return <AgendaSemanal esDocente />;
@@ -112,7 +115,10 @@ const NAV_ITEMS = [
   { id: "correlatividades-admin", label: "Correlatividades", grupo: "planes", roles: ["ADMIN"], Componente: CargarCorrelatividades },
   { id: "cargar-programa", label: "Cargar programa", grupo: "programas", roles: ["ADMIN"], Componente: CargarPrograma },
   { id: "actualizar-programa", label: "Actualizar programa", grupo: "programas", roles: ["ADMIN"], Componente: ActualizarPrograma },
+  { id: "propuestas-docentes", label: "Propuestas de docentes", grupo: "programas", roles: ["ADMIN"], Componente: PropuestasDocentes },
   { id: "programa-docente", label: "Consultar programa", grupo: "programas", roles: ["DOCENTE"], Componente: ProgramaDocente },
+  { id: "bibliografia-docente", label: "Bibliografía", grupo: "programas", roles: ["DOCENTE"], Componente: BibliografiaDocente },
+  { id: "propuestas-programa-docente", label: "Proponer modificaciones", grupo: "programas", roles: ["DOCENTE"], Componente: PropuestasPrograma },
   { id: "asignar-docentes-horario", label: "Asignar docentes a clases", grupo: "organizacion-academica", roles: ["ADMIN"], Componente: AsignarDocentesHorario },
   { id: "calendario-academico", label: "Calendario académico", grupo: "organizacion-academica", roles: ["ADMIN"], Componente: CalendarioAcademico },
   // «Mis datos» se renderiza aparte porque necesita props (usuario, onActualizado); va igual en NAV_ITEMS para que el menú lo agrupe.

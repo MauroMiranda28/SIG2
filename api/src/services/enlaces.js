@@ -10,6 +10,7 @@ export const TEXTO_SECCION = {
   notas: "Ver mis notas y solicitudes de revisión",
   "inscripcion-final": "Ir a la inscripción a finales",
   revisiones: "Ver las solicitudes de revisión",
+  "propuestas-programa-docente": "Ver mis propuestas de programa",
 };
 
 // Sección por defecto de cada tipo de notificación.
@@ -21,6 +22,7 @@ export const SECCION_POR_TIPO = {
   RECORDATORIO_ENTREGA: "materias",
   REVISION_RESUELTA: "notas",
   SOLICITUD_REVISION: "revisiones",
+  PROPUESTA_PROGRAMA_RESUELTA: "propuestas-programa-docente",
 };
 
 export const SECCION_GENERAL = "materias";
