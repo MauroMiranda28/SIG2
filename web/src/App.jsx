@@ -8,6 +8,7 @@ import Correlatividades from "./correlatividades/Correlatividades.jsx";
 import CargarCorrelatividades from "./correlatividades/CargarCorrelatividades.jsx";
 import AgendaSemanal from "./horarios/AgendaSemanal.jsx";
 import AsignarDocentesHorario from "./horarios/AsignarDocentesHorario.jsx";
+import PaginaCalendarioAnual from "./horarios/PaginaCalendarioAnual.jsx";
 import MisDatos from "./perfil/MisDatos.jsx";
 import MisNotas from "./notas/MisNotas.jsx";
 import HistorialNotas from "./evaluaciones/HistorialNotas.jsx";
@@ -89,6 +90,8 @@ const NAV_ITEMS = [
   { id: "materias", label: "Materias", grupo: "materias", roles: ["ALUMNO"], Componente: MateriasCarrera },
   { id: "calendario-anual-alumno", label: "Calendario académico", grupo: "agenda", roles: ["ALUMNO"], Componente: AgendaSemanal },
   { id: "calendario-anual-docente", label: "Calendario académico", grupo: "agenda", roles: ["DOCENTE"], Componente: AgendaSemanalDocente },
+  { id: "calendario-mensual-alumno", label: "Vista mensual", grupo: "agenda", roles: ["ALUMNO"], Componente: PaginaCalendarioAnual },
+  { id: "calendario-mensual-docente", label: "Vista mensual", grupo: "agenda", roles: ["DOCENTE"], Componente: PaginaCalendarioAnual },
   { id: "actividades-personales", label: "Actividades personales", grupo: "agenda", roles: ["ALUMNO"], Componente: ActividadesPersonales },
   { id: "dedicacion-docente", label: "Dedicación extra-áulica", grupo: "agenda", roles: ["DOCENTE"], Componente: ActividadesDocente },
   { id: "mi-plan", label: "Mi plan de estudios", grupo: "mi-carrera", roles: ["ALUMNO"], Componente: MiPlan },
