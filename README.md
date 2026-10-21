@@ -290,6 +290,24 @@ Lo que ya está implementado, para no repetir trabajo:
 - Pestaña «Consultar materias» para el DOCENTE. Las correlatividades (tabla `Correlatividad`) todavía no se cargan desde
   ninguna pantalla: hoy se agregan a mano en Prisma Studio o con `api/prisma/seed.js`.
 
+**Bibliografía y propuestas de cambio al programa (DOCENTE)**
+- `GET /api/docentes/bibliografia` (DOCENTE) — bibliografía del programa vigente de **todas** las materias que dicta (una obra
+  por renglón, ya separada). Las que todavía no tienen bibliografía publicada vienen con la lista vacía (y `tienePdf` por si el
+  detalle está en el PDF). Pestaña «Programas → Bibliografía».
+- El docente no edita el programa directo: lo **propone**. `POST /api/propuestas-programa` (DOCENTE de la materia) guarda el
+  programa completo como quedaría (contenidos + bibliografía) y el motivo (10–1000 caracteres). Reglas: solo materias que dicta,
+  una propuesta pendiente por materia, y tiene que cambiar algo. La propuesta guarda `versionBase` (la versión del programa de la
+  que parte; 0 si la materia no tenía programa en texto). `GET /api/propuestas-programa/mias` lista las suyas con su estado.
+  Pestaña «Programas → Proponer modificaciones».
+- Administración las resuelve: `GET /api/propuestas-programa` (ADMIN, pendientes por defecto; `?estado=TODAS` incluye las
+  resueltas) trae cada propuesta junto al programa vigente para compararlos, y `PATCH /api/propuestas-programa/:id/resolver`
+  la aprueba o la rechaza. **Rechazar exige una respuesta.** Aprobar publica una nueva versión con la misma lógica y la misma
+  transacción que «Actualizar programa» (y deja el registro de cambios «Aprobó la propuesta de …»). Una propuesta que quedó
+  desactualizada (el programa cambió después de proponer) no se puede aprobar, solo rechazar; si la materia tiene un PDF cargado,
+  aprobar exige confirmar que el texto nuevo lo reemplaza (`reemplazarPdf`). Pestaña «Programas → Propuestas de docentes».
+- Al resolver, el docente recibe una notificación nueva (`PROPUESTA_PROGRAMA_RESUELTA`) con la respuesta, que respeta sus
+  preferencias de canal y lleva a «Proponer modificaciones». Tests: `node --test api/test/propuestas-programa.test.js`.
+
 **Programa en PDF**
 - `GET /api/materias/:id/programa/pdf` (cualquier usuario logueado) — descarga el PDF subido; si no hay,
   arma uno con el programa cargado como texto.

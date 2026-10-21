@@ -10,3 +10,17 @@
 .programas-error { color: var(--color-danger); }
 .programas-exito { background: var(--color-success-bg); color: var(--color-success); padding: 1rem; border-radius: var(--radius-sm); }
 .programas-texto { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Propuestas de docentes. */
+.programas-propuestas { list-style: none; padding: 0; display: grid; gap: 1rem; }
+.programas-propuesta { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1rem; background: var(--color-white); display: grid; gap: .5rem; }
+.programas-propuesta h3 { margin: 0; }
+.programas-meta { color: var(--color-text-muted); font-weight: 400; margin: 0; }
+.programas-comparacion { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
+.programas-comparacion section { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .75rem; min-width: 0; }
+.programas-comparacion h4, .programas-comparacion h5 { margin: 0 0 .35rem; }
+.programas label.programas-check { display: flex; align-items: flex-start; gap: .5rem; font-weight: 400; }
+.programas-check input { margin-top: .3rem; flex: none; }
+.programas-acciones { display: flex; flex-wrap: wrap; gap: .6rem; }
+.programas-acciones button { border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-white); color: var(--color-text); }
+.programas-acciones button:first-child { background: var(--color-primary); color: white; border: 0; }

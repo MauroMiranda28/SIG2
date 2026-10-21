@@ -111,6 +111,7 @@ enum TipoNotificacion {
   RECORDATORIO_ENTREGA // se acerca la entrega de una tarea
   SOLICITUD_REVISION // un alumno pidió la revisión de una nota (le llega al docente de la materia)
   REVISION_RESUELTA // el docente resolvió o rechazó la solicitud de revisión (le llega al alumno)
+  PROPUESTA_PROGRAMA_RESUELTA // administración aprobó o rechazó una propuesta de cambio al programa (le llega al docente)
 }
 
 // Seg-01, Seg-04, U-01, U-02 y las dos nuevas de docente
@@ -145,6 +146,8 @@ model Usuario {
   evaluacionesCargadas Evaluacion[]
   cambiosDeNota   CambioNota[]
   cambiosDeMateria CambioMateria[]
+  propuestasPrograma PropuestaPrograma[] @relation("PropuestaDelDocente")
+  propuestasResueltas PropuestaPrograma[] @relation("PropuestaResueltaPor")
   notificaciones  Notificacion[] @relation("DestinatarioNotificacion")
   avisosEnviados  Notificacion[] @relation("AutorNotificacion")
   preferenciasNotificacion PreferenciaNotificacion[]
@@ -221,6 +224,7 @@ model Materia {
   examenes    FechaExamen[]
   tareas      Tarea[]
   cambios     CambioMateria[]
+  propuestasPrograma PropuestaPrograma[]
   notificaciones Notificacion[]
 
   // PE-04, PE-06: correlatividades
@@ -406,6 +410,40 @@ model Correlatividad {
   requiere   Materia @relation("MateriaRequerida", fields: [requiereId], references: [id])
 
   @@unique([materiaId, requiereId])
+}
+
+enum EstadoPropuestaPrograma {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
+
+// Un docente propone cambiar el programa de una materia que dicta; administración la aprueba (y entonces se
+// publica como la nueva versión vigente) o la rechaza con una respuesta. El docente nunca modifica el programa directo.
+// Se guarda el texto completo propuesto y la versión del programa sobre la que se hizo: si el programa cambió
+// mientras tanto, aprobarla pisaría esos cambios y el sistema lo impide.
+model PropuestaPrograma {
+  id           Int                      @id @default(autoincrement())
+  contenidos   String
+  bibliografia String?
+  motivo       String
+  estado       EstadoPropuestaPrograma  @default(PENDIENTE)
+  creadoEn     DateTime                 @default(now())
+  versionBase  Int // versión del programa vigente al proponer; 0 si la materia todavía no tenía programa
+
+  respuesta   String?
+  resueltaEn  DateTime?
+  resueltaPorId Int?
+  resueltaPor   Usuario? @relation("PropuestaResueltaPor", fields: [resueltaPorId], references: [id])
+
+  materiaId Int
+  materia   Materia @relation(fields: [materiaId], references: [id])
+
+  docenteId Int
+  docente   Usuario @relation("PropuestaDelDocente", fields: [docenteId], references: [id])
+
+  @@index([materiaId, estado])
+  @@index([docenteId, creadoEn])
 }
 
 // HU-PRO-01 a HU-PRO-09

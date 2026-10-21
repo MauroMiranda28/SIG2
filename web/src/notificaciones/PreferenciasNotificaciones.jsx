@@ -13,6 +13,7 @@ const TIPOS = {
   RECORDATORIO_ENTREGA: ["Entrega de tareas", "Un recordatorio cuando se acerca la fecha de entrega de una tarea."],
   REVISION_RESUELTA: ["Respuesta a tus revisiones de nota", "Cuando el docente resuelve o rechaza una solicitud de revisión."],
   SOLICITUD_REVISION: ["Solicitudes de revisión", "Cuando un alumno pide la revisión de una nota de tus materias."],
+  PROPUESTA_PROGRAMA_RESUELTA: ["Respuesta a tus propuestas de programa", "Cuando administración aprueba o rechaza un cambio que propusiste al programa de una materia."],
 };
 const CANALES = [["SISTEMA", "En el sistema"], ["EMAIL", "Email"], ["PUSH", "Push"]];
 

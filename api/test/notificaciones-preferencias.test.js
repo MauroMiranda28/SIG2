@@ -50,7 +50,7 @@ test("preferencias: la matriz muestra solo los tipos del rol, con los cambios ap
   assert.deepEqual(alumno.map((f) => f.tipo), TIPOS_POR_ROL.ALUMNO);
   assert.deepEqual(alumno.find((f) => f.tipo === "FECHA_EXAMEN").canales, { SISTEMA: true, EMAIL: true, PUSH: false });
   assert.deepEqual(alumno.find((f) => f.tipo === "AVISO_DOCENTE").canales, { SISTEMA: false, EMAIL: false, PUSH: false });
-  assert.deepEqual(armarMatriz("DOCENTE", []).map((f) => f.tipo), ["SOLICITUD_REVISION"]);
+  assert.deepEqual(armarMatriz("DOCENTE", []).map((f) => f.tipo), ["SOLICITUD_REVISION", "PROPUESTA_PROGRAMA_RESUELTA"]);
   assert.deepEqual(armarMatriz("ADMIN", []), []);
 });
 
@@ -408,7 +408,7 @@ test("HTTP preferencias: sin cambios muestra los valores por defecto y qué medi
       PUSH: { disponible: false, clavePublica: null, dispositivos: 0 },
     });
     const docente = await (await request("GET", "/preferencias", { rol: "DOCENTE" })).json();
-    assert.deepEqual(docente.tipos.map((t) => t.tipo), ["SOLICITUD_REVISION"]);
+    assert.deepEqual(docente.tipos.map((t) => t.tipo), ["SOLICITUD_REVISION", "PROPUESTA_PROGRAMA_RESUELTA"]);
   });
 });
 
