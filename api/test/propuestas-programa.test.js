@@ -16,7 +16,7 @@ const datosValidos = (extra = {}) => ({ materiaId: 4, contenidos: "Unidad 1\nUni
 
 // Base en memoria con el estado que importa: programa, propuestas, PDF, registro de cambios y notificaciones.
 function base({ programa = { id: 7, materiaId: 4, contenidos: "Unidad 1", bibliografia: null, version: 2, vigente: true }, pdf = null, asignada = true } = {}) {
-  const estado = { programa, pdf, propuestas: [], cambios: [], notificaciones: [], siguienteId: 1 };
+  const estado = { programa, pdf, propuestas: [], cambios: [], versiones: [], notificaciones: [], siguienteId: 1 };
   const materia = { id: 4, nombre: "Programación", codigo: "P1" };
   const completa = (p) => p && {
     ...p, materia: { ...materia, programaUrl: estado.pdf },
@@ -48,6 +48,7 @@ function base({ programa = { id: 7, materiaId: 4, contenidos: "Unidad 1", biblio
       update: async ({ where, data }) => { const p = estado.propuestas.find((x) => x.id === where.id); Object.assign(p, data); return p; },
     },
     cambioMateria: { create: async ({ data }) => { estado.cambios.push(data); return data; } },
+    programaVersion: { create: async ({ data }) => { estado.versiones.push(data); return data; } },
     preferenciaNotificacion: { findMany: async () => [] },
     notificacion: { createMany: async ({ data }) => { estado.notificaciones.push(...data); return { count: data.length }; } },
     envioNotificacion: { createMany: async () => ({ count: 0 }) },

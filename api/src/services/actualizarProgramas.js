@@ -23,6 +23,10 @@ export async function aplicarActualizacion(tx, { id, autorId, datos, origen = ""
   if (pdfActual !== datos.pdfEsperado) throw error(409, "El PDF de la materia cambió. Recargá el programa antes de guardar.");
   if (pdfActual && !datos.reemplazarPdf) throw error(409, "Confirmá que la descarga debe usar el texto actualizado en lugar del PDF anterior.");
   if (actual.vigente && actual.contenidos === datos.contenidos && (actual.bibliografia ?? null) === datos.bibliografia && !pdfActual) throw error(400, "No modificaste el programa.");
+  // Se guarda la versión que queda reemplazada antes de pisarla: es el único lugar donde queda su contenido.
+  await tx.programaVersion.create({
+    data: { programaId: id, version: actual.version, contenidos: actual.contenidos, bibliografia: actual.bibliografia, autorId },
+  });
   const resultado = await tx.programa.updateMany({
     where: { id, version: datos.version },
     data: { contenidos: datos.contenidos, bibliografia: datos.bibliografia, version: { increment: 1 }, vigente: true },

@@ -2,6 +2,41 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import "./programas.css";
 
+// Historial de versiones: lo que tenía el programa antes de cada actualización (ADM: conservar
+// versiones anteriores). Se pide solo al abrir la sección, no en cada carga del formulario.
+function VersionesAnteriores({ programaId }) {
+  const [abierto, setAbierto] = useState(false);
+  const [versiones, setVersiones] = useState(null);
+  const [error, setError] = useState("");
+
+  function abrir() {
+    setAbierto(true);
+    if (versiones === null) {
+      api(`/programas/${programaId}/versiones`).then(setVersiones).catch(e => setError(e.message));
+    }
+  }
+
+  if (!abierto) return <button type="button" onClick={abrir}>Ver versiones anteriores</button>;
+  return (
+    <div className="programas-versiones">
+      <h3>Versiones anteriores</h3>
+      {error ? <p role="alert" className="programas-error">{error}</p>
+        : versiones === null ? <p role="status">Cargando versiones…</p>
+        : !versiones.length ? <p>Esta es la primera versión: todavía no hay versiones anteriores.</p>
+        : versiones.map(v => (
+          <details key={v.id}>
+            <summary>
+              Versión {v.version} · {new Date(v.creadoEn).toLocaleString("es-AR")}
+              {v.autor && ` · ${v.autor.nombre} ${v.autor.apellido}`}
+            </summary>
+            <p className="programas-texto"><strong>Contenidos:</strong> {v.contenidos}</p>
+            {v.bibliografia && <p className="programas-texto"><strong>Bibliografía:</strong>{"\n"}{v.bibliografia}</p>}
+          </details>
+        ))}
+    </div>
+  );
+}
+
 export default function ActualizarPrograma() {
   const [materias, setMaterias] = useState(null);
   const [errorLista, setErrorLista] = useState("");
@@ -83,6 +118,7 @@ export default function ActualizarPrograma() {
         <button type="button" onClick={recargar}>Recargar versión guardada</button>
       </fieldset>
     </form>}
+    {programa && !cargando && <VersionesAnteriores key={`${programa.id}-${programa.version}`} programaId={programa.id} />}
     {error && <p role="alert" className="programas-error">{error}</p>}
     {id && !programa && !cargando && error && <button onClick={recargar}>Reintentar</button>}
     {aviso && <p role="status" className="programas-exito">{aviso}</p>}

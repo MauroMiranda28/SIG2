@@ -10,23 +10,29 @@ import { prisma } from "../src/db.js";
 
 const entrada = () => ({ contenidos: "Unidad nueva\nTemas nuevos", bibliografia: "Referencia nueva", version: 2 });
 function base({ pdf = null, vigente = true } = {}) {
-  let estado = { programa: { id: 7, materiaId: 4, contenidos: "Anterior", bibliografia: "Referencia", version: 2, vigente, actualizadoEn: new Date() }, pdf, cambios: [] };
+  let estado = { programa: { id: 7, materiaId: 4, contenidos: "Anterior", bibliografia: "Referencia", version: 2, vigente, actualizadoEn: new Date() }, pdf, cambios: [], versiones: [] };
   const leer = async args => args.include ? { ...estado.programa, materia: { id: 4, nombre: "Programación", codigo: "P1", programaUrl: estado.pdf } } : { ...estado.programa };
   const db = {
     programa: { findUnique: leer },
+    programaVersion: {
+      findMany: async ({ where }) => estado.versiones
+        .filter(v => v.programaId === where.programaId)
+        .sort((a, b) => b.version - a.version),
+    },
     $transaction: async (fn, opciones) => {
       assert.equal(opciones.isolationLevel, "Serializable");
       const previo = structuredClone(estado);
       try {
         return await fn({
           programa: { findUnique: leer, updateMany: async ({ where, data }) => {
-            assert.deepEqual(where, { id: 7, version: 2 });
+            assert.equal(where.id, 7);
             if (estado.programa.version !== where.version) return { count: 0 };
             estado.programa = { ...estado.programa, ...data, version: estado.programa.version + data.version.increment, actualizadoEn: new Date() };
             return { count: 1 };
           } },
           materia: { update: async ({ where, data }) => { assert.deepEqual(where, { id: 4 }); assert.deepEqual(data, { programaUrl: null }); estado.pdf = null; } },
           cambioMateria: { create: async ({ data }) => { estado.cambios.push(data); return data; } },
+          programaVersion: { create: async ({ data }) => { estado.versiones.push(data); return data; } },
         });
       } catch (e) { estado = previo; throw e; }
     },
@@ -73,6 +79,8 @@ test("actualiza, incrementa versión y registra autor del token; el alumno lee e
       const r = await request("ADMIN", entrada()); assert.equal(r.status, 200);
       const p = await r.json(); assert.equal(p.version, 3); assert.equal(p.vigente, true); assert.equal(p.materiaId, 4);
       assert.equal(b.estado().cambios[0].autorId, 9); assert.match(b.estado().cambios[0].detalle, /versión 2 a 3/);
+      // La versión reemplazada (2, con el contenido viejo) queda conservada antes de pisarla.
+      assert.deepEqual(b.estado().versiones, [{ programaId: 7, version: 2, contenidos: "Anterior", bibliografia: "Referencia", autorId: 9 }]);
       const lectura = await request("ALUMNO", undefined, "/materias/4/programa"); assert.equal(lectura.status, 200);
       assert.equal((await lectura.json()).programa.contenidos, entrada().contenidos);
     }, true);
@@ -107,6 +115,29 @@ test("guardar sin cambios no genera una versión artificial", async () => {
   const b = base(); await conAPI(b.db, async request => {
     assert.equal((await request("ADMIN", { ...entrada(), contenidos: "Anterior", bibliografia: "Referencia" })).status, 400);
     assert.equal(b.estado().programa.version, 2);
+  });
+});
+test("GET /:id/versiones exige ADMIN y devuelve 404 si el programa no existe", async () => {
+  const b = base(); await conAPI(b.db, async request => {
+    for (const [rol, status] of [[null, 401], ["ALUMNO", 403], ["DOCENTE", 403]]) {
+      assert.equal((await request(rol, undefined, "/programas/7/versiones")).status, status);
+    }
+  });
+  const db = { programa: { findUnique: async () => null } };
+  await conAPI(db, async request => {
+    assert.equal((await request("ADMIN", undefined, "/programas/999/versiones")).status, 404);
+  });
+});
+test("GET /:id/versiones lista las versiones reemplazadas, la más nueva primero", async () => {
+  const b = base(); await conAPI(b.db, async request => {
+    assert.equal((await request("ADMIN", entrada())).status, 200); // versión 2 -> 3
+    assert.equal((await request("ADMIN", { ...entrada(), version: 3, contenidos: "Otra más" })).status, 200); // versión 3 -> 4
+    const r = await request("ADMIN", undefined, "/programas/7/versiones");
+    assert.equal(r.status, 200);
+    const versiones = await r.json();
+    assert.deepEqual(versiones.map(v => v.version), [3, 2]);
+    assert.equal(versiones[0].contenidos, entrada().contenidos);
+    assert.equal(versiones[1].contenidos, "Anterior");
   });
 });
 test("IDs inválidos, programa inexistente y conflictos de transacción tienen respuesta clara", async () => {
