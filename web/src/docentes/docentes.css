@@ -52,3 +52,14 @@
 .docente .docente-lista li { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .docente .docente-etiqueta { margin-left: .5rem; padding: .05rem .45rem; border-radius: 999px; background: var(--color-primary-light); color: var(--color-primary-dark); font-size: .8rem; font-weight: 600; white-space: nowrap; }
 .docente .docente-tabla td, .docente .docente-tabla th { padding-right: .6rem; vertical-align: top; }
+
+/* Propuestas de cambio al programa. */
+.docente .docente-ancho { max-width: none; }
+.docente textarea { width: 100%; box-sizing: border-box; font: inherit; font-weight: 400; padding: .6rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-white); color: var(--color-text); resize: vertical; }
+.docente .docente-formulario { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: .5rem; }
+.docente .docente-texto { white-space: pre-wrap; overflow-wrap: anywhere; }
+.docente .docente-propuestas { list-style: none; padding: 0; margin: 0; display: grid; gap: .75rem; }
+.docente .docente-propuesta { border: 1px solid var(--color-border); border-left-width: 4px; border-radius: var(--radius-sm); padding: .75rem; background: var(--color-white); }
+.docente .docente-propuesta p { margin: 0 0 .4rem; }
+.docente .docente-propuesta--aprobada { border-left-color: var(--color-success); }
+.docente .docente-propuesta--rechazada { border-left-color: var(--color-danger); }

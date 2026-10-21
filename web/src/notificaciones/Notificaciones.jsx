@@ -9,6 +9,7 @@ const ETIQUETA_TIPO = {
   RECORDATORIO_ENTREGA: "Entrega",
   SOLICITUD_REVISION: "Solicitud de revisión",
   REVISION_RESUELTA: "Revisión de nota",
+  PROPUESTA_PROGRAMA_RESUELTA: "Propuesta de programa",
 };
 
 const POR_PAGINA = 20;
