@@ -4,6 +4,7 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import { crearRouterPlanes } from "../src/routes/planes.js";
 import { resolverPlanAlumno, validarPlan } from "../src/services/planes.js";
+import { manejarErrores } from "../src/middleware/errores.js";
 
 const valido = () => ({ nombre: " Plan 2026 ", anio: 2026, carreraId: 1, materias: [
   { nombre: " Programación I ", codigo: " prog26 ", anio: 1, cuatrimestre: 1, cargaHoraria: 96 },
@@ -80,6 +81,53 @@ test("HTTP: códigos existentes y conflictos de concurrencia retornan 409", asyn
     assert.equal((await request("/", "ADMIN", valido())).status, 409);
   });
 });
+test("HTTP: lista de planes exige ADMIN e incluye vigentes y no vigentes", async () => {
+  const planes = [{ id: 1, nombre: "Plan 2020", anio: 2020, vigente: false }, { id: 2, nombre: "Plan 2026", anio: 2026, vigente: true }];
+  await conAPI({}, async request => {
+    for (const [rol, status] of [[null, 401], ["ALUMNO", 403], ["DOCENTE", 403]]) assert.equal((await request("/", rol)).status, status);
+  });
+  await conAPI({ planEstudio: { findMany: async () => planes } }, async request => {
+    const r = await request("/", "ADMIN"); assert.equal(r.status, 200);
+    assert.deepEqual(await r.json(), planes);
+  });
+});
+
+async function conAPIEstado(db, fn) {
+  process.env.JWT_SECRET = "pruebas-estado-plan";
+  const app = express(); app.use(express.json()); app.use("/api/planes", crearRouterPlanes(db)); app.use(manejarErrores);
+  const server = app.listen(0, "127.0.0.1"); await new Promise((r) => server.once("listening", r));
+  const request = (id = "7", body = { vigente: false }, rol = "ADMIN") => fetch(`http://127.0.0.1:${server.address().port}/api/planes/${id}/estado`, {
+    method: "PUT", headers: { "Content-Type": "application/json", ...(rol ? { Authorization: `Bearer ${jwt.sign({ id: 1, rol }, process.env.JWT_SECRET)}` } : {}) }, body: JSON.stringify(body),
+  });
+  try { await fn(request); } finally { await new Promise((r) => server.close(r)); }
+}
+test("PUT /:id/estado exige sesión y rol ADMIN, y rechaza IDs o cuerpos inválidos", async () => {
+  await conAPIEstado({}, async (request) => {
+    for (const [rol, status] of [[null, 401], ["ALUMNO", 403], ["DOCENTE", 403]]) assert.equal((await request("7", { vigente: false }, rol)).status, status);
+    for (const id of ["abc", "0", "-1", "1.5"]) assert.equal((await request(id)).status, 400);
+    for (const body of [{}, [], { vigente: "false" }, { vigente: null }, { vigente: false, nombre: "otro" }]) assert.equal((await request("7", body)).status, 400);
+  });
+});
+test("PUT /:id/estado conserva el plan (baja lógica), sin tocar sus materias ni alumnos", async () => {
+  let plan = { id: 7, nombre: "Plan 2020", anio: 2020, vigente: true, creadoEn: new Date(), carrera: { id: 1, nombre: "Informática", codigo: "INF" }, _count: { materias: 12, alumnos: 40 } };
+  const original = JSON.parse(JSON.stringify(plan));
+  const db = { planEstudio: { update: async ({ where, data }) => {
+    assert.deepEqual(where, { id: 7 }); assert.deepEqual(Object.keys(data), ["vigente"]);
+    plan = { ...plan, ...data }; return plan;
+  } } };
+  await conAPIEstado(db, async (request) => {
+    for (const vigente of [false, false, true]) {
+      const r = await request("7", { vigente }); assert.equal(r.status, 200);
+      assert.deepEqual(await r.json(), { ...original, vigente });
+    }
+  });
+});
+test("PUT /:id/estado: plan inexistente devuelve 404 y no 500", async () => {
+  await conAPIEstado({ planEstudio: { update: async () => { throw { code: "P2025" }; } } }, async (request) => {
+    const r = await request(); assert.equal(r.status, 404); assert.match((await r.json()).error, /no existe/);
+  });
+});
+
 test("HTTP: consulta usa identidad JWT e incluye todas las materias sin filtrar aprobadas", async () => {
   const materias = [{ id: 10, nombre: "Programación" }, { id: 11, nombre: "Álgebra" }];
   const db = { usuario: { findUnique: async args => { assert.equal(args.where.id, 2); return { carreraId: 1, planEstudioId: 9 }; } }, planEstudio: {

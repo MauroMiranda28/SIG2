@@ -167,6 +167,7 @@ model Usuario {
   enviosNotificacion       EnvioNotificacion[]
   examenesProgramados FechaExamen[]
   tareasCreadas   Tarea[]
+  versionesPrograma ProgramaVersion[]
 }
 
 // CAR-01 a CAR-09
@@ -469,6 +470,25 @@ model Programa {
 
   materiaId Int     @unique
   materia   Materia @relation(fields: [materiaId], references: [id])
+
+  versiones ProgramaVersion[]
+}
+
+// Historial: antes de pisar el contenido vigente con una actualización, se conserva
+// una copia de la versión que queda reemplazada (ADM-xx: conservar versiones anteriores).
+model ProgramaVersion {
+  id           Int      @id @default(autoincrement())
+  version      Int
+  contenidos   String
+  bibliografia String?
+  creadoEn     DateTime @default(now())
+
+  programaId Int
+  programa   Programa @relation(fields: [programaId], references: [id])
+  autorId    Int
+  autor      Usuario  @relation(fields: [autorId], references: [id])
+
+  @@index([programaId, version])
 }
 
 model MateriaDocente {

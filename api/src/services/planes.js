@@ -2,6 +2,12 @@ export function errorPlan(status, message) {
   return Object.assign(new Error(message), { status });
 }
 
+export function validarIdPlan(valor) {
+  const id = Number(valor);
+  if (!Number.isInteger(id) || id < 1 || id > 2147483647) throw errorPlan(400, "El identificador del plan no es válido.");
+  return id;
+}
+
 // Nunca elegir arbitrariamente la versión más nueva ni mezclar planes.
 export async function resolverPlanAlumno(db, alumnoId) {
   const alumno = await db.usuario.findUnique({

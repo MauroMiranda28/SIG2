@@ -1,7 +1,13 @@
 import { Router } from "express";
 import { prisma } from "../db.js";
 import { requiereAuth, requiereRol } from "../middleware/auth.js";
-import { resolverPlanAlumno, validarPlan, errorPlan } from "../services/planes.js";
+import { resolverPlanAlumno, validarPlan, validarIdPlan, errorPlan } from "../services/planes.js";
+
+const DATOS_PLAN = {
+  id: true, nombre: true, anio: true, vigente: true, creadoEn: true,
+  carrera: { select: { id: true, nombre: true, codigo: true } },
+  _count: { select: { materias: true, alumnos: true } },
+};
 
 // Inyección de DB para probar el contrato HTTP sin credenciales reales.
 export function crearRouterPlanes(db = prisma) {
@@ -30,6 +36,16 @@ export function crearRouterPlanes(db = prisma) {
     } catch (e) { next(e); }
   });
 
+  // ADMIN: todos los planes cargados, vigentes y no vigentes, para mantener el historial académico.
+  router.get("/", requiereRol("ADMIN"), async (req, res, next) => {
+    try {
+      res.json(await db.planEstudio.findMany({
+        select: DATOS_PLAN,
+        orderBy: [{ carrera: { nombre: "asc" } }, { anio: "desc" }],
+      }));
+    } catch (e) { next(e); }
+  });
+
   router.post("/", requiereRol("ADMIN"), async (req, res, next) => {
     try {
       const { materias, ...datos } = validarPlan(req.body);
@@ -47,6 +63,25 @@ export function crearRouterPlanes(db = prisma) {
       next(e);
     }
   });
+
+  // Baja lógica: conserva el plan y sus materias (lo necesitan los alumnos ya cursando con él).
+  // Repetir el mismo estado es seguro; no se usa un toggle en el servidor.
+  router.put("/:id/estado", requiereRol("ADMIN"), async (req, res, next) => {
+    try {
+      const id = validarIdPlan(req.params.id);
+      const body = req.body;
+      if (!body || Array.isArray(body) || typeof body.vigente !== "boolean" ||
+          Object.keys(body).some((campo) => campo !== "vigente")) {
+        throw errorPlan(400, "Enviá únicamente vigente con el valor true o false.");
+      }
+      const plan = await db.planEstudio.update({ where: { id }, data: { vigente: body.vigente }, select: DATOS_PLAN });
+      res.json(plan);
+    } catch (e) {
+      if (e.code === "P2025") return res.status(404).json({ error: "El plan no existe." });
+      next(e);
+    }
+  });
+
   return router;
 }
 export default crearRouterPlanes();

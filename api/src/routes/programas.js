@@ -53,6 +53,23 @@ export function crearRouterProgramas(db = prisma) {
       next(e);
     }
   });
+  // Versiones anteriores del programa: qué contenido tenía antes de cada actualización, y quién la hizo.
+  router.get("/:id/versiones", async (req, res, next) => {
+    try {
+      const id = validarId(req.params.id, "programa");
+      const programa = await db.programa.findUnique({ where: { id }, select: { id: true } });
+      if (!programa) return res.status(404).json({ error: "El programa no existe." });
+      const versiones = await db.programaVersion.findMany({
+        where: { programaId: id },
+        select: {
+          id: true, version: true, contenidos: true, bibliografia: true, creadoEn: true,
+          autor: { select: { nombre: true, apellido: true, rol: true } },
+        },
+        orderBy: { version: "desc" },
+      });
+      res.json(versiones);
+    } catch (e) { next(e); }
+  });
   // El administrador puede abrir también programas no vigentes para republicarlos.
   router.get("/:id", async (req, res, next) => {
     try {

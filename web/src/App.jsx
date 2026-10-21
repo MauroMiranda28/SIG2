@@ -110,7 +110,7 @@ const NAV_ITEMS = [
   { id: "enviar-aviso", label: "Enviar aviso", grupo: "comunicacion", roles: ["DOCENTE"], Componente: EnviarAviso },
   { id: "tareas", label: "Tareas", grupo: "comunicacion", roles: ["DOCENTE"], Componente: Tareas },
   { id: "carreras", label: "Carreras", grupo: "planes", roles: ["ADMIN"], Componente: Carreras },
-  { id: "crear-plan", label: "Crear plan", grupo: "planes", roles: ["ADMIN"], Componente: CrearPlan },
+  { id: "crear-plan", label: "Planes de estudio", grupo: "planes", roles: ["ADMIN"], Componente: CrearPlan },
   { id: "correlatividades-admin", label: "Correlatividades", grupo: "planes", roles: ["ADMIN"], Componente: CargarCorrelatividades },
   { id: "cargar-programa", label: "Cargar programa", grupo: "programas", roles: ["ADMIN"], Componente: CargarPrograma },
   { id: "actualizar-programa", label: "Actualizar programa", grupo: "programas", roles: ["ADMIN"], Componente: ActualizarPrograma },

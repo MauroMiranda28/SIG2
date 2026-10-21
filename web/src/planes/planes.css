@@ -14,3 +14,4 @@
 .planes th, .planes td { padding: .65rem; border-bottom: 1px solid var(--color-border); }
 .planes th { background: var(--color-primary-soft); }
 .planes caption { text-align: left; color: var(--color-text-muted); padding-bottom: .5rem; }
+.planes .solo-lector { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

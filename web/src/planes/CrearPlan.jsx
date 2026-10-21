@@ -41,7 +41,7 @@ export default function CrearPlan() {
   }
 
   return <section className="planes">
-    <h2>Crear plan de estudios</h2>
+    <h2>Planes de estudio</h2>
     <p>Definí el plan de una carrera y organizá sus materias por año de cursado.</p>
     {errorCarga ? <div role="alert"><p>{errorCarga}</p><button onClick={cargarCarreras}>Reintentar</button></div>
       : carreras === null ? <p role="status">Cargando carreras…</p>
@@ -75,5 +75,80 @@ export default function CrearPlan() {
       </form>}
     {error && <p role="alert" className="plan-error">{error}</p>}
     {creado && <p role="status" className="plan-exito">Se creó «{creado.nombre}» para {creado.carrera.nombre}, con {creado.materias.length} materias. ID del plan: {creado.id}.</p>}
+    <PlanesCargados creadoId={creado?.id} />
   </section>;
+}
+
+// Historial académico (HU: conservar planes anteriores): lista todos los planes, vigentes y no
+// vigentes, y permite dar de baja/reactivar sin borrar nada (igual que en Carreras).
+function PlanesCargados({ creadoId }) {
+  const [planes, setPlanes] = useState(null);
+  const [errorLista, setErrorLista] = useState("");
+  const [error, setError] = useState("");
+  const [cambiandoEstado, setCambiandoEstado] = useState(null);
+
+  function cargar() {
+    setErrorLista("");
+    api("/planes").then(setPlanes).catch(e => setErrorLista(e.message));
+  }
+  useEffect(cargar, [creadoId]);
+
+  async function cambiarEstado(plan) {
+    if (cambiandoEstado !== null) return;
+    const nuevoEstado = !plan.vigente;
+    const mensaje = nuevoEstado
+      ? `¿Reactivar «${plan.nombre}»?`
+      : `¿Dar de baja «${plan.nombre}»? Figurará como no vigente. Se conservan sus materias y los alumnos que ya lo tienen asignado.`;
+    if (!window.confirm(mensaje)) return;
+    setCambiandoEstado(plan.id);
+    setError("");
+    try {
+      const actualizado = await api(`/planes/${plan.id}/estado`, { method: "PUT", body: JSON.stringify({ vigente: nuevoEstado }) });
+      setPlanes(lista => lista.map(p => p.id === actualizado.id ? actualizado : p));
+    } catch (e) {
+      setError(e.message || "No se pudo cambiar el estado. Intentá nuevamente.");
+    } finally {
+      setCambiandoEstado(null);
+    }
+  }
+
+  return (
+    <>
+      <h3>Planes cargados</h3>
+      <p>Los planes no vigentes permanecen en este listado para conservar el historial académico.</p>
+      {errorLista ? (
+        <div role="alert"><p>{errorLista}</p><button onClick={cargar}>Reintentar</button></div>
+      ) : planes === null ? (
+        <p role="status">Cargando planes…</p>
+      ) : !planes.length ? (
+        <p>Todavía no hay planes. Registrá el primero con el formulario de arriba.</p>
+      ) : (
+        <div className="plan-tabla">
+          <table>
+            <thead>
+              <tr><th scope="col">Plan</th><th scope="col">Carrera</th><th scope="col">Año</th><th scope="col">Estado</th><th scope="col">Materias</th><th scope="col"><span className="solo-lector">Acciones</span></th></tr>
+            </thead>
+            <tbody>
+              {planes.map(p => (
+                <tr key={p.id}>
+                  <td>{p.nombre}</td>
+                  <td>{p.carrera.nombre} ({p.carrera.codigo})</td>
+                  <td>{p.anio}</td>
+                  <td>{p.vigente ? "Vigente" : "No vigente"}</td>
+                  <td>{p._count?.materias ?? 0}</td>
+                  <td>
+                    <button type="button" onClick={() => cambiarEstado(p)} disabled={cambiandoEstado !== null}
+                      aria-label={`${p.vigente ? "Dar de baja" : "Reactivar"} ${p.nombre}`}>
+                      {cambiandoEstado === p.id ? "Guardando…" : p.vigente ? "Dar de baja" : "Reactivar"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {error && <p role="alert" className="plan-error">{error}</p>}
+    </>
+  );
 }

@@ -10,6 +10,9 @@
 .programas-error { color: var(--color-danger); }
 .programas-exito { background: var(--color-success-bg); color: var(--color-success); padding: 1rem; border-radius: var(--radius-sm); }
 .programas-texto { white-space: pre-wrap; overflow-wrap: anywhere; }
+.programas-versiones { display: grid; gap: .5rem; margin-top: 1rem; }
+.programas-versiones details { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .6rem; background: var(--color-white); }
+.programas-versiones summary { cursor: pointer; font-weight: 600; }
 
 /* Propuestas de docentes. */
 .programas-propuestas { list-style: none; padding: 0; display: grid; gap: 1rem; }
