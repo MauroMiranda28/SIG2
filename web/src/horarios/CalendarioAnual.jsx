@@ -9,7 +9,7 @@ const NOMBRES_MESES = [
 ];
 const fechaISO = (fecha) => new Date(fecha).toISOString().slice(0, 10);
 
-function mesCalendario(anio, mes, periodos) {
+function mesCalendario(anio, mes, periodos, agendaPorFecha) {
   const primerDia = new Date(Date.UTC(anio, mes, 1));
   const desplazamiento = (primerDia.getUTCDay() + 6) % 7;
   const cantidadDias = new Date(Date.UTC(anio, mes + 1, 0)).getUTCDate();
@@ -26,13 +26,14 @@ function mesCalendario(anio, mes, periodos) {
           const fecha = `${anio}-${String(mes + 1).padStart(2, "0")}-${String(numero).padStart(2, "0")}`;
           const marcas = marcasDelDia(fecha, periodos);
           const clase = clasePrincipal(marcas);
-          const titulo = marcas.map(({ nombre }) => nombre).join(" · ");
+          const titulosAgenda = agendaPorFecha?.get(fecha);
+          const titulo = [marcas.map(({ nombre }) => nombre).join(" · "), titulosAgenda?.join(" · ")].filter(Boolean).join(" · ");
           return (
             <span
-              className={`calendario-anual-numero ${clase}`}
+              className={`calendario-anual-numero ${clase} ${titulosAgenda ? "tiene-horario" : ""}`}
               key={fecha}
               role="gridcell"
-              aria-label={`${numero} de ${NOMBRES_MESES[mes]}${titulo ? `: ${titulo}` : ""}`}
+              aria-label={`${numero} de ${NOMBRES_MESES[mes]}${titulo ? `: ${titulo}` : ""}${titulosAgenda ? " (tenés algo en tu horario)" : ""}`}
               title={titulo || undefined}
             >
               {numero}
@@ -48,6 +49,7 @@ export default function CalendarioAnual({ anio, vistaPrevia = false }) {
   const [periodos, setPeriodos] = useState(null);
   const [publicacion, setPublicacion] = useState(null);
   const [error, setError] = useState("");
+  const [agendaPorFecha, setAgendaPorFecha] = useState(null);
 
   useEffect(() => {
     let vigente = true;
@@ -67,9 +69,21 @@ export default function CalendarioAnual({ anio, vistaPrevia = false }) {
     return () => { vigente = false; };
   }, [anio, vistaPrevia]);
 
+  // Integra «Mi horario» (clases, exámenes y actividades personales) al calendario académico.
+  // No aplica a la vista previa de administración, que no tiene horario propio.
+  useEffect(() => {
+    if (vistaPrevia) { setAgendaPorFecha(null); return undefined; }
+    let vigente = true;
+    setAgendaPorFecha(null);
+    api(`/actividades-personales/calendario-anual?anio=${anio}`)
+      .then(({ fechas }) => { if (vigente) setAgendaPorFecha(new Map(fechas.map(({ fecha, titulos }) => [fecha, titulos]))); })
+      .catch(() => { if (vigente) setAgendaPorFecha(new Map()); });
+    return () => { vigente = false; };
+  }, [anio, vistaPrevia]);
+
   const meses = useMemo(() => periodos
-    ? NOMBRES_MESES.map((_, mes) => mesCalendario(anio, mes, periodos))
-    : [], [anio, periodos]);
+    ? NOMBRES_MESES.map((_, mes) => mesCalendario(anio, mes, periodos, agendaPorFecha))
+    : [], [anio, periodos, agendaPorFecha]);
 
   return (
     <section className="calendario-anual" aria-label={`Calendario académico completo ${anio}`}>
@@ -86,6 +100,7 @@ export default function CalendarioAnual({ anio, vistaPrevia = false }) {
             <span><i className="calendario-anual-muestra calendario-examenes_finales" aria-hidden="true" /> Mesas de examen</span>
             <span><i className="calendario-anual-muestra calendario-inicio_cuatrimestre" aria-hidden="true" /> Inicio de cuatrimestre</span>
             <span><i className="calendario-anual-muestra calendario-fin_cuatrimestre" aria-hidden="true" /> Fin de cuatrimestre</span>
+            {!vistaPrevia && <span><i className="calendario-anual-muestra tiene-horario" aria-hidden="true" /> Tenés algo en tu horario</span>}
           </div>
           {!periodos.length && <p>No hay períodos configurados para este año.</p>}
           <div className="calendario-anual-meses">{meses}</div>

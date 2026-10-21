@@ -526,3 +526,91 @@ test("HTTP: informa entradas inválidas sin guardar", async () => {
     assert.deepEqual(db.filas, []);
   });
 });
+
+// Calendario anual: integra «Mi horario» (clases, exámenes y actividades personales) con el
+// calendario académico, marcando en qué fechas del año el usuario tiene algo agendado.
+function dbCalendarioAnual({ actividades = [], inscripciones = [], cursadas = [], examenes = [], materiasDocente = [], periodos = [], aniosPublicados = [2026] } = {}) {
+  return {
+    actividadPersonal: { findMany: async () => actividades },
+    inscripcionComision: { findMany: async () => inscripciones },
+    cursada: { findMany: async () => cursadas },
+    materia: {
+      findMany: async ({ where }) => materiasDocente.filter((materia) => materia.docenteId === where.docentes.some.docenteId),
+    },
+    fechaExamen: {
+      findMany: async ({ where }) => examenes.filter((examen) =>
+        where.materiaId.in.includes(examen.materiaId) && examen.fecha >= where.fecha.gte && examen.fecha <= where.fecha.lte),
+    },
+    publicacionCalendario: {
+      findMany: async ({ where }) => (where.anio.in ?? []).filter((anio) => aniosPublicados.includes(anio)).map((anio) => ({ anio })),
+    },
+    periodoAcademico: { findMany: async () => periodos },
+  };
+}
+
+test("HTTP: calendario anual exige año válido y rol ALUMNO o DOCENTE", async () => {
+  const db = dbCalendarioAnual();
+  await conAPI(db, async (request) => {
+    assert.equal((await request("GET", "/calendario-anual?anio=abc")).status, 400);
+    assert.equal((await request("GET", "/calendario-anual?anio=2026", { token: false })).status, 401);
+  });
+});
+
+test("HTTP: calendario anual no marca nada si el año no está publicado", async () => {
+  const db = dbCalendarioAnual({
+    inscripciones: [{ comision: { materia: { nombre: "Programación", cuatrimestre: null, cursadas: [] }, bloques: [{ dia: "LUNES" }] } }],
+    periodos: [{ anio: 2026, tipo: "CLASES_ANUALES", nombre: "Ciclo lectivo", fechaInicio: new Date("2026-01-01T00:00:00Z"), fechaFin: new Date("2026-12-31T00:00:00Z") }],
+    aniosPublicados: [],
+  });
+  await conAPI(db, async (request) => {
+    const r = await request("GET", "/calendario-anual?anio=2026");
+    assert.equal(r.status, 200);
+    assert.deepEqual(await r.json(), { anio: 2026, fechas: [] });
+  });
+});
+
+test("HTTP: calendario anual marca las clases del alumno, salvo cursadas ya resueltas", async () => {
+  const periodos = [{ anio: 2026, tipo: "CLASES_ANUALES", nombre: "Ciclo lectivo", fechaInicio: new Date("2026-01-01T00:00:00Z"), fechaFin: new Date("2026-12-31T00:00:00Z") }];
+  const db = dbCalendarioAnual({
+    inscripciones: [
+      { comision: { materia: { nombre: "Programación", cuatrimestre: null, cursadas: [] }, bloques: [{ dia: "LUNES" }] } },
+      { comision: { materia: { nombre: "Álgebra", cuatrimestre: null, cursadas: [{ estado: "REGULAR" }] }, bloques: [{ dia: "MARTES" }] } },
+    ],
+    periodos,
+  });
+  await conAPI(db, async (request) => {
+    const r = await request("GET", "/calendario-anual?anio=2026");
+    const { fechas } = await r.json();
+    assert.ok(fechas.some((f) => f.fecha === "2026-01-05" && f.titulos.includes("Programación"))); // lunes
+    assert.ok(!fechas.some((f) => f.fecha === "2026-01-06")); // martes: Álgebra ya está regularizada
+  });
+});
+
+test("HTTP: calendario anual marca actividades recurrentes del docente y sus clases propias", async () => {
+  const periodos = [{ anio: 2026, tipo: "CLASES_ANUALES", nombre: "Ciclo lectivo", fechaInicio: new Date("2026-01-01T00:00:00Z"), fechaFin: new Date("2026-12-31T00:00:00Z") }];
+  const db = dbCalendarioAnual({
+    actividades: [{ titulo: "Corrección de parciales", horaInicio: "09:00", duracion: 60, programacion: "RECURRENTE", frecuencia: "SEMANA", intervalo: 1, dia: "VIERNES", fecha: null, repetirHasta: null }],
+    materiasDocente: [{ docenteId: 42, nombre: "Bases de Datos", cuatrimestre: null, comisiones: [{ bloques: [{ dia: "MIERCOLES" }] }] }],
+    periodos,
+  });
+  await conAPI(db, async (request) => {
+    const r = await request("GET", "/calendario-anual?anio=2026", { rol: "DOCENTE", id: 42 });
+    const { fechas } = await r.json();
+    assert.ok(fechas.some((f) => f.fecha === "2026-01-02" && f.titulos.includes("Corrección de parciales"))); // viernes
+    assert.ok(fechas.some((f) => f.fecha === "2026-01-07" && f.titulos.includes("Bases de Datos"))); // miércoles
+  });
+});
+
+test("HTTP: calendario anual marca los exámenes del alumno dentro del año", async () => {
+  const periodos = [{ anio: 2026, tipo: "EXAMENES_FINALES", nombre: "Mesa de julio", fechaInicio: new Date("2026-07-01T00:00:00Z"), fechaFin: new Date("2026-07-20T00:00:00Z") }];
+  const db = dbCalendarioAnual({
+    cursadas: [{ materiaId: 4 }],
+    examenes: [{ materiaId: 4, fecha: new Date("2026-07-10T00:00:00Z"), materia: { nombre: "Programación" } }],
+    periodos,
+  });
+  await conAPI(db, async (request) => {
+    const r = await request("GET", "/calendario-anual?anio=2026");
+    const { fechas } = await r.json();
+    assert.deepEqual(fechas, [{ fecha: "2026-07-10", titulos: ["Programación"] }]);
+  });
+});

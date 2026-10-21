@@ -191,6 +191,13 @@ function eventoClase(inicio, materiaNombre, comision, bloque) {
   };
 }
 
+function marcarFecha(porFecha, fecha, titulo) {
+  const iso = fecha.toISOString().slice(0, 10);
+  const titulos = porFecha.get(iso) ?? new Set();
+  titulos.add(titulo);
+  porFecha.set(iso, titulos);
+}
+
 export function crearRouterActividadesPersonales(db = prisma) {
   const router = Router();
   router.use(requiereAuth, requiereRol("ALUMNO", "DOCENTE"));
@@ -351,6 +358,88 @@ export function crearRouterActividadesPersonales(db = prisma) {
     } catch (e) {
       next(e);
     }
+  });
+
+  // Integra «Mi horario» (clases, exámenes y actividades personales) con el calendario académico
+  // anual: para cada fecha del año devuelve los títulos de lo que ese día tiene en la agenda,
+  // así el calendario puede marcarlas sin repetir la lógica de ocurrencias en el cliente.
+  router.get("/calendario-anual", async (req, res, next) => {
+    try {
+      const anio = Number(req.query.anio);
+      if (!Number.isInteger(anio) || anio < 1900 || anio > 2100) {
+        throw errorAcceso(400, "Indicá un año calendario válido.");
+      }
+      const esAlumno = req.usuario.rol === "ALUMNO";
+      const inicioAnio = new Date(Date.UTC(anio, 0, 1));
+      const finAnio = new Date(Date.UTC(anio, 11, 31));
+      const aniosPublicados = await aniosCalendarioPublicados(db, [anio]);
+      if (!aniosPublicados.includes(anio)) return res.json({ anio, fechas: [] });
+
+      const [actividades, inscripciones, cursadas, materiasDocente, periodos] = await Promise.all([
+        db.actividadPersonal.findMany({ where: { usuarioId: req.usuario.id }, select: DATOS_ACTIVIDAD_PERSONAL }),
+        esAlumno ? db.inscripcionComision.findMany({
+          where: { alumnoId: req.usuario.id },
+          select: {
+            comision: {
+              select: {
+                materia: {
+                  select: { nombre: true, cuatrimestre: true, cursadas: { where: { alumnoId: req.usuario.id }, select: { estado: true } } },
+                },
+                bloques: { select: { dia: true } },
+              },
+            },
+          },
+        }) : Promise.resolve([]),
+        esAlumno ? db.cursada.findMany({ where: { alumnoId: req.usuario.id }, select: { materiaId: true } }) : Promise.resolve([]),
+        esAlumno ? Promise.resolve([]) : db.materia.findMany({
+          where: { docentes: { some: { docenteId: req.usuario.id } } },
+          select: { nombre: true, cuatrimestre: true, comisiones: { select: { bloques: { where: { docenteId: req.usuario.id }, select: { dia: true } } } } },
+        }),
+        db.periodoAcademico.findMany({
+          where: { OR: [{ anio }, { tipo: "VACACIONES", fechaInicio: { lte: finAnio }, fechaFin: { gte: inicioAnio } }] },
+          select: { anio: true, tipo: true, nombre: true, fechaInicio: true, fechaFin: true },
+        }),
+      ]);
+
+      const bloquesClase = [];
+      for (const { comision } of inscripciones) {
+        if (["REGULAR", "LIBRE", "APROBADA"].includes(comision.materia.cursadas?.[0]?.estado)) continue;
+        for (const bloque of comision.bloques) bloquesClase.push({ materia: comision.materia, dia: bloque.dia, titulo: comision.materia.nombre });
+      }
+      for (const materia of materiasDocente) {
+        for (const comision of materia.comisiones) {
+          for (const bloque of comision.bloques) bloquesClase.push({ materia, dia: bloque.dia, titulo: materia.nombre });
+        }
+      }
+
+      const porFecha = new Map();
+      for (let tiempo = inicioAnio.getTime(); tiempo <= finAnio.getTime(); tiempo += 86400000) {
+        const fecha = new Date(tiempo);
+        const dia = etiquetaDiaDeFecha(fecha);
+        for (const bloque of bloquesClase) {
+          if (bloque.dia === dia && claseOcurreEnFecha(bloque.materia, fecha, periodos)) marcarFecha(porFecha, fecha, bloque.titulo);
+        }
+        for (const actividad of actividades) {
+          if (actividad.horaInicio && actividadOcurreEnFecha(actividad, fecha)) marcarFecha(porFecha, fecha, actividad.titulo);
+        }
+      }
+
+      if (esAlumno) {
+        const materiaIds = [...new Set(cursadas.map(({ materiaId }) => materiaId))];
+        if (materiaIds.length > 0) {
+          const examenes = await db.fechaExamen.findMany({
+            where: { materiaId: { in: materiaIds }, fecha: { gte: inicioAnio, lte: finAnio } },
+            select: { fecha: true, materia: { select: { nombre: true } } },
+          });
+          for (const examen of examenes) marcarFecha(porFecha, examen.fecha, examen.materia.nombre);
+        }
+      }
+
+      const fechas = [...porFecha.entries()]
+        .map(([fecha, titulos]) => ({ fecha, titulos: [...titulos] }))
+        .sort((a, b) => a.fecha.localeCompare(b.fecha));
+      res.json({ anio, fechas });
+    } catch (e) { next(e); }
   });
 
   router.get("/", async (req, res, next) => {
