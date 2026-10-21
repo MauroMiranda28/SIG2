@@ -257,6 +257,15 @@ Lo que ya está implementado, para no repetir trabajo:
 - `GET /api/planes/alumnos` y `PATCH /api/planes/alumnos/:id` (ADMIN) — asignar carrera y
   plan a un alumno puntual.
 
+**Consulta de carreras (DOCENTE)**
+- `GET /api/carreras/consulta` (DOCENTE y ADMIN) — todas las carreras (vigentes primero) con código, descripción, cuántos
+  planes (y cuántos vigentes) y materias tienen, y en cuántas materias dicta el docente del token.
+- `GET /api/carreras/consulta/:id` — la estructura de una carrera: sus planes (vigentes y más nuevos primero) y, en cada
+  uno, las materias por año y cuatrimestre con carga horaria, docentes, correlativas (fuerte/débil) y si la dicta. Trae
+  también los totales del plan (materias, años y carga horaria).
+- Solo lectura y sin datos de alumnos (a diferencia de `GET /api/carreras`, que es del ADMIN y cuenta usuarios).
+  Pestaña «Carreras y planes → Carreras» del docente. Tests: `node --test api/test/consultaCarreras.test.js`.
+
 **Carreras** (registrar y modificar)
 - `GET /api/carreras` (ADMIN) — todas las carreras, vigentes y no vigentes, con cantidad de planes.
 - `POST /api/carreras` (ADMIN) — registra una carrera (nombre, código, descripción opcional). El

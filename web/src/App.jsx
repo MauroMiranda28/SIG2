@@ -34,6 +34,7 @@ import Revisiones from "./docentes/Revisiones.jsx";
 import ProgramaDocente from "./docentes/ProgramaDocente.jsx";
 
 import MiCarrera from "./carreras/MiCarrera.jsx";
+import ConsultaCarreras from "./carreras/ConsultaCarreras.jsx";
 import ActualizarPrograma from "./programas/ActualizarPrograma.jsx";
 import CargarPrograma from "./programas/CargarPrograma.jsx";
 
@@ -102,6 +103,7 @@ const NAV_ITEMS = [
   { id: "simular-promedio", label: "Simular promedio", grupo: "evaluacion", roles: ["ALUMNO"], Componente: SimularPromedio },
   { id: "mis-materias", label: "Mis materias", grupo: "mis-materias", roles: ["DOCENTE"], Componente: MisMaterias },
   { id: "consultar-materias", label: "Consultar materias", grupo: "mis-materias", roles: ["DOCENTE"], Componente: ConsultaMaterias },
+  { id: "consultar-carreras", label: "Carreras", grupo: "planes", roles: ["DOCENTE"], Componente: ConsultaCarreras },
   { id: "notas-docente", label: "Notas", grupo: "evaluacion-docente", roles: ["DOCENTE"], Componente: NotasDocente },
   { id: "revisiones", label: "Revisiones", grupo: "evaluacion-docente", roles: ["DOCENTE"], Componente: Revisiones },
   { id: "fechas-examen", label: "Fechas de examen", grupo: "evaluacion-docente", roles: ["DOCENTE"], Componente: FechasExamen },
