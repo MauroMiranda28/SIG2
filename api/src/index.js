@@ -4,7 +4,7 @@ import cors from "cors";
 
 import authRouter from "./routes/auth.js";
 import materiasRouter from "./routes/materias.js";
-import horariosRouter from "./routes/horarios.js";
+import horariosRouter, { crearRouterAsignacionesDocentes } from "./routes/horarios.js";
 import certificadosRouter from "./routes/certificados.js";
 
 import planesRouter from "./routes/planes.js";
@@ -20,8 +20,13 @@ import notificacionesRouter from "./routes/notificaciones.js";
 import examenesRouter from "./routes/examenes.js";
 import inscripcionesExamenRouter from "./routes/inscripcionesExamen.js";
 import tareasRouter from "./routes/tareas.js";
+import archivosTareaRouter from "./routes/archivosTarea.js";
 import actividadesPersonalesRouter from "./routes/actividadesPersonales.js";
+import calendarioAcademicoRouter from "./routes/calendarioAcademico.js";
 import { manejarErrores } from "./middleware/errores.js";
+import { prisma } from "./db.js";
+import { configuracionCanales, crearTransporteEmail, crearTransportePush } from "./services/canales.js";
+import { iniciarEnvios } from "./services/envios.js";
 
 import programasRouter from "./routes/programas.js";
 import inscripcionesCursadaRouter from "./routes/inscripcionesCursada.js";
@@ -36,6 +41,7 @@ app.get("/api/health", (req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRouter);
 app.use("/api/materias", materiasRouter);
 app.use("/api/horarios", horariosRouter);
+app.use("/api/horarios/asignaciones", crearRouterAsignacionesDocentes());
 app.use("/api/certificados", certificadosRouter);
 app.use("/api/planes", planesRouter);
 app.use("/api/carreras", carrerasRouter);
@@ -51,8 +57,10 @@ app.use("/api/notificaciones", notificacionesRouter);
 app.use("/api/examenes", examenesRouter);
 app.use("/api/finales", inscripcionesExamenRouter);
 app.use("/api/tareas", tareasRouter);
+app.use("/api/archivos-tarea", archivosTareaRouter);
 app.use("/api/actividades-personales", actividadesPersonalesRouter);
 app.use("/api/inscripciones-cursada", inscripcionesCursadaRouter);
+app.use("/api/calendario-academico", calendarioAcademicoRouter);
 
 // Cada módulo agrega su router acá. Un archivo por módulo en src/routes/.
 
@@ -61,3 +69,10 @@ app.use(manejarErrores);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`API escuchando en http://localhost:${PORT}`));
+
+// Avisos por email y push: solo si el servidor tiene configurado alguno de los dos (ver api/.env.example).
+const { disponibles } = configuracionCanales();
+if (disponibles.EMAIL || disponibles.PUSH) {
+  iniciarEnvios(prisma, { transportes: { email: crearTransporteEmail(), push: crearTransportePush() }, baseUrl: process.env.APP_URL });
+  console.log(`Avisos por ${[disponibles.EMAIL && "email", disponibles.PUSH && "push"].filter(Boolean).join(" y ")} habilitados.`);
+}

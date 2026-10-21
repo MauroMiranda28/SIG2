@@ -96,6 +96,7 @@ function dbFalsa({
       update: async (args) => { registro.updates.push(args); return { id: args.where.id, nota: args.data.nota, cambios: registro.cambios }; },
     },
     cambioNota: { create: async ({ data }) => { registro.cambios.push(data); return data; } },
+    preferenciaNotificacion: { findMany: async () => [] },
     // Mesas de final: `mesa` es la que devuelve findUnique al cargar la nota de un examen final.
     fechaExamen: { findMany: async () => (mesa ? [mesa] : []), findUnique: async () => mesa },
     notificacion: { createMany: async ({ data }) => { registro.notificaciones.push(...data); return { count: data.length }; } },
@@ -403,6 +404,20 @@ test("verificarCarga: el examen final solo para regulares y dentro del plazo", (
   assert.throws(() => verificarCarga(final("2028-07-02"), contexto(esRegular)), /venció el 1\/7\/2028/);
 });
 
+test("verificarCarga: no admite evaluaciones de cursada después de la condición final", () => {
+  const parcial = { tipo: "PARCIAL", nota: 8, fecha: fecha("2026-08-01") };
+  const regular = { estado: "REGULAR", regularDesde: fecha("2026-07-01") };
+  const aprobada = { estado: "APROBADA", regularDesde: null };
+
+  for (const cursada of [regular, aprobada]) {
+    assert.throws(
+      () => verificarCarga(parcial, contexto(cursada)),
+      (error) => error.status === 409 && /condición final cargada/.test(error.message),
+    );
+  }
+  verificarCarga({ ...parcial, tipo: "FINAL" }, contexto(regular));
+});
+
 // ---------- HTTP: condición final y examen final ----------
 
 test("HTTP: sin la condición de la materia configurada no se cargan condiciones ni finales", async () => {
@@ -477,7 +492,7 @@ test("HTTP: al quedar libre se le quita la comisión de esa materia; si no, no",
   await conAPI(regularizo, async (request) => {
     await request("POST", "/materias/5", "DOCENTE", { tipo: "CONDICION_FINAL", fecha: "2026-07-01", notas: [{ alumnoId: 2, nota: 5, condicion: "REGULAR" }] });
   });
-  assert.equal(regularizo.registro.bajas, undefined);
+  assert.deepEqual(regularizo.registro.bajas, [{ alumnoId: 2, comision: { materiaId: 5 } }]);
 });
 
 test("HTTP: a un alumno libre no se le cargan más notas", async () => {
@@ -497,11 +512,13 @@ test("recalcularCursada: solo cuenta las evaluaciones posteriores al corte de la
   const tx = {
     evaluacion: { findMany: async (args) => { consulta = args.where; return [regular("2026-10-13", 8)].map((e) => ({ ...e, id: 12 })); } },
     cursada: { update: async (args) => { actualizaciones.push(args.data); } },
-    inscripcionComision: { deleteMany: async () => { throw new Error("no debería quitar la comisión"); } },
+    inscripcionComision: { deleteMany: async (args) => { actualizaciones.push({ baja: args.where }); } },
   };
   await recalcularCursada(tx, { id: 2, alumnoId: 7, materiaId: 3, evaluacionesDesdeId: 11 }, CONDICION);
   assert.deepEqual(consulta.id, { gt: 11 });
   assert.equal(actualizaciones[0].estado, "REGULAR");
+  // Al cerrar la cursada (regular) se le quita la comisión: ya solo corresponde el final.
+  assert.deepEqual(actualizaciones[1], { baja: { alumnoId: 7, comision: { materiaId: 3 } } });
 });
 
 // ---------- Examen final por mesa (regulares y libres) ----------
@@ -556,4 +573,23 @@ test("HTTP: solo a inscriptos de la mesa, solo mesas de final de la materia ya r
     assert.match((await r.json()).error, /mesa de final de esta materia/);
   });
   for (const db of [noInscripto, futura, deOtra]) assert.equal(db.registro.evaluaciones.length, 0);
+});
+
+test("HTTP: no carga parciales después de una condición final aprobada o regular", async () => {
+  for (const cursada of [
+    { estado: "APROBADA", regularDesde: null },
+    { estado: "REGULAR", regularDesde: fecha("2026-07-01") },
+  ]) {
+    const db = dbFalsa({ cursada });
+    await conAPI(db, async (request) => {
+      const r = await request("POST", "/materias/5", "DOCENTE", {
+        ...carga(),
+        notas: [{ alumnoId: 2, nota: 8 }],
+      });
+      assert.equal(r.status, 409);
+      assert.match((await r.json()).error, /condición final cargada/);
+    });
+    assert.equal(db.registro.evaluaciones.length, 0, `${cursada.estado}: no debe guardar evaluaciones`);
+    assert.equal(db.registro.notificaciones.length, 0, `${cursada.estado}: no debe notificar`);
+  }
 });

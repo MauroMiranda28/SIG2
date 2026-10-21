@@ -36,9 +36,9 @@ test("filtroNotificaciones: siempre incluye al usuario; suma no leídas y cursor
 
 test("crearNotificaciones: una fila por destinatario, sin repetidos y con texto limpio", async () => {
   let guardado;
-  const db = { notificacion: { createMany: async (args) => { guardado = args; return { count: args.data.length }; } } };
+  const db = { preferenciaNotificacion: { findMany: async () => [] }, notificacion: { createMany: async (args) => { guardado = args; return { count: args.data.length }; } } };
   const r = await crearNotificaciones(db, [1, 2, 2, 3], { tipo: "AVISO_DOCENTE", titulo: "  Cambio   de aula ", mensaje: "Mañana en el aula 3", materiaId: 4 });
-  assert.deepEqual(r, { creadas: 3 });
+  assert.deepEqual(r, { creadas: 3, destinatarios: 3 });
   assert.deepEqual(guardado.data.map((d) => d.usuarioId), [1, 2, 3]);
   assert.equal(guardado.data[0].titulo, "Cambio de aula");
   assert.equal(guardado.data[0].materiaId, 4);
@@ -46,7 +46,7 @@ test("crearNotificaciones: una fila por destinatario, sin repetidos y con texto 
 
 test("crearNotificaciones: sin destinatarios no escribe, y rechaza tipo o texto inválidos", async () => {
   const db = { notificacion: { createMany: async () => { throw new Error("no debería llamarse"); } } };
-  assert.deepEqual(await crearNotificaciones(db, [], { tipo: "AVISO_DOCENTE", titulo: "a", mensaje: "b" }), { creadas: 0 });
+  assert.deepEqual(await crearNotificaciones(db, [], { tipo: "AVISO_DOCENTE", titulo: "a", mensaje: "b" }), { creadas: 0, destinatarios: 0 });
   await assert.rejects(crearNotificaciones(db, [1], { tipo: "OTRO", titulo: "a", mensaje: "b" }), (e) => e.status === 400);
   await assert.rejects(crearNotificaciones(db, [1], { tipo: "AVISO_DOCENTE", titulo: " ", mensaje: "b" }), (e) => e.status === 400);
   await assert.rejects(crearNotificaciones(db, [1], { tipo: "AVISO_DOCENTE", titulo: "a", mensaje: "x".repeat(1001) }), (e) => e.status === 400);

@@ -6,7 +6,8 @@ import { formatFecha } from "../formatFecha.js";
 // por clase para llevar un control estricto de mi presentismo diario.
 
 const ETIQUETA_ESTADO = { PRESENTE: "Presente", AUSENTE: "Ausente", TARDE: "Tarde" };
-const HOY = new Date().toISOString().slice(0, 10);
+// Fecha de hoy en Argentina (en-CA da AAAA-MM-DD). toISOString() usa UTC y de noche ya es mañana.
+const HOY = new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
 
 export default function MiAsistencia() {
   const [materiasEnCurso, setMateriasEnCurso] = useState(null);

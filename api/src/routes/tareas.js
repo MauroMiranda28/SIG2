@@ -3,6 +3,7 @@ import { prisma } from "../db.js";
 import { requiereAuth, requiereRol } from "../middleware/auth.js";
 import { errorAcceso, requiereMateriaAsignada, validarId } from "../services/docentes.js";
 import { DATOS_TAREA, validarCambioTarea, validarNuevaTarea } from "../services/tareas.js";
+import { borrarArchivos, rutaArchivo } from "../services/archivosTarea.js";
 
 const materiaDelParametro = (req) => validarId(req.params.id, "identificador de la materia");
 
@@ -50,7 +51,10 @@ export function crearRouterTareas(db = prisma) {
 
   router.delete("/:id", requiereMateriaAsignada(db, materiaDeLaTarea), async (req, res, next) => {
     try {
-      await db.tarea.delete({ where: { id: validarId(req.params.id, "identificador de la tarea") } });
+      const borrada = await db.tarea.delete({
+        where: { id: validarId(req.params.id, "identificador de la tarea") }, select: { archivos: { select: { archivo: true } } },
+      });
+      await borrarArchivos((borrada.archivos ?? []).map((a) => rutaArchivo(a.archivo)));
       res.json({ ok: true });
     } catch (e) { next(e); }
   });

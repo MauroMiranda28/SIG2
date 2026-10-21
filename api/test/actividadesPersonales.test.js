@@ -58,7 +58,9 @@ test("validación: edición parcial, campos vacíos y filtros de etiqueta", () =
   assert.throws(() => validarFechaAgenda("2026-02-30"), (error) => error.status === 400);
 });
 
-function crearDB(filas = [], inscripciones = []) {
+function crearDB(filas = [], inscripciones = [], cursadas = [], examenes = [], materiasDocente = [], periodos = [{
+  anio: 2026, tipo: "CLASES_ANUALES", nombre: "Ciclo lectivo", fechaInicio: new Date("2026-01-01T00:00:00Z"), fechaFin: new Date("2026-12-31T00:00:00Z"),
+}], aniosPublicados = [2026]) {
   let siguienteId = Math.max(0, ...filas.map((fila) => fila.id)) + 1;
   const cumple = (fila, where) => fila.id === where.id && fila.usuarioId === where.usuarioId;
   const seleccionar = (fila, select) => Object.fromEntries(Object.keys(select).map((campo) => [campo, fila[campo]]));
@@ -94,6 +96,27 @@ function crearDB(filas = [], inscripciones = []) {
       },
     },
     inscripcionComision: { findMany: async () => inscripciones },
+    cursada: { findMany: async () => cursadas },
+    fechaExamen: {
+      findMany: async ({ where }) => examenes.filter((examen) =>
+        where.materiaId.in.includes(examen.materiaId) &&
+        examen.fecha >= where.fecha.gte &&
+        examen.fecha < where.fecha.lt),
+    },
+    materia: {
+      findMany: async ({ where }) => materiasDocente
+        .filter((materia) => materia.docenteId === where.docentes.some.docenteId),
+    },
+    publicacionCalendario: {
+      findMany: async ({ where }) => (where.anio.in ?? [])
+        .filter((anio) => aniosPublicados.includes(anio))
+        .map((anio) => ({ anio })),
+    },
+    periodoAcademico: {
+      findMany: async ({ where }) => periodos.filter((periodo) =>
+        (!where.anio?.in || where.anio.in.includes(periodo.anio)) &&
+        periodo.fechaInicio <= where.fechaInicio.lte && periodo.fechaFin >= where.fechaFin.gte),
+    },
   };
 }
 
@@ -138,7 +161,7 @@ test("HTTP: requiere sesión de alumno y lista solamente sus actividades con fil
   const db = crearDB([fila(1, 7), fila(2, 8), fila(3, 7, { etiquetas: ["Deporte"] })]);
   await conAPI(db, async (request) => {
     assert.equal((await request("GET", "/", { token: false })).status, 401);
-    assert.equal((await request("GET", "/", { rol: "DOCENTE" })).status, 403);
+    assert.equal((await request("GET", "/", { rol: "ADMIN" })).status, 403);
     const todas = await request("GET", "/");
     assert.deepEqual((await todas.json()).actividades.map((actividad) => actividad.id), [3, 1]);
     const filtradas = await request("GET", "/?etiqueta=Trabajo");
@@ -179,7 +202,12 @@ test("HTTP: detecta superposiciones con clases y actividades pero conserva el al
     comision: {
       nombre: "Comisión A",
       materia: { nombre: "Programación" },
-      bloques: [{ dia: "MIERCOLES", horaInicio: "18:00", horaFin: "20:00" }],
+      bloques: [{
+        dia: "MIERCOLES",
+        horaInicio: "18:00",
+        horaFin: "20:00",
+        aula: { nombre: "Aula 1" },
+      }],
     },
   }];
   const db = crearDB([{
@@ -204,17 +232,185 @@ test("HTTP: agenda semanal ordena clases y actividades puntuales y recurrentes",
     comision: {
       nombre: "Comisión A",
       materia: { nombre: "Programación" },
-      bloques: [{ dia: "MIERCOLES", horaInicio: "18:00", horaFin: "20:00" }],
+      bloques: [{
+        dia: "MIERCOLES",
+        horaInicio: "18:00",
+        horaFin: "20:00",
+        aula: { nombre: "Aula 1" },
+      }],
     },
+  }], [{
+    materiaId: 1,
+  }], [{
+    id: 4,
+    materiaId: 1,
+    tipo: "PARCIAL",
+    fecha: new Date("2026-10-07T00:00:00.000Z"),
+    hora: "16:00",
+    materia: { nombre: "Programación" },
+    aula: { nombre: "Aula 2" },
   }]);
   await conAPI(db, async (request) => {
     const respuesta = await request("GET", "/agenda?fecha=2026-10-07");
     assert.equal(respuesta.status, 200);
     const agenda = await respuesta.json();
     const miercoles = agenda.dias.find((dia) => dia.dia === "MIERCOLES");
-    assert.deepEqual(miercoles.eventos.map((evento) => evento.titulo), ["Lectura", "Dentista", "Programación (Comisión A)"]);
+    assert.deepEqual(miercoles.eventos.map((evento) => evento.titulo), [
+      "Lectura",
+      "Dentista",
+      "Programación",
+      "Programación",
+    ]);
+    assert.equal(miercoles.eventos[2].tipoEvento, "EXAMEN");
+    assert.equal(miercoles.eventos[2].tipoExamen, "PARCIAL");
+    assert.equal(miercoles.eventos[2].aula, "Aula 2");
+    assert.equal(miercoles.eventos[3].comision, "Comisión A");
+    assert.equal(miercoles.eventos[3].aula, "Aula 1");
     assert.ok(agenda.eventos.every((evento) => evento.titulo !== "Otra semana"));
     assert.equal(agenda.dias.length, 7);
+  });
+});
+
+test("HTTP: limita clases al cuatrimestre configurado y omite feriados y vacaciones", async () => {
+  const periodos = [
+    { anio: 2026, tipo: "CLASES_CUATRIMESTRE_1", nombre: "Cursada", fechaInicio: new Date("2026-10-07T00:00:00Z"), fechaFin: new Date("2026-10-09T00:00:00Z") },
+    { anio: 2026, tipo: "FERIADO", nombre: "Feriado", fechaInicio: new Date("2026-10-07T00:00:00Z"), fechaFin: new Date("2026-10-07T00:00:00Z") },
+    { anio: 2026, tipo: "VACACIONES", nombre: "Receso", fechaInicio: new Date("2026-10-09T00:00:00Z"), fechaFin: new Date("2026-10-09T00:00:00Z") },
+  ];
+  const db = crearDB([], [{
+    comision: {
+      nombre: "Comisión A",
+      materia: { nombre: "Programación", cuatrimestre: 1, cursadas: [] },
+      bloques: ["MIERCOLES", "JUEVES", "VIERNES"].map((dia) => ({
+        dia, horaInicio: "18:00", horaFin: "20:00", aula: null,
+      })),
+    },
+  }], [], [], [], periodos);
+  await conAPI(db, async (request) => {
+    const respuesta = await request("GET", "/agenda?fecha=2026-10-07");
+    const agenda = await respuesta.json();
+    assert.deepEqual(agenda.eventos.filter((evento) => evento.tipoEvento === "CLASE").map((evento) => evento.dia), ["JUEVES"]);
+    assert.equal(agenda.dias.find((dia) => dia.dia === "MIERCOLES").calendario.esHabil, false);
+    assert.ok(agenda.dias.find((dia) => dia.dia === "MIERCOLES").calendario.marcas.some((marca) => marca.tipo === "FERIADO" && marca.nombre === "Feriado"));
+    assert.equal(agenda.dias.find((dia) => dia.dia === "JUEVES").calendario.esHabil, true);
+    assert.ok(agenda.dias.find((dia) => dia.dia === "VIERNES").calendario.marcas.some((marca) => marca.tipo === "VACACIONES" && marca.nombre === "Receso"));
+  });
+});
+
+test("HTTP: la agenda no expone clases ni marcas del calendario mientras el año no esté publicado", async () => {
+  const db = crearDB([], [{
+    comision: {
+      nombre: "Comisión A",
+      materia: { nombre: "Programación", cuatrimestre: 1, cursadas: [] },
+      bloques: [{ dia: "MIERCOLES", horaInicio: "18:00", horaFin: "20:00", aula: null }],
+    },
+  }], [], [], [], [{
+    anio: 2026,
+    tipo: "CLASES_CUATRIMESTRE_1",
+    nombre: "Cursada",
+    fechaInicio: new Date("2026-10-07T00:00:00Z"),
+    fechaFin: new Date("2026-10-09T00:00:00Z"),
+  }], []);
+  await conAPI(db, async (request) => {
+    const respuesta = await request("GET", "/agenda?fecha=2026-10-07");
+    const agenda = await respuesta.json();
+    assert.equal(agenda.eventos.some((evento) => evento.tipoEvento === "CLASE"), false);
+    assert.deepEqual(agenda.dias.find((dia) => dia.dia === "MIERCOLES").calendario.marcas, []);
+  });
+});
+
+test("HTTP: docente registra bloques propios de gestión y planificación en su agenda", async () => {
+  const db = crearDB([
+    fila(1, 42, {
+      titulo: "Preparar clase",
+      categoria: "ESTUDIO",
+      etiquetas: ["Unidad 2"],
+      programacion: "RECURRENTE",
+      dia: "MARTES",
+      fecha: null,
+      horaInicio: "10:00",
+    }),
+    fila(2, 7, {
+      titulo: "Bloque de otro usuario",
+      programacion: "RECURRENTE",
+      dia: "MARTES",
+      fecha: null,
+      horaInicio: "11:00",
+    }),
+  ], [], [], [], [{
+    docenteId: 42,
+    nombre: "Programación",
+    comisiones: [{
+      nombre: "Comisión B",
+      bloques: [{
+        dia: "MARTES",
+        horaInicio: "18:00",
+        horaFin: "20:00",
+        aula: { nombre: "Aula 3" },
+      }],
+    }],
+  }]);
+  await conAPI(db, async (request) => {
+    assert.equal((await request("GET", "/", { rol: "DOCENTE", id: 42 })).status, 200);
+    const creada = await request("POST", "/", {
+      rol: "DOCENTE",
+      id: 42,
+      body: {
+        ...datos(),
+        titulo: "Gestión de correos",
+        categoria: "TRABAJO",
+        programacion: "RECURRENTE",
+        dia: "MARTES",
+        fecha: null,
+      },
+    });
+    assert.equal(creada.status, 201);
+    assert.equal((await creada.json()).conflictos.length, 0);
+    for (const [categoria, titulo] of [
+      ["PREPARACION_CLASE", "Preparar clase"],
+      ["PREPARACION_EXAMEN", "Preparar parcial"],
+      ["CORRECCION_EXAMENES", "Corregir parciales"],
+    ]) {
+      const actividad = await request("POST", "/", {
+        rol: "DOCENTE",
+        id: 42,
+        body: { ...datos(), titulo, categoria },
+      });
+      assert.equal(actividad.status, 201);
+    }
+    assert.equal((await request("POST", "/", {
+      rol: "DOCENTE",
+      id: 42,
+      body: { ...datos(), categoria: "SALUD" },
+    })).status, 400);
+
+    const agendaRespuesta = await request("GET", "/agenda?fecha=2026-10-07", { rol: "DOCENTE", id: 42 });
+    assert.equal(agendaRespuesta.status, 200);
+    const agenda = await agendaRespuesta.json();
+    const martes = agenda.dias.find((dia) => dia.dia === "MARTES");
+    assert.deepEqual(martes.eventos.map((evento) => evento.titulo), [
+      "Gestión de correos",
+      "Preparar clase",
+      "Programación",
+    ]);
+    assert.equal(martes.eventos[2].tipoEvento, "CLASE");
+    assert.equal(martes.eventos[2].comision, "Comisión B");
+    assert.equal(martes.eventos[2].aula, "Aula 3");
+    assert.deepEqual(
+      agenda.eventos.filter((evento) => evento.tipoEvento === "ACTIVIDAD" &&
+        ["PREPARACION_CLASE", "PREPARACION_EXAMEN", "CORRECCION_EXAMENES"].includes(evento.categoria))
+        .map((evento) => evento.categoria).sort(),
+      ["CORRECCION_EXAMENES", "PREPARACION_CLASE", "PREPARACION_EXAMEN"],
+    );
+    assert.ok(agenda.eventos.every((evento) => evento.titulo !== "Bloque de otro usuario"));
+
+    assert.equal((await request("PATCH", "/1", {
+      rol: "DOCENTE",
+      id: 42,
+      body: { titulo: "Planificación" },
+    })).status, 200);
+    assert.equal((await request("DELETE", "/1", { rol: "DOCENTE", id: 42 })).status, 200);
+    assert.equal((await request("DELETE", "/2", { rol: "DOCENTE", id: 42 })).status, 404);
   });
 });
 

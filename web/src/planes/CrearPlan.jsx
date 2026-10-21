@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import "./planes.css";
 
-const nuevaMateria = () => ({ nombre: "", codigo: "", anio: "1", cuatrimestre: "", cargaHoraria: "" });
+const nuevaMateria = () => ({ nombre: "", codigo: "", anio: "1", cuatrimestre: "0", cargaHoraria: "" });
 
 export default function CrearPlan() {
   const [carreras, setCarreras] = useState(null);
@@ -33,7 +33,7 @@ export default function CrearPlan() {
     try {
       const plan = await api("/planes", { method: "POST", body: JSON.stringify({
         nombre, anio: Number(anio), carreraId: Number(carreraId), vigente,
-        materias: materias.map(m => ({ ...m, anio: Number(m.anio), cuatrimestre: m.cuatrimestre ? Number(m.cuatrimestre) : null, cargaHoraria: m.cargaHoraria ? Number(m.cargaHoraria) : null })),
+        materias: materias.map(m => ({ ...m, anio: Number(m.anio), cuatrimestre: Number(m.cuatrimestre), cargaHoraria: m.cargaHoraria ? Number(m.cargaHoraria) : null })),
       }) });
       setCreado(plan); setNombre(""); setMaterias([]);
     } catch (e) { setError(e.message); }
@@ -63,8 +63,8 @@ export default function CrearPlan() {
             <label>Nombre<input required maxLength={160} value={m.nombre} onChange={e => cambiarMateria(i, "nombre", e.target.value)} /></label>
             <label>Código<input required maxLength={40} value={m.codigo} onChange={e => cambiarMateria(i, "codigo", e.target.value)} /></label>
             <label>Año de cursado<input type="number" required min="1" max="20" value={m.anio} onChange={e => cambiarMateria(i, "anio", e.target.value)} /></label>
-            <label>Cuatrimestre<select value={m.cuatrimestre} onChange={e => cambiarMateria(i, "cuatrimestre", e.target.value)}>
-              <option value="">Sin especificar</option><option value="1">1.º</option><option value="2">2.º</option>
+            <label>Duración de cursado<select required value={m.cuatrimestre} onChange={e => cambiarMateria(i, "cuatrimestre", e.target.value)}>
+              <option value="0">Anual</option><option value="1">1.º cuatrimestre</option><option value="2">2.º cuatrimestre</option>
             </select></label>
             <label>Carga horaria (opcional)<input type="number" min="1" max="10000" value={m.cargaHoraria} onChange={e => cambiarMateria(i, "cargaHoraria", e.target.value)} /></label>
             <button type="button" aria-label={`Quitar materia ${i + 1}`} onClick={() => setMaterias(actual => actual.filter((_, j) => j !== i))}>Quitar materia</button>

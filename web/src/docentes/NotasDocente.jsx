@@ -133,7 +133,7 @@ function FormCarga({ alumnos, materia, mesas, onCargado }) {
     ? alumnos.filter((a) => !["APROBADA", "REGULAR", "LIBRE"].includes(a.estado))
     : tipo === "FINAL"
       ? alumnos.filter((a) => modalidadEnMesa.has(a.id) && !mesa.calificados.includes(a.id))
-      : alumnos.filter((a) => !esLibre(a));
+      : alumnos.filter((a) => !["APROBADA", "REGULAR"].includes(a.estado) && !esLibre(a));
   const condicionDe = (id) => condiciones[id] ?? "REGULAR";
 
   function cambiarTipo(nuevo) {

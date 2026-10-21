@@ -20,6 +20,7 @@ test("validarInscripcion: solo finales con la inscripción abierta y con cursada
   assert.throws(() => validarInscripcion({ examen: final("2026-10-01"), cursada: REGULAR }, AHORA), /ya pasó/);
   assert.throws(() => validarInscripcion({ examen: { ...final("2026-10-20"), tipo: "PARCIAL" }, cursada: REGULAR }, AHORA), /finales/);
   assert.throws(() => validarInscripcion({ examen: final("2026-10-20"), cursada: { estado: "EN_CURSO" } }, AHORA), /regular o libre/);
+  assert.throws(() => validarInscripcion({ examen: final("2026-10-20"), cursada: { estado: "APROBADA" } }, AHORA), /regular o libre/);
 });
 
 test("modalidadDisponible: regular vigente, libre (o vencida) o ninguna", () => {

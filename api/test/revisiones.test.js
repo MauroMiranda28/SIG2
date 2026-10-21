@@ -73,6 +73,7 @@ function dbSolicitud({ docentes = [7, 8], pendiente = null, fallaAviso = false }
     }) },
     solicitudRevision: { findFirst: async () => pendiente, create: async ({ data }) => { estado.solicitudes.push(data); return creada(data); } },
     materiaDocente: { findMany: async ({ where }) => { estado.consultaDocentes = where; return docentes.map((docenteId) => ({ docenteId })); } },
+    preferenciaNotificacion: { findMany: async () => [] },
     notificacion: { createMany: async ({ data }) => {
       if (fallaAviso) throw new Error("falla notificacion");
       estado.notificaciones.push(...data); return { count: data.length };

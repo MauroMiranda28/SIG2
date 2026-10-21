@@ -106,7 +106,7 @@ function InformacionMateria({ materia }) {
         <h4>Datos académicos</h4>
         <dl className="docente-datos">
           <div><dt>Año del plan</dt><dd>{materia.anio}.º año</dd></div>
-          <div><dt>Cuatrimestre</dt><dd>{materia.cuatrimestre ? `${materia.cuatrimestre}.º` : "Sin especificar"}</dd></div>
+          <div><dt>Duración de cursado</dt><dd>{materia.cuatrimestre === 1 ? "1.º cuatrimestre" : materia.cuatrimestre === 2 ? "2.º cuatrimestre" : "Anual"}</dd></div>
           <div><dt>Carga horaria</dt><dd>{materia.cargaHoraria ? `${materia.cargaHoraria} hs` : "Sin especificar"}</dd></div>
           <div><dt>Docentes</dt><dd>{materia.docentes.length ? materia.docentes.map((d) => `${d.nombre} ${d.apellido}`).join(", ") : "Sin docentes asignados"}</dd></div>
         </dl>
@@ -178,7 +178,7 @@ function ListaRelacionadas({ titulo, vacio, materias, onAbrir }) {
           {materias.map((m) => (
             <li key={m.id}>
               <span>
-                <strong>{m.nombre}</strong> ({m.codigo}) · {m.anio}.º año{m.cuatrimestre ? `, ${m.cuatrimestre}.º cuatrimestre` : ""}
+                <strong>{m.nombre}</strong> ({m.codigo}) · {m.anio}.º año · {m.cuatrimestre === 1 ? "1.º cuatrimestre" : m.cuatrimestre === 2 ? "2.º cuatrimestre" : "Anual"}
                 {m.laDicto && <span className="docente-etiqueta">La dictás</span>}
               </span>
               <button type="button" onClick={() => onAbrir(m.id)}>Ver información</button>

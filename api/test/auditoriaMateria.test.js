@@ -24,6 +24,7 @@ function dbFalsa({ fallaEn = null, alumnos = [] } = {}) {
         materia: { update: anotar("materia.update", { id: 5, nombre: "Programación I", codigo: "PROG1" }) },
         cambioMateria: { create: anotar("cambio.create") },
         inscripcionComision: { findMany: async (args) => { tx.consultaInscriptos = args; return alumnos.map((alumnoId) => ({ alumnoId })); } },
+        preferenciaNotificacion: { findMany: async () => [] },
         notificacion: { createMany: async (args) => {
           if (fallaEn === "notificacion.createMany") throw new Error("falla notificacion.createMany");
           pendientes.push({ operacion: "notificacion.createMany", args });

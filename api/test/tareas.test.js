@@ -18,9 +18,9 @@ const ISO = (s) => new Date(`${s}T00:00:00Z`);
 
 test("validarNuevaTarea: acepta una válida (descripción opcional, entrega hoy vale)", () => {
   assert.deepEqual(validarNuevaTarea({ titulo: "  TP   1 ", fechaEntrega: "2026-10-06" }, AHORA),
-    { titulo: "TP 1", descripcion: null, fechaEntrega: ISO("2026-10-06") });
+    { titulo: "TP 1", descripcion: null, fechaEntrega: ISO("2026-10-06"), horaEntrega: null });
   assert.deepEqual(validarNuevaTarea({ titulo: "TP 2", descripcion: " Entregar   en PDF ", fechaEntrega: "2026-11-01" }, AHORA),
-    { titulo: "TP 2", descripcion: "Entregar en PDF", fechaEntrega: ISO("2026-11-01") });
+    { titulo: "TP 2", descripcion: "Entregar en PDF", fechaEntrega: ISO("2026-11-01"), horaEntrega: null });
 });
 
 test("validarNuevaTarea: rechaza título, descripción o fecha inválidos y entregas pasadas", () => {
@@ -79,6 +79,7 @@ function dbRecordatorios(tareas) {
           .map((t) => ({ id: t.id, titulo: t.titulo, fechaEntrega: t.fechaEntrega, materia: MATERIAS[t.materiaId] }));
       },
     },
+    preferenciaNotificacion: { findMany: async () => [] },
     notificacion: {
       createMany: async ({ data, skipDuplicates }) => {
         let creadas = 0;
@@ -104,7 +105,7 @@ const TAREAS = [
 test("recordatorio: avisa solo las entregas de hoy a DIAS_ANTICIPACION días de sus materias", async () => {
   assert.equal(DIAS_ANTICIPACION, 3);
   const db = dbRecordatorios(TAREAS);
-  assert.deepEqual(await generarRecordatoriosEntrega(db, 21, AHORA), { creadas: 2 });
+  assert.equal((await generarRecordatoriosEntrega(db, 21, AHORA)).creadas, 2);
   assert.deepEqual(db.estado.notificaciones.map((n) => n.titulo), ["Se acerca la entrega: TP 1", "Se acerca la entrega: TP 2"]);
   for (const n of db.estado.notificaciones) {
     assert.equal(n.usuarioId, 21);
@@ -118,25 +119,25 @@ test("recordatorio: avisa solo las entregas de hoy a DIAS_ANTICIPACION días de 
 test("recordatorio: no se repite aunque el alumno consulte varias veces, y cada alumno recibe el suyo", async () => {
   const db = dbRecordatorios(TAREAS);
   await generarRecordatoriosEntrega(db, 21, AHORA);
-  assert.deepEqual(await generarRecordatoriosEntrega(db, 21, AHORA), { creadas: 0 }, "segunda consulta");
+  assert.equal((await generarRecordatoriosEntrega(db, 21, AHORA)).creadas, 0, "segunda consulta");
   assert.equal(db.estado.notificaciones.length, 2);
   await generarRecordatoriosEntrega(db, 22, AHORA);
   assert.equal(db.estado.notificaciones.length, 4, "el otro alumno de la materia también recibe los suyos");
-  assert.deepEqual(await generarRecordatoriosEntrega(db, 99, AHORA), { creadas: 0 }, "un alumno que no cursa no recibe nada");
+  assert.equal((await generarRecordatoriosEntrega(db, 99, AHORA)).creadas, 0, "un alumno que no cursa no recibe nada");
 });
 
 test("recordatorio: al pasar los días entran las entregas que ya se acercan; si cambia la fecha, vuelve a avisar", async () => {
   const db = dbRecordatorios([...TAREAS]);
   await generarRecordatoriosEntrega(db, 21, AHORA);
   const manana = new Date("2026-10-07T15:00:00Z");
-  assert.deepEqual(await generarRecordatoriosEntrega(db, 21, manana), { creadas: 1 }, "ahora entra el TP 3");
+  assert.equal((await generarRecordatoriosEntrega(db, 21, manana)).creadas, 1, "ahora entra el TP 3");
   db.estado.notificaciones.length = 0;
 
   const db2 = dbRecordatorios([{ id: 2, titulo: "TP 2", materiaId: 5, fechaEntrega: ISO("2026-10-09") }]);
   await generarRecordatoriosEntrega(db2, 21, AHORA);
   const cambiada = dbRecordatorios([{ id: 2, titulo: "TP 2", materiaId: 5, fechaEntrega: ISO("2026-10-08") }]);
   cambiada.estado.notificaciones.push(...db2.estado.notificaciones);
-  assert.deepEqual(await generarRecordatoriosEntrega(cambiada, 21, AHORA), { creadas: 1 }, "la fecha nueva tiene otra clave");
+  assert.equal((await generarRecordatoriosEntrega(cambiada, 21, AHORA)).creadas, 1, "la fecha nueva tiene otra clave");
 });
 
 // ---------- Contrato HTTP del docente ----------
@@ -261,4 +262,19 @@ test("HTTP notificaciones: si falla el recordatorio igual se ve el historial", a
     const r = await fetch(`http://127.0.0.1:${server.address().port}/n/`, { headers: { Authorization: `Bearer ${jwt.sign({ id: 21, rol: "ALUMNO" }, process.env.JWT_SECRET)}` } });
     assert.equal(r.status, 200);
   } finally { await new Promise((resolve) => server.close(resolve)); }
+});
+
+test("hora de entrega: opcional, HH:MM; se puede cambiar o vaciar", () => {
+  assert.equal(validarNuevaTarea({ titulo: "TP 3", fechaEntrega: "2026-11-01", horaEntrega: "23:59" }, AHORA).horaEntrega, "23:59");
+  assert.equal(validarNuevaTarea({ titulo: "TP 3", fechaEntrega: "2026-11-01", horaEntrega: "" }, AHORA).horaEntrega, null);
+  for (const hora of ["24:00", "9:00", "mediodía", 1200]) {
+    assert.throws(() => validarNuevaTarea({ titulo: "TP 3", fechaEntrega: "2026-11-01", horaEntrega: hora }, AHORA), (e) => e.status === 400, String(hora));
+  }
+  assert.deepEqual(validarCambioTarea({ horaEntrega: "18:00" }, AHORA), { horaEntrega: "18:00" });
+  assert.deepEqual(validarCambioTarea({ horaEntrega: null }, AHORA), { horaEntrega: null });
+});
+
+test("avisoRecordatorio: si la tarea tiene hora de entrega, la menciona", () => {
+  const aviso = avisoRecordatorio({ titulo: "TP 1", materiaNombre: "Programación I", fechaEntrega: ISO("2026-10-07"), horaEntrega: "23:59" }, HOY);
+  assert.match(aviso.mensaje, /vence mañana: miércoles, 7\/10\/2026 a las 23:59\.$/);
 });

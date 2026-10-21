@@ -60,7 +60,7 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion, puedeCa
       <div>
         <p style={{ margin: "0 0 0.25rem 0" }}>
           <strong>Año</strong> {materia.anio}
-          {materia.cuatrimestre && <> · <strong>Cuatrimestre</strong> {materia.cuatrimestre}</>}
+          · <strong>Duración</strong> {materia.cuatrimestre === 1 ? "1.º cuatrimestre" : materia.cuatrimestre === 2 ? "2.º cuatrimestre" : "Anual"}
           {materia.cargaHoraria && <> · <strong>Carga horaria</strong> {materia.cargaHoraria}hs</>}
         </p>
         {materia.plan?.carrera && (
@@ -90,6 +90,14 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion, puedeCa
 
         {comisiones.length === 0 && <p className="empty-state">Todavía no hay comisiones cargadas para esta materia.</p>}
 
+        {comisiones.length > 0 && !comisiones[0].puedeElegirComision && (
+          <p className="text-muted" role="status">
+            {comisiones[0].estadoCursada === "APROBADA"
+              ? "La materia ya está aprobada; no podés elegir una comisión ni inscribirte a finales."
+              : "La cursada finalizó. Ya no podés elegir una comisión; podés inscribirte a un examen final desde «Evaluación», si la materia todavía no está aprobada."}
+          </p>
+        )}
+
         {errorEleccion && <p className="form-error">{errorEleccion}</p>}
 
         <ul className="list-clean" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
@@ -116,7 +124,7 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion, puedeCa
 
               {comision.elegidaPorMi ? (
                 <span className="badge" style={{ background: "var(--color-success)" }}>Tu comisión</span>
-              ) : puedeCambiarComision && (
+              ) : comision.puedeElegirComision && puedeCambiarComision && (
                 <button onClick={() => elegirComision(comision.id)} disabled={eligiendoId === comision.id}>
                   {eligiendoId === comision.id ? "Guardando..." : "Cambiar a esta"}
                 </button>

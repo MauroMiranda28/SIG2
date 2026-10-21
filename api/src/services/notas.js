@@ -184,8 +184,8 @@ export function estadoDeCursada(evaluaciones, materia) {
 }
 
 // `cursada` trae id, alumnoId, materiaId y evaluacionesDesdeId (las anteriores son de una cursada que
-// quedó libre y no cuentan). Si queda LIBRE, se le quita la comisión elegida:
-// deja de cursar (sale de «Mi horario») hasta que vuelva a inscribirse.
+// quedó libre y no cuentan). Al cerrar la cursada se quita la comisión elegida: desde ese momento
+// solo corresponde inscribirse a finales, salvo que ya haya aprobado.
 export async function recalcularCursada(tx, cursada, materia) {
   const evaluaciones = await tx.evaluacion.findMany({
     where: { cursadaId: cursada.id, tipo: { in: ["CONDICION_FINAL", "FINAL"] }, id: { gt: cursada.evaluacionesDesdeId ?? 0 } },
@@ -195,7 +195,7 @@ export async function recalcularCursada(tx, cursada, materia) {
   if (!calculado) return;
   const { intentos, ...estado } = calculado;
   await tx.cursada.update({ where: { id: cursada.id }, data: estado });
-  if (estado.estado === "LIBRE") {
+  if (["APROBADA", "REGULAR", "LIBRE"].includes(estado.estado)) {
     await tx.inscripcionComision.deleteMany({ where: { alumnoId: cursada.alumnoId, comision: { materiaId: cursada.materiaId } } });
   }
 }
@@ -210,6 +210,12 @@ export function verificarCarga({ tipo, condicion, nota, fecha, modalidad }, { cu
   }
   if (estaLibre(cursada, ahora)) {
     throw errorAcceso(400, `${nombre} está libre: tiene que volver a inscribirse para cursar la materia.`);
+  }
+  if (
+    !["CONDICION_FINAL", "FINAL"].includes(tipo) &&
+    (cursada?.estado === "APROBADA" || regularidadVigente(cursada, ahora))
+  ) {
+    throw errorAcceso(409, `${nombre} ya tiene una condición final cargada; no se pueden agregar más evaluaciones de cursada.`);
   }
   if (tipo === "CONDICION_FINAL") {
     if (cursada?.estado === "APROBADA") throw errorAcceso(409, `${nombre} ya aprobó la materia.`);

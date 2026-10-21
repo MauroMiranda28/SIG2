@@ -184,8 +184,10 @@ Lo que ya está implementado, para no repetir trabajo:
 - Las actividades previas con un tipo libre conservan su texto original como etiqueta y pasan a la
   categoría «Otra».
 - Cada actividad se programa con fecha (puntual) o día de la semana (recurrente) y hora de inicio.
-  La vista «Agenda semanal» presenta en listas por día las actividades y las clases de «Mi horario»;
-  permite cambiar de semana sin requerir una vista de calendario.
+  La vista «Mi horario» presenta una grilla semanal con días en columnas y horas en filas, donde ubica
+  actividades, clases y exámenes de las materias del alumno según su horario; permite cambiar de semana
+  y resalta clases y exámenes. Las tarjetas muestran solo el título; al seleccionarlas se despliega la
+  comisión y el aula de una clase, el aula de un examen o la categoría y las etiquetas de una actividad.
 - Al guardar, se avisa si la actividad coincide con una clase o con otra actividad personal; el aviso
   no impide guardarla. La agenda resume el tiempo personal planificado por categoría y etiqueta.
 - La lista de actividades se puede filtrar por etiqueta. La API expone `GET` y `POST /api/actividades-personales`,
@@ -194,11 +196,26 @@ Lo que ya está implementado, para no repetir trabajo:
 - Tras actualizar el esquema, correr `npm run db:push --workspace=api`. Tests:
   `node --test api/test/actividadesPersonales.test.js`.
 
+**Dedicación extra-áulica (DOCENTE)**
+- «Mi horario» muestra en la grilla semanal las clases que dicta, con comisión y aula, a partir de
+  las materias asignadas al docente. También muestra sus bloques propios, independientes de la agenda
+  de alumnos.
+- El docente registra, edita y elimina bloques de gestión personal, planificación académica,
+  preparación de clase, preparación de examen y corrección de exámenes, indicando duración, etiquetas
+  y si ocurren una vez o semanalmente.
+- Los bloques se guardan asociados al usuario autenticado; solo sus propios registros aparecen en
+  su grilla y en su resumen de dedicación.
+- Las rutas `/api/actividades-personales` admiten ALUMNO y DOCENTE, validan categorías según el rol
+  y limitan cada operación a los bloques del usuario autenticado.
+- Historia de usuario: «Como docente, quiero ver las clases que debo dictar y registrar actividades
+  personales, de preparación y corrección como bloques independientes, para organizar y llevar un
+  seguimiento de mi dedicación extra-áulica».
+
 **Historias de usuario cubiertas**
 - Como alumno, quiero planificar una actividad personal puntual con fecha, hora y duración o una
   actividad recurrente con día, hora y duración, para organizar mis ocupaciones dentro de la semana.
-- Como alumno, quiero consultar una agenda semanal en listas por día que reúna mis clases y actividades
-  personales, para ver cuándo tengo tiempo ocupado sin depender de un calendario.
+- Como alumno, quiero consultar un calendario semanal que reúna mis clases, exámenes y actividades
+  personales en cada día, para ver cómo se distribuye mi tiempo.
 - Como alumno, quiero recibir una advertencia cuando una actividad se superponga con una clase u otra
   actividad, para poder ajustar mi organización antes de guardarla; puedo conservarla si decido hacerlo.
 - Como alumno, quiero consultar el tiempo personal planificado por semana, categoría y etiqueta, para entender
@@ -211,7 +228,27 @@ Lo que ya está implementado, para no repetir trabajo:
 - `POST /api/horarios/inscripcion` — el alumno elige con qué comisión cursa cada materia;
   rechaza con 409 si se superpone con otra materia ya elegida, y reemplaza la elección
   anterior si es la misma materia.
-- `GET /api/horarios/mi-grilla` — grilla semanal armada con las comisiones elegidas.
+- `GET /api/horarios/mi-grilla?fecha=AAAA-MM-DD` — grilla de la semana indicada, limitada por
+  los períodos lectivos configurados y excluyendo feriados y receso de invierno.
+
+**Calendario académico**
+- ADMIN administra desde «Organización académica → Calendario académico» los períodos de clases
+  anuales y de cada cuatrimestre, los llamados de exámenes finales (se admiten varios por año),
+  receso de invierno y feriados. Un feriado es de un solo día; los períodos del mismo tipo no se superponen.
+- Administración puede previsualizar el calendario anual y debe confirmar cada año cuando esté
+  terminado. Hasta entonces, docentes y alumnos no reciben sus períodos ni marcas de calendario.
+  Si ADMIN agrega, edita o elimina una fecha después de publicarlo, el calendario vuelve a borrador
+  y requiere una nueva confirmación. La confirmación exige que estén definidos ambos cuatrimestres.
+- La agenda semanal de alumnos y docentes muestra días hábiles y las marcas del calendario. Las clases
+  aparecen solo dentro del período lectivo asociado a la duración de su materia y no se dictan en
+  feriados ni receso de invierno. Las materias existentes sin duración asignada se consideran anuales.
+- La fecha de un final nuevo o reprogramado debe pertenecer a un período de exámenes finales. No se
+  puede borrar un llamado que todavía contiene finales programados.
+- API: `GET /api/calendario-academico?anio=AAAA` (usuarios autenticados) y operaciones
+  `POST`, `PUT /:id` y `DELETE /:id` (ADMIN).
+- Para crear materias, se debe elegir «Anual», «1.º cuatrimestre» o «2.º cuatrimestre».
+- Tras actualizar el esquema, correr `npm run db:push --workspace=api`. Tests:
+  `node --test api/test/calendarioAcademico.test.js api/test/actividadesPersonales.test.js api/test/examenes.test.js api/test/planes.test.js`.
 
 **Planes de estudio** (ver [`docs/PLANES_ESTUDIO.md`](docs/PLANES_ESTUDIO.md) para el detalle)
 - `POST /api/planes` (ADMIN) — crea un plan con sus materias en una transacción.
@@ -361,6 +398,17 @@ Lo que ya está implementado, para no repetir trabajo:
 - Pestaña «Fechas de examen» del DOCENTE (programar, reprogramar, cancelar).
 - Schema: modelo `FechaExamen` y enum `TipoExamen`. Correr `db:push`. Tests: `node --test api/test/examenes.test.js`.
 
+**Parciales y trabajos prácticos del alumno**
+- `GET /api/evaluaciones/proximas` (ALUMNO) — parciales y recuperatorios (de las fechas de examen) y trabajos prácticos
+  (las tareas, con fecha y hora de entrega) de hoy en adelante, de las materias que cursa (cursada en curso o comisión
+  elegida, sin contar las ya aprobadas, regulares o libres). Ordenados por fecha y hora. Pestaña «Parciales y TPs».
+- Las tareas suman una hora de entrega opcional (`Tarea.horaEntrega`); el recordatorio la menciona. Correr `db:push`.
+- **Adjuntos de las tareas** (modelo `ArchivoTarea`): el docente sube hasta 5 archivos por vez (10 MB c/u; PDF, Word,
+  Excel, PowerPoint, imágenes, ZIP, texto) con `POST /api/archivos-tarea/tareas/:id` y los quita con
+  `DELETE /api/archivos-tarea/:id`. `GET /api/archivos-tarea/:id` los descarga el docente de la materia o un alumno que
+  la cursa. Se guardan en `api/uploads/tareas/` con nombre del servidor; borrar la tarea borra sus adjuntos.
+  Tests: `node --test api/test/proximasEvaluaciones.test.js`.
+
 **Notificaciones: recordatorio de entrega de tareas**
 - El DOCENTE asignado (o ADMIN) carga las tareas de su materia con fecha de entrega: `GET /api/tareas/materias/:id`,
   `POST /api/tareas/materias/:id` (`titulo`, `descripcion` opcional, `fechaEntrega`), `PATCH /api/tareas/:id` y
@@ -419,6 +467,37 @@ Lo que ya está implementado, para no repetir trabajo:
   Correr `db:push`. Las solicitudes que ya estaban pendientes se pueden resolver desde la pestaña.
   Tests: `node --test api/test/revisiones-docente.test.js`.
 
+**Notificaciones: leídas y no leídas, enlaces y preferencias**
+- **Leída / no leída:** `POST /api/notificaciones/:id/no-leida` deja una notificación como no leída (la inversa de `/:id/leer`) y el
+  contador de la campanita vuelve a contarla. Una ajena responde 404. En la pantalla cada aviso tiene el botón «Marcar como leída» o
+  «Marcar como no leída», y seguir el enlace de un aviso lo marca como leído.
+- **Enlace directo:** cada notificación de `GET /api/notificaciones` trae `enlace: { seccion, texto }` (ej. `historial-notas` /
+  «Ver mi historial de notas»). `services/enlaces.js` es la única tabla tipo → sección (también la usan el email y el push), y las
+  secciones son los ids de las pestañas de `App.jsx`. `Notificacion.seccion` guarda una sección puntual (ej. el aviso de un final lleva
+  a «Inscripción a finales»); si es null se deduce del tipo, así que las notificaciones anteriores también tienen enlace.
+- **La app abre la sección que dice la URL** (`http://localhost:5173/#historial-notas`) y la mantiene al día al navegar. Un enlace de un
+  email o de un push funciona aunque no hayas iniciado sesión (entrás y caés en esa pantalla). Una sección que no existe o que no es de
+  tu rol se ignora. Hoy los enlaces llevan a la pantalla, no a una materia o evaluación puntual (la app no tiene rutas por id).
+- **Preferencias (tipo × medio):** `GET` y `PUT /api/notificaciones/preferencias` (ALUMNO y DOCENTE; cada rol ve solo sus tipos).
+  Por cada tipo de aviso se elige si llega **en el sistema** (la campanita), por **email** o por **push**. Por defecto todo sigue como
+  antes (solo en el sistema); solo se guardan los cambios (`PreferenciaNotificacion`). Si se apagan todos los medios de un tipo, ese aviso
+  no se guarda ni se envía. Se aplica en un solo lugar, `repartirAvisos` de `services/notificaciones.js`, por donde pasan todos los avisos.
+  Pantalla «Configurar notificaciones», dentro de la campanita.
+- **Email y push se envían de verdad, pero solo si el servidor los tiene configurados** (variables en `api/.env.example`). Si no, la
+  pantalla los muestra como no disponibles y la API rechaza activarlos (409) en vez de guardar algo que no puede funcionar.
+  - Email: `SMTP_HOST` (y `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`). Va al correo personal si el usuario lo cargó, si no al institucional.
+  - Push (Web Push): `VAPID_PUBLIC_KEY` y `VAPID_PRIVATE_KEY` (se generan con `npx web-push generate-vapid-keys`). Cada navegador es un
+    «dispositivo» (`PushSuscripcion`): el alumno lo permite desde las preferencias (`POST` y `DELETE /api/notificaciones/push/suscripcion`)
+    y `web/public/sw.js` muestra el aviso y abre el enlace. Hace falta un contexto seguro (https o `localhost`).
+  - `APP_URL` arma la URL de los enlaces de los emails y los push.
+- **Bandeja de salida:** los avisos por email y push se escriben en `EnvioNotificacion` en la misma transacción que el cambio que los origina
+  (si el cambio se revierte, no sale nada) y un proceso de la API los envía cada 10 segundos, con hasta 3 intentos. Un push que el
+  navegador rechaza por caducado (404 o 410) borra esa suscripción. Los envíos que fallan quedan en `EnvioNotificacion` con estado
+  `ERROR` y el motivo (todavía no hay una pantalla para verlos: se consultan desde la base).
+- Schema: modelos `PreferenciaNotificacion`, `EnvioNotificacion` y `PushSuscripcion`, enums `CanalNotificacion` y `EstadoEnvio`, y
+  `Notificacion.seccion`. Correr `db:push`. Dependencias nuevas en `api`: `nodemailer` y `web-push`.
+  Tests: `node --test api/test/notificaciones-preferencias.test.js`.
+
 **Inscripción a materias para cursar**
 - `GET /api/inscripciones-cursada/:materiaId` (ALUMNO) — si se puede inscribir y por qué no, sus correlativas y sus
   comisiones (cada una avisa si se le superpone con lo que ya cursa). `POST /api/inscripciones-cursada`
@@ -437,11 +516,10 @@ Lo que ya está implementado, para no repetir trabajo:
   token y son solo para ALUMNO. `api/test/privacidad.test.js` lo verifica para que no se rompa.
 - Los errores internos (500) ya no muestran el mensaje de Prisma al cliente: podía incluir datos de la
   base, como el hash de una contraseña. El detalle queda solo en la consola de la API.
-- Regla para el módulo de calendario cuando se haga: las actividades se filtran siempre por
-  `req.usuario.id`, nunca por un id que venga en la URL o el body.
+- Las actividades y los eventos académicos de la agenda se limitan a la identidad autenticada del alumno.
 
 Las notificaciones (historial, avisos del docente, cambio de horario, calificaciones, fechas de examen y
-recordatorio de entregas) están completas. Todo lo demás (calendario) está sin empezar.
+recordatorio de entregas) están completas. La agenda semanal está disponible para alumnos.
 
 ## Una cosa para definir en grupo
 

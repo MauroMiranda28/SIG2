@@ -39,12 +39,12 @@ export function validarPlan(body) {
   const normalizadas = materias.map((m, i) => {
     if (!m || !texto(m.nombre, 160) || !texto(m.codigo, 40)) throw errorPlan(400, `Completá nombre y código de la materia ${i + 1}.`);
     if (!entero(m.anio, 1, 20)) throw errorPlan(400, `El año de cursado de la materia ${i + 1} debe estar entre 1 y 20.`);
-    if (m.cuatrimestre != null && ![1, 2].includes(m.cuatrimestre)) throw errorPlan(400, "El cuatrimestre debe ser 1, 2 o sin especificar.");
+    if (![0, 1, 2].includes(m.cuatrimestre)) throw errorPlan(400, "Seleccioná Anual, 1.º o 2.º cuatrimestre.");
     if (m.cargaHoraria != null && !entero(m.cargaHoraria, 1, 10000)) throw errorPlan(400, "La carga horaria debe ser un entero positivo de hasta 10000 horas.");
     const codigo = m.codigo.trim().toUpperCase();
     if (codigos.has(codigo)) throw errorPlan(400, `El código ${codigo} está repetido en el formulario.`);
     codigos.add(codigo);
-    return { nombre: m.nombre.trim(), codigo, anio: m.anio, cuatrimestre: m.cuatrimestre ?? null, cargaHoraria: m.cargaHoraria ?? null };
+    return { nombre: m.nombre.trim(), codigo, anio: m.anio, cuatrimestre: m.cuatrimestre, cargaHoraria: m.cargaHoraria ?? null };
   });
   return { nombre: nombre.trim(), anio, carreraId, vigente, materias: normalizadas };
 }

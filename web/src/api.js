@@ -50,7 +50,9 @@ export async function descargarArchivo(ruta, nombrePorDefecto = "archivo") {
     const { error } = await res.json().catch(() => ({}));
     throw new Error(error || `Error ${res.status}`);
   }
-  const nombre = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? nombrePorDefecto;
+  const disposicion = res.headers.get("Content-Disposition") ?? "";
+  const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(disposicion)?.[1];
+  const nombre = (utf8 && decodeURIComponent(utf8)) ?? /filename="([^"]+)"/.exec(disposicion)?.[1] ?? nombrePorDefecto;
   const url = URL.createObjectURL(await res.blob());
   const enlace = document.createElement("a");
   enlace.href = url;

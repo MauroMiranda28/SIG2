@@ -90,7 +90,7 @@ function TarjetaMateria({ materia, aulas, onCambio }) {
         <h3 id={`materia-${materia.id}`}>{materia.nombre}</h3>
         <p className="docente-meta">
           {materia.codigo} · {materia.plan.carrera.nombre} ({materia.plan.nombre}) · {materia.anio}.º año
-          {materia.cuatrimestre ? `, ${materia.cuatrimestre}.º cuatrimestre` : ""}
+          · {materia.cuatrimestre === 1 ? "1.º cuatrimestre" : materia.cuatrimestre === 2 ? "2.º cuatrimestre" : "Anual"}
         </p>
       </header>
 

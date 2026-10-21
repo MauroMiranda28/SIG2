@@ -140,6 +140,11 @@ router.get("/:id/programa", requiereAuth, async (req, res, next) => {
 router.get("/:id/comisiones", requiereAuth, async (req, res, next) => {
   try {
     const materiaId = Number(req.params.id);
+    const cursada = await prisma.cursada.findUnique({
+      where: { alumnoId_materiaId: { alumnoId: req.usuario.id, materiaId } },
+      select: { estado: true },
+    });
+    const puedeElegirComision = !["REGULAR", "LIBRE", "APROBADA"].includes(cursada?.estado);
 
     const comisiones = await prisma.comision.findMany({
       where: { materiaId },
@@ -152,7 +157,9 @@ router.get("/:id/comisiones", requiereAuth, async (req, res, next) => {
 
     const conElegida = comisiones.map(({ inscripciones, ...comision }) => ({
       ...comision,
-      elegidaPorMi: inscripciones.length > 0,
+      elegidaPorMi: puedeElegirComision && inscripciones.length > 0,
+      puedeElegirComision,
+      estadoCursada: cursada?.estado ?? "PENDIENTE",
     }));
 
     res.json(conElegida);

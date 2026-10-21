@@ -56,7 +56,7 @@ export function validarBloqueHorario(body) {
     horaFin,
     aulaId: aulaId == null || aulaId === "" ? null : validarId(aulaId, "identificador del aula"),
   };
-  if (!DIAS.includes(dia)) throw errorAcceso(400, "Elegí un día válido, de lunes a sábado.");
+  if (!DIAS.includes(dia)) throw errorAcceso(400, "Las clases solo se pueden programar de lunes a sábado.");
   if (typeof horaInicio !== "string" || !HORA.test(horaInicio)) throw errorAcceso(400, "La hora de inicio debe tener el formato HH:MM.");
   if (typeof horaFin !== "string" || !HORA.test(horaFin)) throw errorAcceso(400, "La hora de fin debe tener el formato HH:MM.");
   if (horaInicio >= horaFin) throw errorAcceso(400, "La hora de fin tiene que ser posterior a la de inicio.");

@@ -20,10 +20,17 @@ export function hoy(ahora = new Date()) {
   return new Date(`${ahora.toLocaleDateString("en-CA", { timeZone: ZONA })}T00:00:00.000Z`);
 }
 
+export function validarFechaNoDomingo(fecha) {
+  if (fecha.getUTCDay() === 0) {
+    throw errorAcceso(400, "No se pueden programar parciales, recuperatorios ni finales los domingos.");
+  }
+  return fecha;
+}
+
 function validarFechaFutura(valor, ahora) {
   const fecha = validarFecha(valor);
   if (fecha < hoy(ahora)) throw errorAcceso(400, "La fecha del examen no puede ser anterior a hoy.");
-  return fecha;
+  return validarFechaNoDomingo(fecha);
 }
 
 function validarHora(valor) {
