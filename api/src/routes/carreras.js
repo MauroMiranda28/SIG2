@@ -8,6 +8,9 @@ import {
   buscarDuplicado,
   errorCarrera,
 } from "../services/carreras.js";
+import {
+  datosListadoCarreras, armarListadoCarreras, datosDetalleCarrera, armarDetalleCarrera,
+} from "../services/consultaCarreras.js";
 
 const DATOS_CARRERA = {
   id: true,
@@ -38,6 +41,27 @@ export function crearRouterCarreras(db = prisma) {
       if (!alumno) return res.status(401).json({ error: "El usuario ya no existe. Volvé a iniciar sesión." });
       if (!alumno.carrera) return res.status(404).json({ error: "Todavía no tenés una carrera asignada. Consultá a administración." });
       res.json(alumno.carrera);
+    } catch (e) { next(e); }
+  });
+
+  // ==========================================
+  // CONSULTA PARA DOCENTES (solo lectura, sin datos de alumnos)
+  // ==========================================
+  // Carreras de la universidad con cuántos planes y materias tienen, y en cuántas dicta el docente.
+  router.get("/consulta", requiereAuth, requiereRol("DOCENTE", "ADMIN"), async (req, res, next) => {
+    try {
+      const carreras = await db.carrera.findMany({ select: datosListadoCarreras(req.usuario.id) });
+      res.json(armarListadoCarreras(carreras));
+    } catch (e) { next(e); }
+  });
+
+  // Estructura de una carrera: sus planes y, en cada uno, las materias por año con sus correlativas.
+  router.get("/consulta/:id", requiereAuth, requiereRol("DOCENTE", "ADMIN"), async (req, res, next) => {
+    try {
+      const id = validarIdCarrera(req.params.id);
+      const carrera = await db.carrera.findUnique({ where: { id }, select: datosDetalleCarrera(req.usuario.id) });
+      if (!carrera) throw errorCarrera(404, "La carrera no existe.");
+      res.json(armarDetalleCarrera(carrera, req.usuario.id));
     } catch (e) { next(e); }
   });
 
