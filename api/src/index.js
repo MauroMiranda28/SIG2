@@ -29,6 +29,7 @@ import { configuracionCanales, crearTransporteEmail, crearTransportePush } from 
 import { iniciarEnvios } from "./services/envios.js";
 
 import programasRouter from "./routes/programas.js";
+import inscripcionesCursadaRouter from "./routes/inscripcionesCursada.js";
 import propuestasProgramaRouter from "./routes/propuestasPrograma.js";
 
 const app = express();
@@ -60,6 +61,7 @@ app.use("/api/finales", inscripcionesExamenRouter);
 app.use("/api/tareas", tareasRouter);
 app.use("/api/archivos-tarea", archivosTareaRouter);
 app.use("/api/actividades-personales", actividadesPersonalesRouter);
+app.use("/api/inscripciones-cursada", inscripcionesCursadaRouter);
 app.use("/api/calendario-academico", calendarioAcademicoRouter);
 
 // Cada módulo agrega su router acá. Un archivo por módulo en src/routes/.

@@ -251,7 +251,12 @@ router.post("/inscripcion", requiereAuth, requiereRol("ALUMNO"), async (req, res
       where: { alumnoId_materiaId: { alumnoId: req.usuario.id, materiaId: comisionElegida.materiaId } },
       select: { estado: true },
     });
+    // Quien ya cerró la cursada no elige comisión; y para cambiar de comisión hay que estar inscripto
+    // a la materia (la inscripción, con «Inscribirme», es la que controla las correlatividades).
     validarEleccionComision(cursada);
+    if (cursada?.estado !== "EN_CURSO") {
+      return res.status(400).json({ error: "Primero inscribite a la materia con el botón «Inscribirme». Desde acá solo podés cambiar de comisión." });
+    }
 
     const otrasInscripciones = await prisma.inscripcionComision.findMany({
       where: {

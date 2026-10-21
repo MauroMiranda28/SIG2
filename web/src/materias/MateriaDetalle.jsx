@@ -10,7 +10,9 @@ const ETIQUETA_DIA = {
   SABADO: "Sábado",
 };
 
-export default function MateriaDetalle({ materiaId, onCambioInscripcion }) {
+// Solo quien ya está inscripto a la materia puede cambiar de comisión desde acá
+// (para inscribirse está el botón «Inscribirme», que controla las correlatividades).
+export default function MateriaDetalle({ materiaId, onCambioInscripcion, puedeCambiarComision = false }) {
   const [materia, setMateria] = useState(null);
   const [comisiones, setComisiones] = useState(null);
   const [error, setError] = useState(null);
@@ -120,9 +122,11 @@ export default function MateriaDetalle({ materiaId, onCambioInscripcion }) {
                 </div>
               </div>
 
-              {comision.puedeElegirComision && (
-                <button onClick={() => elegirComision(comision.id)} disabled={comision.elegidaPorMi || eligiendoId === comision.id}>
-                  {comision.elegidaPorMi ? "Elegida" : eligiendoId === comision.id ? "Guardando..." : "Elegir"}
+              {comision.elegidaPorMi ? (
+                <span className="badge" style={{ background: "var(--color-success)" }}>Tu comisión</span>
+              ) : comision.puedeElegirComision && puedeCambiarComision && (
+                <button onClick={() => elegirComision(comision.id)} disabled={eligiendoId === comision.id}>
+                  {eligiendoId === comision.id ? "Guardando..." : "Cambiar a esta"}
                 </button>
               )}
             </li>

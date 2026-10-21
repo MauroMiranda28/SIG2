@@ -158,7 +158,7 @@ export function crearRouterNotas(db = prisma) {
             where: { alumnoId_materiaId: { alumnoId, materiaId } },
             create: { alumnoId, materiaId, estado: "EN_CURSO" },
             update: {},
-            select: { id: true, estado: true, regularDesde: true },
+            select: { id: true, estado: true, regularDesde: true, evaluacionesDesdeId: true },
           });
           const modalidad = modalidadDe.get(alumnoId) ?? null;
           verificarCarga({ tipo, condicion, nota, fecha, modalidad }, { cursada, materia, nombre: nombres.get(alumnoId) });
@@ -170,7 +170,7 @@ export function crearRouterNotas(db = prisma) {
             },
             select: { id: true, tipo: true, condicion: true, nota: true, fecha: true, observaciones: true, cursada: { select: { alumnoId: true } } },
           }));
-          if (cierraCursada) await recalcularCursada(tx, { id: cursada.id, alumnoId, materiaId }, materia);
+          if (cierraCursada) await recalcularCursada(tx, { ...cursada, alumnoId, materiaId }, materia);
           avisos.push({
             usuarioId: alumnoId, tipo: "CALIFICACION_PUBLICADA", materiaId, autorId: req.usuario.id,
             ...avisoCalificacion({ materiaNombre: req.materia.nombre, tipo, condicion, nota, fecha }),
@@ -198,7 +198,7 @@ export function crearRouterNotas(db = prisma) {
           where: { id },
           select: {
             nota: true, tipo: true, condicion: true, cursadaId: true,
-            cursada: { select: { alumnoId: true, materiaId: true, materia: { select: CONDICION_MATERIA } } },
+            cursada: { select: { alumnoId: true, materiaId: true, evaluacionesDesdeId: true, materia: { select: CONDICION_MATERIA } } },
           },
         });
         if (!actual) throw errorAcceso(404, "La evaluación no existe.");
@@ -218,7 +218,8 @@ export function crearRouterNotas(db = prisma) {
         });
         const evaluacion = await tx.evaluacion.update({ where: { id }, data: { nota }, select: DATOS_EVALUACION });
         if (actual.tipo === "CONDICION_FINAL" || actual.tipo === "FINAL") {
-          await recalcularCursada(tx, { id: actual.cursadaId, alumnoId: actual.cursada.alumnoId, materiaId: actual.cursada.materiaId }, materia);
+          const { alumnoId, materiaId, evaluacionesDesdeId } = actual.cursada;
+          await recalcularCursada(tx, { id: actual.cursadaId, alumnoId, materiaId, evaluacionesDesdeId }, materia);
         }
         await crearNotificacionesIndividuales(tx, [{
           usuarioId: actual.cursada.alumnoId, tipo: "CALIFICACION_PUBLICADA", materiaId: actual.cursada.materiaId, autorId: req.usuario.id,
