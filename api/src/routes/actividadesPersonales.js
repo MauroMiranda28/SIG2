@@ -7,6 +7,7 @@ import {
 } from "../services/calendarioAcademico.js";
 import {
   DATOS_ACTIVIDAD_PERSONAL,
+  actividadOcurreEnFecha,
   DIAS_SEMANA,
   etiquetaDiaDeFecha,
   fechaParaDia,
@@ -34,24 +35,30 @@ function seSuperponen(a, b) {
     minutosDesdeMedianoche(a.horaFin) > minutosDesdeMedianoche(b.horaInicio);
 }
 
-function diaDeActividad(actividad) {
-  return actividad.programacion === "RECURRENTE" ? actividad.dia : etiquetaDiaDeFecha(actividad.fecha);
+function ocurrenciasEnRango(actividad, desde, hasta, alOcurrir) {
+  const fecha = new Date(Date.UTC(desde.getUTCFullYear(), desde.getUTCMonth(), desde.getUTCDate()));
+  const fin = new Date(Date.UTC(hasta.getUTCFullYear(), hasta.getUTCMonth(), hasta.getUTCDate()));
+  while (fecha <= fin) {
+    if (actividadOcurreEnFecha(actividad, fecha) && alOcurrir(fecha)) return true;
+    fecha.setUTCDate(fecha.getUTCDate() + 1);
+  }
+  return false;
 }
 
-function ocurreEnDia(actividad, dia, fecha) {
-  if (!actividad.horaInicio || !actividad.duracion) return false;
-  if (actividad.programacion === "RECURRENTE") return actividad.dia === dia;
-  if (!fecha && actividad.fecha) {
-    const hoy = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
-    return actividad.fecha >= hoy && etiquetaDiaDeFecha(actividad.fecha) === dia;
+function rangoOcurrencias(actividad, ahora, inicioSinFecha = null) {
+  if (actividad.programacion === "PUNTUAL") {
+    return actividad.fecha ? { desde: actividad.fecha, hasta: actividad.fecha } : null;
   }
-  return fecha && actividad.fecha && actividad.fecha.toISOString().slice(0, 10) === fecha.toISOString().slice(0, 10);
+  const fechaHoy = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate()));
+  const referencia = inicioSinFecha ?? fechaHoy;
+  const desde = actividad.fecha && actividad.fecha > referencia ? actividad.fecha : referencia;
+  const maximo = new Date(desde.getTime() + 366 * 86400000);
+  const hasta = actividad.repetirHasta && actividad.repetirHasta < maximo ? actividad.repetirHasta : maximo;
+  return { desde, hasta };
 }
 
 export async function buscarConflictosActividad(db, usuarioId, actividad, excluirId, incluirClases = true) {
   if (!actividad.horaInicio || !actividad.duracion || !actividad.programacion) return [];
-  const dia = diaDeActividad(actividad);
-  const fecha = actividad.programacion === "PUNTUAL" ? actividad.fecha : null;
   const hora = {
     horaInicio: actividad.horaInicio,
     horaFin: horaFin(actividad.horaInicio, actividad.duracion),
@@ -72,12 +79,19 @@ export async function buscarConflictosActividad(db, usuarioId, actividad, exclui
 
   for (const { comision } of inscripciones) {
     for (const bloque of comision.bloques) {
-      if (bloque.dia === dia && seSuperponen(hora, bloque)) {
+      const rango = rangoOcurrencias(actividad, new Date());
+      const ocurreConClase = rango && ocurrenciasEnRango(
+        actividad,
+        rango.desde,
+        rango.hasta,
+        (fecha) => etiquetaDiaDeFecha(fecha) === bloque.dia && seSuperponen(hora, bloque),
+      );
+      if (ocurreConClase) {
         conflictos.push({
           tipo: "CLASE",
           titulo: `${comision.materia.nombre} (${comision.nombre})`,
-          dia,
-          fecha,
+          dia: bloque.dia,
+          fecha: actividad.programacion === "PUNTUAL" ? actividad.fecha : null,
           horaInicio: bloque.horaInicio,
           horaFin: bloque.horaFin,
         });
@@ -87,20 +101,52 @@ export async function buscarConflictosActividad(db, usuarioId, actividad, exclui
 
   const actividades = await db.actividadPersonal.findMany({
     where: { usuarioId, ...(excluirId ? { id: { not: excluirId } } : {}) },
-    select: { id: true, titulo: true, programacion: true, dia: true, fecha: true, duracion: true, horaInicio: true },
+    select: {
+      id: true,
+      titulo: true,
+      programacion: true,
+      frecuencia: true,
+      intervalo: true,
+      dia: true,
+      fecha: true,
+      repetirHasta: true,
+      duracion: true,
+      horaInicio: true,
+    },
   });
   for (const existente of actividades) {
-    if (!ocurreEnDia(existente, dia, fecha)) continue;
     const existenteHora = {
       horaInicio: existente.horaInicio,
       horaFin: horaFin(existente.horaInicio, existente.duracion),
     };
-    if (seSuperponen(hora, existenteHora)) {
+    const ahora = new Date();
+    const rangoA = rangoOcurrencias(actividad, ahora);
+    if (!rangoA) continue;
+    const rangoB = rangoOcurrencias(
+      existente,
+      ahora,
+      actividad.programacion === "PUNTUAL" ? actividad.fecha : rangoA.desde,
+    );
+    if (!rangoB) continue;
+    const inicioComun = rangoA.desde > rangoB.desde ? rangoA.desde : rangoB.desde;
+    const finComun = rangoA.hasta < rangoB.hasta ? rangoA.hasta : rangoB.hasta;
+    let fechaConflicto = null;
+    if (inicioComun <= finComun) ocurrenciasEnRango(
+      actividad,
+      inicioComun,
+      finComun,
+      (fecha) => {
+        if (!actividadOcurreEnFecha(existente, fecha) || !seSuperponen(hora, existenteHora)) return false;
+        fechaConflicto = new Date(fecha);
+        return true;
+      },
+    );
+    if (fechaConflicto) {
       conflictos.push({
         tipo: "ACTIVIDAD",
         titulo: existente.titulo,
-        dia,
-        fecha: existente.programacion === "PUNTUAL" ? existente.fecha : fecha,
+        dia: etiquetaDiaDeFecha(fechaConflicto),
+        fecha: fechaConflicto,
         horaInicio: existenteHora.horaInicio,
         horaFin: existenteHora.horaFin,
       });
@@ -114,6 +160,8 @@ function eventoActividad(actividad, fecha, dia) {
     tipoEvento: "ACTIVIDAD",
     id: actividad.id,
     titulo: actividad.titulo,
+    notas: actividad.notas,
+    estado: actividad.estado,
     categoria: actividad.categoria,
     etiquetas: actividad.etiquetas,
     fecha,
@@ -122,6 +170,9 @@ function eventoActividad(actividad, fecha, dia) {
     horaFin: horaFin(actividad.horaInicio, actividad.duracion),
     duracion: actividad.duracion,
     programacion: actividad.programacion,
+    frecuencia: actividad.frecuencia,
+    intervalo: actividad.intervalo,
+    repetirHasta: actividad.repetirHasta,
   };
 }
 
@@ -224,16 +275,11 @@ export function crearRouterActividadesPersonales(db = prisma) {
 
       for (const actividad of actividades) {
         if (!actividad.horaInicio || !actividad.duracion) continue;
-        if (actividad.programacion === "RECURRENTE" && actividad.dia) {
-          const fecha = fechaParaDia(inicio, actividad.dia);
-          eventos.push(eventoActividad(actividad, fecha, actividad.dia));
-        } else if (
-          actividad.programacion === "PUNTUAL" &&
-          actividad.fecha &&
-          actividad.fecha >= inicio &&
-          actividad.fecha < fin
-        ) {
-          eventos.push(eventoActividad(actividad, actividad.fecha, etiquetaDiaDeFecha(actividad.fecha)));
+        for (let desplazamiento = 0; desplazamiento < 7; desplazamiento += 1) {
+          const fecha = fechaParaDia(inicio, DIAS_SEMANA[desplazamiento]);
+          if (actividadOcurreEnFecha(actividad, fecha)) {
+            eventos.push(eventoActividad(actividad, fecha, etiquetaDiaDeFecha(fecha)));
+          }
         }
       }
 

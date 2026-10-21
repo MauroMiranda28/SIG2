@@ -39,6 +39,18 @@ enum ProgramacionActividad {
   PUNTUAL
 }
 
+enum FrecuenciaActividad {
+  DIA
+  SEMANA
+  MES
+}
+
+enum EstadoActividadPersonal {
+  PENDIENTE
+  EN_CURSO
+  FINALIZADA
+}
+
 enum TipoEvaluacion {
   PARCIAL
   RECUPERATORIO
@@ -678,13 +690,17 @@ model ActividadPersonal {
   id           Int                   @id @default(autoincrement())
   titulo       String
   notas        String?
+  estado       EstadoActividadPersonal @default(PENDIENTE)
   duracion     Int? // minutos
   categoria    String                @default("OTRA") @map("tipo")
   etiquetas    String[]              @default([])
   etiqueta     String?
   programacion ProgramacionActividad @default(PUNTUAL)
+  frecuencia   FrecuenciaActividad   @default(SEMANA)
+  intervalo    Int                   @default(1)
   dia          DiaSemana?
   fecha        DateTime?             @db.Date
+  repetirHasta DateTime?             @db.Date
   horaInicio   String?
   creadoEn     DateTime              @default(now())
 

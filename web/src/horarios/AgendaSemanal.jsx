@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
+import ActividadesPersonales from "../actividades/ActividadesPersonales.jsx";
 import "../actividades/actividades.css";
 
 const CATEGORIAS = [
@@ -42,6 +43,32 @@ const fechaDeDia = (fecha, desplazamiento) => {
   resultado.setUTCDate(resultado.getUTCDate() + desplazamiento);
   return fechaLocal(resultado);
 };
+const inicioDeSemana = (fecha) => {
+  const inicio = new Date(`${fecha}T00:00:00.000Z`);
+  inicio.setUTCDate(inicio.getUTCDate() - ((inicio.getUTCDay() + 6) % 7));
+  return fechaLocal(inicio);
+};
+const moverMes = (fecha, desplazamiento) => {
+  const actual = new Date(`${fecha}T00:00:00.000Z`);
+  const destino = new Date(Date.UTC(actual.getUTCFullYear(), actual.getUTCMonth() + desplazamiento, 1));
+  const ultimoDia = new Date(Date.UTC(destino.getUTCFullYear(), destino.getUTCMonth() + 1, 0)).getUTCDate();
+  destino.setUTCDate(Math.min(actual.getUTCDate(), ultimoDia));
+  return fechaLocal(destino);
+};
+
+function diasDelMes(fecha) {
+  const [anio, mes] = fecha.slice(0, 7).split("-").map(Number);
+  const primero = new Date(Date.UTC(anio, mes - 1, 1));
+  const inicio = new Date(primero);
+  inicio.setUTCDate(inicio.getUTCDate() - ((inicio.getUTCDay() + 6) % 7));
+  const cantidad = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
+  const celdas = Math.ceil((((primero.getUTCDay() + 6) % 7) + cantidad) / 7) * 7;
+  return Array.from({ length: celdas }, (_, indice) => {
+    const dia = new Date(inicio);
+    dia.setUTCDate(dia.getUTCDate() + indice);
+    return fechaLocal(dia);
+  });
+}
 
 function fechaCorta(fecha) {
   return new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(fecha));
@@ -99,15 +126,43 @@ function resumir(eventos, esDocente) {
 // porque ya reúne las comisiones elegidas junto con las actividades personales.
 export default function AgendaSemanal({ esDocente = false }) {
   const [fechaReferencia, setFechaReferencia] = useState(hoyLocal());
-  const [agenda, setAgenda] = useState(null);
+  const [agendasMes, setAgendasMes] = useState(null);
   const [error, setError] = useState(null);
   const [eventoExpandido, setEventoExpandido] = useState(null);
 
   useEffect(() => {
-    api(`/actividades-personales/agenda?fecha=${fechaReferencia}`)
-      .then((datos) => { setAgenda(datos); setError(null); })
-      .catch((e) => setError(e.message));
-  }, [fechaReferencia]);
+    let vigente = true;
+    const [anio, mes] = fechaReferencia.slice(0, 7).split("-").map(Number);
+    const inicio = new Date(Date.UTC(anio, mes - 1, 1));
+    const fin = new Date(Date.UTC(anio, mes, 0));
+    const semanas = [];
+    for (let semana = inicioDeSemana(fechaLocal(inicio)); semana <= fechaLocal(fin); semana = fechaDeDia(semana, 7)) {
+      semanas.push(semana);
+    }
+
+    setAgendasMes(null);
+    setError(null);
+    Promise.all(semanas.map((fecha) => api(`/actividades-personales/agenda?fecha=${fecha}`)))
+      .then((datos) => { if (vigente) setAgendasMes(datos); })
+      .catch((e) => { if (vigente) setError(e.message); });
+    return () => { vigente = false; };
+  }, [fechaReferencia.slice(0, 7)]);
+
+  const agenda = agendasMes?.find((semana) => (
+    semana.dias.some((dia) => fechaLocal(dia.fecha) === fechaReferencia)
+  ));
+  const datosDiasMes = useMemo(() => {
+    const dias = new Map();
+    for (const semana of agendasMes ?? []) {
+      for (const dia of semana.dias) {
+        dias.set(fechaLocal(dia.fecha), dia);
+      }
+    }
+    return dias;
+  }, [agendasMes]);
+  const celdasMes = diasDelMes(fechaReferencia);
+  const nombreMes = new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric", timeZone: "UTC" })
+    .format(new Date(`${fechaReferencia.slice(0, 7)}-01T00:00:00.000Z`));
 
   const resumen = useMemo(() => resumir(agenda?.eventos ?? [], esDocente), [agenda, esDocente]);
   const lunesSemana = agenda?.desde ? fechaLocal(agenda.desde) : fechaReferencia;
@@ -127,14 +182,60 @@ export default function AgendaSemanal({ esDocente = false }) {
 
   return (
     <section className="actividades agenda-semanal">
-      <h2>Mi horario</h2>
+      <h2>Calendario académico</h2>
       <p>
         {esDocente
-          ? "Consultá las clases que dictás y organizá tus actividades personales, de preparación y corrección en el calendario semanal."
-          : "Consultá tus actividades, clases y exámenes en el calendario semanal."}
+          ? "Consultá tus clases y organizá tus actividades personales, de preparación y corrección en un solo calendario."
+          : "Consultá tus actividades, clases y exámenes en un solo calendario."}
       </p>
 
       {error && <p className="actividad-mensaje error" role="alert">No se pudo cargar tu agenda: {error}</p>}
+
+      <section className="agenda-mensual" aria-label="Calendario mensual">
+        <div className="agenda-mensual-cabecera">
+          <button type="button" onClick={() => setFechaReferencia((fecha) => moverMes(fecha, -1))} aria-label="Mes anterior">‹</button>
+          <h3>{nombreMes}</h3>
+          <button type="button" onClick={() => setFechaReferencia((fecha) => moverMes(fecha, 1))} aria-label="Mes siguiente">›</button>
+        </div>
+        <div className="agenda-mensual-grilla" role="grid" aria-label={nombreMes}>
+          {["L", "M", "X", "J", "V", "S", "D"].map((dia, indice) => (
+            <span className="agenda-mensual-dia-semana" key={`${dia}-${indice}`} aria-hidden="true">{dia}</span>
+          ))}
+          {celdasMes.map((fecha) => {
+            const dia = datosDiasMes.get(fecha);
+            const esDelMes = fecha.slice(0, 7) === fechaReferencia.slice(0, 7);
+            const cantidadEventos = dia?.eventos.length ?? 0;
+            const marcas = dia?.calendario?.marcas ?? [];
+            return (
+              <button
+                type="button"
+                className={[
+                  "agenda-mensual-numero",
+                  fecha === fechaReferencia ? "seleccionado" : "",
+                  esDelMes ? "" : "fuera-de-mes",
+                  cantidadEventos ? "con-eventos" : "",
+                  ...marcas.map((marca) => `calendario-${marca.tipo.toLowerCase()}`),
+                ].filter(Boolean).join(" ")}
+                key={fecha}
+                onClick={() => setFechaReferencia(fecha)}
+                aria-pressed={fecha === fechaReferencia}
+                aria-label={`${fecha}${cantidadEventos ? `, ${cantidadEventos} eventos` : ""}${marcas.length ? `, ${marcas.map((marca) => marca.nombre).join(", ")}` : ""}`}
+                title={[...marcas.map((marca) => marca.nombre), cantidadEventos ? `${cantidadEventos} eventos` : ""].filter(Boolean).join(" · ") || undefined}
+              >
+                <span>{Number(fecha.slice(-2))}</span>
+                {cantidadEventos > 0 && <i aria-hidden="true" />}
+              </button>
+            );
+          })}
+        </div>
+        <div className="agenda-mensual-leyenda" aria-label="Referencias del calendario">
+          <span><i className="evento" aria-hidden="true" /> Clases, exámenes o actividades</span>
+          <span><i className="feriado" aria-hidden="true" /> Feriado</span>
+          <span><i className="vacaciones" aria-hidden="true" /> Receso de invierno</span>
+          <span><i className="examenes_finales" aria-hidden="true" /> Mesas de examen</span>
+          <span><i className="cuatrimestre" aria-hidden="true" /> Inicio o fin de cuatrimestre</span>
+        </div>
+      </section>
 
       <section className="actividad-semana">
         <div className="actividad-navegacion-semana">
@@ -217,10 +318,10 @@ export default function AgendaSemanal({ esDocente = false }) {
                     <strong>{nombre}</strong>
                     <span>{fechaCorta(fecha)}</span>
                     <span className="actividad-calendario-marcas">
-                      {calendario?.marcas.map((marca) => (
+                      {calendario?.marcas.map((marca, indice) => (
                         <span
                           className={`actividad-calendario-marca calendario-${marca.tipo.toLowerCase()}`}
-                          key={`${marca.tipo}-${marca.nombre}`}
+                          key={`${marca.tipo}-${marca.nombre}-${indice}`}
                           title={marca.tipo.replaceAll("_", " ")}
                         >
                           {marca.nombre}
@@ -257,6 +358,8 @@ export default function AgendaSemanal({ esDocente = false }) {
                             ? [evento.aula ? `Aula: ${evento.aula}` : null]
                             : [
                               nombreCategoria(evento.categoria, esDocente),
+                              evento.estado ? `Estado: ${{ PENDIENTE: "Pendiente", EN_CURSO: "En curso", FINALIZADA: "Finalizada" }[evento.estado] ?? evento.estado}` : null,
+                              evento.notas,
                               ...(evento.etiquetas ?? []),
                             ];
                         return (
@@ -292,7 +395,7 @@ export default function AgendaSemanal({ esDocente = false }) {
               </div>
             </div>
           </>
-        ) : !error && <p>Cargando tu horario...</p>}
+        ) : !error && <p>Cargando el calendario del mes...</p>}
       </section>
     </section>
   );

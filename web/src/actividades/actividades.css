@@ -24,10 +24,210 @@
 
 .actividad-formulario input,
 .actividad-formulario select,
+.actividad-formulario textarea,
 .actividad-filtro select {
   box-sizing: border-box;
   width: 100%;
   padding: 0.5rem;
+}
+
+.actividad-formulario textarea {
+  resize: vertical;
+}
+
+.actividad-notas {
+  white-space: pre-wrap;
+}
+
+.actividad-estado {
+  display: inline-grid;
+  gap: 0.25rem;
+  max-width: 12rem;
+  margin: 0.35rem 0;
+  font-size: 0.9rem;
+}
+
+.actividad-estado select {
+  padding: 0.35rem;
+}
+
+.agenda-mensual {
+  max-width: 44rem;
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+}
+
+.agenda-mensual-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  text-transform: capitalize;
+}
+
+.agenda-mensual-cabecera h3 {
+  margin: 0;
+}
+
+.agenda-mensual-cabecera button {
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  font-size: 1.4rem;
+}
+
+.agenda-mensual-grilla {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(2rem, 1fr));
+  gap: 0.25rem;
+  text-align: center;
+}
+
+.agenda-mensual-dia-semana,
+.agenda-mensual-numero {
+  display: grid;
+  min-height: 2.5rem;
+  place-items: center;
+}
+
+.agenda-mensual-dia-semana {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.agenda-mensual-numero {
+  position: relative;
+  border: 1px solid transparent;
+  border-radius: 0.4rem;
+  background: #f6f7f8;
+  color: inherit;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.agenda-mensual-numero:hover,
+.agenda-mensual-numero:focus-visible {
+  border-color: var(--color-primary);
+}
+
+.agenda-mensual-numero.fuera-de-mes {
+  color: var(--color-text-muted);
+  opacity: 0.55;
+}
+
+.agenda-mensual-numero.seleccionado {
+  border-color: var(--color-primary-dark);
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-weight: 700;
+  opacity: 1;
+}
+
+.agenda-mensual-numero > i,
+.agenda-mensual-leyenda i {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--color-primary-dark);
+}
+
+.agenda-mensual-numero > i {
+  position: absolute;
+  bottom: 0.2rem;
+}
+
+.agenda-mensual-numero.seleccionado > i {
+  background: var(--color-white);
+}
+
+.agenda-mensual-numero.calendario-feriado,
+.agenda-mensual-numero.calendario-vacaciones,
+.agenda-mensual-numero.calendario-examenes_finales,
+.agenda-mensual-numero.calendario-inicio_cuatrimestre,
+.agenda-mensual-numero.calendario-fin_cuatrimestre {
+  font-weight: 700;
+}
+
+.agenda-mensual-numero.calendario-feriado {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.agenda-mensual-numero.calendario-vacaciones {
+  background: #cffafe;
+  color: #155e75;
+}
+
+.agenda-mensual-numero.calendario-examenes_finales {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.agenda-mensual-numero.calendario-inicio_cuatrimestre,
+.agenda-mensual-numero.calendario-fin_cuatrimestre {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.agenda-mensual-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-top: 0.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.agenda-mensual-leyenda span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.agenda-mensual-leyenda i.feriado,
+.agenda-mensual-leyenda i.vacaciones,
+.agenda-mensual-leyenda i.examenes_finales,
+.agenda-mensual-leyenda i.cuatrimestre {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 0.2rem;
+}
+
+.agenda-mensual-leyenda i.evento {
+  border-radius: 50%;
+}
+
+.agenda-mensual-leyenda i.feriado {
+  border: 1px solid #991b1b;
+  background: #fee2e2;
+}
+
+.agenda-mensual-leyenda i.vacaciones {
+  border: 1px solid #155e75;
+  background: #cffafe;
+}
+
+.agenda-mensual-leyenda i.examenes_finales {
+  border: 1px solid #5b21b6;
+  background: #ede9fe;
+}
+
+.agenda-mensual-leyenda i.cuatrimestre {
+  border: 1px solid #92400e;
+  background: #fef3c7;
+}
+
+.agenda-mensual-numero.seleccionado.calendario-feriado,
+.agenda-mensual-numero.seleccionado.calendario-vacaciones,
+.agenda-mensual-numero.seleccionado.calendario-examenes_finales,
+.agenda-mensual-numero.seleccionado.calendario-inicio_cuatrimestre,
+.agenda-mensual-numero.seleccionado.calendario-fin_cuatrimestre {
+  border-color: var(--color-primary-dark);
+  background: var(--color-primary);
+  color: var(--color-white);
 }
 
 .actividad-formulario-fila {
@@ -237,6 +437,19 @@
 .actividad-calendario-scroll {
   overflow-x: auto;
   padding-bottom: 0.5rem;
+}
+
+.agenda-mensual {
+  padding: 0.6rem;
+}
+
+.agenda-mensual-grilla {
+  gap: 0.1rem;
+}
+
+.agenda-mensual-dia-semana,
+.agenda-mensual-numero {
+  min-height: 2.15rem;
 }
 
 .actividad-grilla {

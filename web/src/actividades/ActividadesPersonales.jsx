@@ -30,18 +30,26 @@ const CATEGORIAS_DOCENTE = [
 const nombreCategoria = (categoria, esDocente = false) => (
   (esDocente ? CATEGORIAS_DOCENTE : CATEGORIAS).find(([valor]) => valor === categoria)?.[1] ?? "Otra"
 );
+const nombreEstado = (estado) => ({
+  PENDIENTE: "Pendiente",
+  EN_CURSO: "En curso",
+  FINALIZADA: "Finalizada",
+}[estado] ?? "Pendiente");
 const hoyLocal = () => {
   const hoy = new Date();
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
 };
 const FORMULARIO_VACIO = {
   titulo: "",
+  notas: "",
   duracion: "",
   categoria: "OTRA",
   etiquetas: "",
   programacion: "PUNTUAL",
-  dia: "LUNES",
+  frecuencia: "SEMANA",
+  intervalo: "1",
   fecha: hoyLocal(),
+  repetirHasta: "",
   horaInicio: "09:00",
 };
 
@@ -50,12 +58,16 @@ const fechaLocal = (fecha) => new Date(fecha).toISOString().slice(0, 10);
 function prepararDatos(formulario) {
   return {
     titulo: formulario.titulo,
+    notas: formulario.notas,
     duracion: Number(formulario.duracion),
     categoria: formulario.categoria,
     etiquetas: formulario.etiquetas.split(",").map((etiqueta) => etiqueta.trim()).filter(Boolean),
     programacion: formulario.programacion,
-    dia: formulario.programacion === "RECURRENTE" ? formulario.dia : null,
-    fecha: formulario.programacion === "PUNTUAL" ? formulario.fecha : null,
+    frecuencia: formulario.programacion === "RECURRENTE" ? formulario.frecuencia : "SEMANA",
+    intervalo: formulario.programacion === "RECURRENTE" ? Number(formulario.intervalo) : 1,
+    dia: null,
+    fecha: formulario.fecha,
+    repetirHasta: formulario.programacion === "RECURRENTE" ? formulario.repetirHasta || null : null,
     horaInicio: formulario.horaInicio,
   };
 }
@@ -71,6 +83,24 @@ function horarioDe(actividad) {
 
 function fechaCorta(fecha) {
   return new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(fecha));
+}
+
+function fechaInicioDe(actividad) {
+  if (actividad.fecha) return fechaLocal(actividad.fecha);
+  if (actividad.programacion !== "RECURRENTE" || !actividad.dia) return "";
+  const hoy = new Date();
+  const diaActual = (hoy.getDay() + 6) % 7;
+  const diaActividad = DIAS.findIndex(([dia]) => dia === actividad.dia);
+  hoy.setDate(hoy.getDate() + (diaActividad - diaActual + 7) % 7);
+  return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+}
+
+function frecuenciaDe(actividad) {
+  const unidades = { DIA: "día", SEMANA: "semana", MES: "mes" };
+  const unidad = unidades[actividad.frecuencia ?? "SEMANA"] ?? "semana";
+  const intervalo = actividad.intervalo ?? 1;
+  const hasta = actividad.repetirHasta ? ` hasta el ${fechaCorta(actividad.repetirHasta)}` : " sin fecha de fin";
+  return `Cada ${intervalo} ${intervalo === 1 ? unidad : `${unidad}s`}${actividad.fecha ? ` desde el ${fechaCorta(actividad.fecha)}` : ""}${hasta}`;
 }
 
 export default function ActividadesPersonales({ esDocente = false }) {
@@ -116,6 +146,7 @@ export default function ActividadesPersonales({ esDocente = false }) {
     setActividadEditando(actividad.id);
     setFormulario({
       titulo: actividad.titulo,
+      notas: actividad.notas ?? "",
       duracion: actividad.duracion == null ? "" : String(actividad.duracion),
       categoria: categorias.some(([valor]) => valor === actividad.categoria) ? actividad.categoria : categorias.at(-1)[0],
       etiquetas: [
@@ -123,8 +154,10 @@ export default function ActividadesPersonales({ esDocente = false }) {
         ...(categorias.some(([valor]) => valor === actividad.categoria) ? [] : [actividad.categoria]),
       ].join(", "),
       programacion: actividad.programacion ?? "PUNTUAL",
-      dia: actividad.dia ?? "LUNES",
-      fecha: actividad.fecha ? fechaLocal(actividad.fecha) : "",
+      frecuencia: actividad.frecuencia ?? "SEMANA",
+      intervalo: String(actividad.intervalo ?? 1),
+      fecha: fechaInicioDe(actividad),
+      repetirHasta: actividad.repetirHasta ? fechaLocal(actividad.repetirHasta) : "",
       horaInicio: actividad.horaInicio ?? "",
     });
     setMensaje(null);
@@ -181,13 +214,30 @@ export default function ActividadesPersonales({ esDocente = false }) {
     }
   }
 
+  async function cambiarEstado(actividad, estado) {
+    setError(null);
+    setMensaje(null);
+    try {
+      const actualizada = await api(`/actividades-personales/${actividad.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ estado }),
+      });
+      setActividades((actuales) => actuales.map((actual) => (
+        actual.id === actividad.id ? { ...actual, estado: actualizada.estado } : actual
+      )));
+      setMensaje("Estado actualizado.");
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
   return (
     <section className="actividades">
       <h2>{esDocente ? "Mi dedicación extra-áulica" : "Mis actividades personales"}</h2>
       <p>
         {esDocente
           ? "Registrá tus bloques de gestión personal y planificación académica para llevar un seguimiento de tu dedicación."
-          : "Planificá tus ocupaciones junto con las clases, sin necesidad de usar un calendario."}
+          : "Planificá tus actividades personales y agregá notas o recordatorios para cada tarea."}
       </p>
 
       <form className="actividad-formulario" onSubmit={guardar}>
@@ -199,6 +249,17 @@ export default function ActividadesPersonales({ esDocente = false }) {
         <label>
           {esDocente ? "Nombre del bloque" : "Título"}
           <input name="titulo" value={formulario.titulo} onChange={actualizarCampo} maxLength={120} required />
+        </label>
+        <label>
+          Notas descriptivas
+          <textarea
+            name="notas"
+            value={formulario.notas}
+            onChange={actualizarCampo}
+            maxLength={2000}
+            rows={3}
+            placeholder="Objetivos o recordatorios de esta actividad"
+          />
         </label>
         <div className="actividad-formulario-fila">
           <label>
@@ -218,19 +279,59 @@ export default function ActividadesPersonales({ esDocente = false }) {
             : "¿De qué área es? Elegí un grupo general. Por ejemplo, “Trabajo”."}
         </small>
         <label>
-          Frecuencia
+          Repetición
           <select name="programacion" value={formulario.programacion} onChange={actualizarCampo}>
-            <option value="PUNTUAL">Una sola vez</option>
-            <option value="RECURRENTE">Se repite cada semana</option>
+            <option value="PUNTUAL">No se repite</option>
+            <option value="RECURRENTE">Se repite</option>
           </select>
         </label>
         {formulario.programacion === "RECURRENTE" ? (
-          <label>
-            Día de la semana
-            <select name="dia" value={formulario.dia} onChange={actualizarCampo}>
-              {DIAS.map(([valor, nombre]) => <option key={valor} value={valor}>{nombre}</option>)}
-            </select>
-          </label>
+          <>
+            <div className="actividad-formulario-fila actividad-recurrencia-fila">
+              <label>
+                Repetir cada
+                <input
+                  name="intervalo"
+                  type="number"
+                  min="1"
+                  max="365"
+                  step="1"
+                  value={formulario.intervalo}
+                  onChange={actualizarCampo}
+                  required
+                />
+              </label>
+              <label>
+                Frecuencia
+                <select name="frecuencia" value={formulario.frecuencia} onChange={actualizarCampo}>
+                  <option value="DIA">Día(s)</option>
+                  <option value="SEMANA">Semana(s)</option>
+                  <option value="MES">Mes(es)</option>
+                </select>
+              </label>
+            </div>
+            <small>
+              {formulario.frecuencia === "SEMANA"
+                ? "Se repite el mismo día de la semana que la fecha de inicio."
+                : formulario.frecuencia === "MES"
+                  ? "Se repite el mismo día del mes que la fecha de inicio."
+                  : "Se repite cada cantidad de días indicada."}
+            </small>
+            <label>
+              Fecha de inicio
+              <input name="fecha" type="date" value={formulario.fecha} onChange={actualizarCampo} required />
+            </label>
+            <label>
+              Repetir hasta (opcional)
+              <input
+                name="repetirHasta"
+                type="date"
+                value={formulario.repetirHasta}
+                min={formulario.fecha}
+                onChange={actualizarCampo}
+              />
+            </label>
+          </>
         ) : (
           <label>
             Fecha
@@ -289,8 +390,8 @@ export default function ActividadesPersonales({ esDocente = false }) {
 
       <p className="actividad-mensaje-info">
         {esDocente
-          ? "Consultá tus bloques en la grilla de la pestaña «Mi horario»."
-          : "Para ver tus clases y actividades juntas en una semana, andá a la pestaña «Mi horario»."}
+          ? "Consultá tus bloques en la grilla de la pestaña «Calendario académico»."
+          : "Tus actividades solo son visibles para vos y aparecen en la grilla del «Calendario académico»."}
       </p>
 
       <section>
@@ -315,9 +416,22 @@ export default function ActividadesPersonales({ esDocente = false }) {
                 <div>
                   <h4>{actividad.titulo}</h4>
                   <p>{nombreCategoria(actividad.categoria, esDocente)} · {actividad.duracion ?? "Duración sin registrar"} min</p>
+                  <p className="actividad-notas">{actividad.notas || "Sin notas descriptivas."}</p>
+                  <label className="actividad-estado">
+                    Estado ({nombreEstado(actividad.estado)})
+                    <select
+                      value={actividad.estado ?? "PENDIENTE"}
+                      onChange={(evento) => cambiarEstado(actividad, evento.target.value)}
+                      aria-label={`Estado de ${actividad.titulo}`}
+                    >
+                      <option value="PENDIENTE">Pendiente</option>
+                      <option value="EN_CURSO">En curso</option>
+                      <option value="FINALIZADA">Finalizada</option>
+                    </select>
+                  </label>
                   <p>
                     {actividad.programacion === "RECURRENTE"
-                      ? `Cada ${DIAS.find(([dia]) => dia === actividad.dia)?.[1] ?? actividad.dia}`
+                      ? frecuenciaDe(actividad)
                       : actividad.fecha ? `Una vez · ${fechaCorta(actividad.fecha)}` : "Falta programar"}
                     {actividad.horaInicio ? ` · ${horarioDe(actividad)}` : ""}
                   </p>

@@ -8,17 +8,23 @@ import {
   validarFechaAgenda,
   validarFiltroEtiqueta,
   validarNuevaActividadPersonal,
+  actividadOcurreEnFecha,
 } from "../src/services/actividadesPersonales.js";
 import { manejarErrores } from "../src/middleware/errores.js";
 
 const datos = () => ({
   titulo: "Lectura",
+  notas: null,
+  estado: "PENDIENTE",
   duracion: 45,
   categoria: "ESTUDIO",
   etiquetas: ["Estudio"],
   programacion: "PUNTUAL",
+  frecuencia: "SEMANA",
+  intervalo: 1,
   dia: null,
   fecha: "2026-10-07",
+  repetirHasta: null,
   horaInicio: "09:00",
 });
 
@@ -45,8 +51,14 @@ test("validación: actividad obligatoria, duración positiva y etiquetas únicas
 
 test("validación: edición parcial, campos vacíos y filtros de etiqueta", () => {
   assert.deepEqual(validarCambioActividadPersonal({ etiquetas: [] }), { etiquetas: [] });
+  assert.deepEqual(validarCambioActividadPersonal({ estado: "EN_CURSO", notas: " Repasar unidad 2 " }), {
+    estado: "EN_CURSO",
+    notas: "Repasar unidad 2",
+  });
   assert.throws(() => validarCambioActividadPersonal({}), (error) => error.status === 400);
   assert.throws(() => validarCambioActividadPersonal({ duracion: -1 }), (error) => error.status === 400);
+  assert.throws(() => validarCambioActividadPersonal({ estado: "INICIADA" }), (error) => error.status === 400);
+  assert.throws(() => validarNuevaActividadPersonal({ ...datos(), notas: "x".repeat(2001) }), (error) => error.status === 400);
   assert.equal(validarFiltroEtiqueta(undefined), null);
   assert.equal(validarFiltroEtiqueta(" Deporte "), "Deporte");
   assert.throws(() => validarFiltroEtiqueta(" "), (error) => error.status === 400);
@@ -56,6 +68,53 @@ test("validación: edición parcial, campos vacíos y filtros de etiqueta", () =
   assert.throws(() => validarNuevaActividadPersonal({ ...datos(), horaInicio: "23:30", duracion: 60 }), (error) => error.status === 400);
   assert.equal(validarFechaAgenda("2026-10-07").toISOString(), "2026-10-07T00:00:00.000Z");
   assert.throws(() => validarFechaAgenda("2026-02-30"), (error) => error.status === 400);
+});
+
+test("recurrencia: respeta frecuencia, intervalo y fecha final inclusiva", () => {
+  const actividad = {
+    programacion: "RECURRENTE",
+    frecuencia: "SEMANA",
+    intervalo: 2,
+    dia: "MIERCOLES",
+    fecha: new Date("2026-10-07T00:00:00.000Z"),
+    repetirHasta: new Date("2026-11-04T00:00:00.000Z"),
+  };
+  assert.equal(actividadOcurreEnFecha(actividad, new Date("2026-10-07T00:00:00.000Z")), true);
+  assert.equal(actividadOcurreEnFecha(actividad, new Date("2026-10-14T00:00:00.000Z")), false);
+  assert.equal(actividadOcurreEnFecha(actividad, new Date("2026-10-21T00:00:00.000Z")), true);
+  assert.equal(actividadOcurreEnFecha(actividad, new Date("2026-11-04T00:00:00.000Z")), true);
+  assert.equal(actividadOcurreEnFecha(actividad, new Date("2026-11-11T00:00:00.000Z")), false);
+  assert.equal(actividadOcurreEnFecha({
+    ...actividad,
+    frecuencia: "DIA",
+    intervalo: 3,
+    repetirHasta: null,
+  }, new Date("2026-10-10T00:00:00.000Z")), true);
+  assert.equal(actividadOcurreEnFecha({
+    ...actividad,
+    frecuencia: "MES",
+    intervalo: 2,
+    repetirHasta: null,
+  }, new Date("2026-12-07T00:00:00.000Z")), true);
+  assert.equal(actividadOcurreEnFecha({
+    ...actividad,
+    frecuencia: "MES",
+    intervalo: 2,
+    repetirHasta: null,
+  }, new Date("2027-01-07T00:00:00.000Z")), false);
+  assert.throws(() => validarNuevaActividadPersonal({
+    ...datos(),
+    programacion: "RECURRENTE",
+    fecha: "2026-10-07",
+    frecuencia: "MES",
+    intervalo: 0,
+  }), (error) => error.status === 400);
+  assert.throws(() => validarNuevaActividadPersonal({
+    ...datos(),
+    programacion: "RECURRENTE",
+    fecha: "2026-10-07",
+    repetirHasta: "2026-10-06",
+  }), (error) => error.status === 400);
 });
 
 function crearDB(filas = [], inscripciones = [], cursadas = [], examenes = [], materiasDocente = [], periodos = [{
@@ -154,6 +213,14 @@ const fila = (id, usuarioId, extra = {}) => ({
   categoria: "OTRA",
   etiquetas: ["Trabajo"],
   creadoEn: new Date(id * 1000),
+  notas: null,
+  estado: "PENDIENTE",
+  programacion: "PUNTUAL",
+  frecuencia: "SEMANA",
+  intervalo: 1,
+  dia: null,
+  fecha: null,
+  repetirHasta: null,
   ...extra,
 });
 
@@ -172,10 +239,12 @@ test("HTTP: requiere sesión de alumno y lista solamente sus actividades con fil
 test("HTTP: crea, edita y borra actividades solo de su propietario", async () => {
   const db = crearDB([fila(1, 99)]);
   await conAPI(db, async (request) => {
-    const creada = await request("POST", "/", { body: datos() });
+    const creada = await request("POST", "/", { body: { ...datos(), notas: "Objetivo: repasar la unidad." } });
     assert.equal(creada.status, 201);
     const actividad = await creada.json();
     assert.equal(actividad.titulo, "Lectura");
+    assert.equal(actividad.notas, "Objetivo: repasar la unidad.");
+    assert.equal(actividad.estado, "PENDIENTE");
     const { conflictos: _conflictos, ...datosGuardados } = actividad;
     assert.deepEqual(db.filas[1], {
       ...datosGuardados,
@@ -184,9 +253,14 @@ test("HTTP: crea, edita y borra actividades solo de su propietario", async () =>
       usuarioId: 7,
     });
 
-    const editada = await request("PATCH", `/${actividad.id}`, { body: { titulo: "Lectura nocturna", etiquetas: ["Descanso"] } });
+    const editada = await request("PATCH", `/${actividad.id}`, {
+      body: { titulo: "Lectura nocturna", etiquetas: ["Descanso"], notas: "Repasar apuntes", estado: "EN_CURSO" },
+    });
     assert.equal(editada.status, 200);
-    assert.equal((await editada.json()).titulo, "Lectura nocturna");
+    const actividadEditada = await editada.json();
+    assert.equal(actividadEditada.titulo, "Lectura nocturna");
+    assert.equal(actividadEditada.notas, "Repasar apuntes");
+    assert.equal(actividadEditada.estado, "EN_CURSO");
     assert.deepEqual(db.filas[1].etiquetas, ["Descanso"]);
 
     assert.equal((await request("PATCH", "/1", { body: { titulo: "No es mío" } })).status, 404);
@@ -268,6 +342,35 @@ test("HTTP: agenda semanal ordena clases y actividades puntuales y recurrentes",
     assert.equal(miercoles.eventos[3].aula, "Aula 1");
     assert.ok(agenda.eventos.every((evento) => evento.titulo !== "Otra semana"));
     assert.equal(agenda.dias.length, 7);
+  });
+});
+
+test("HTTP: la agenda expande intervalos semanales y respeta la fecha final", async () => {
+  const db = crearDB([fila(1, 7, {
+    titulo: "Planificar unidad",
+    programacion: "RECURRENTE",
+    frecuencia: "SEMANA",
+    intervalo: 2,
+    dia: "MIERCOLES",
+    fecha: new Date("2026-10-07T00:00:00.000Z"),
+    repetirHasta: new Date("2026-11-04T00:00:00.000Z"),
+    horaInicio: "09:00",
+  })]);
+  await conAPI(db, async (request) => {
+    for (const [fecha, esperada] of [
+      ["2026-10-21", true],
+      ["2026-10-28", false],
+      ["2026-11-04", true],
+      ["2026-11-11", false],
+    ]) {
+      const respuesta = await request("GET", `/agenda?fecha=${fecha}`);
+      const agenda = await respuesta.json();
+      assert.equal(
+        agenda.eventos.some((evento) => evento.tipoEvento === "ACTIVIDAD" && evento.id === 1),
+        esperada,
+        `ocurrencia de ${fecha}`,
+      );
+    }
   });
 });
 

@@ -1,6 +1,7 @@
 // Datos de prueba mínimos para poder probar las historias de materias y
 // horarios sin tener que cargar todo a mano. Correr con: node prisma/seed.js
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -30,12 +31,12 @@ async function main() {
 
   const programacion = await prisma.materia.upsert({
     where: { codigo: "PROG1" },
-    update: {},
+    update: { cuatrimestre: 2 },
     create: {
       nombre: "Programación I",
       codigo: "PROG1",
       anio: 1,
-      cuatrimestre: 1,
+      cuatrimestre: 2,
       cargaHoraria: 96,
       descripcion: "Introducción a la programación estructurada.",
       planId: plan.id,
@@ -53,6 +54,45 @@ async function main() {
       cargaHoraria: 80,
       descripcion: "Modelado relacional y SQL.",
       planId: plan.id,
+    },
+  });
+
+  const anioActual = new Date().getFullYear();
+  const passwordHash = await bcrypt.hash("Demo1234!", 10);
+  const alumno = await prisma.usuario.upsert({
+    where: { email: "alumna.demo@alumnos.ucse.edu.ar" },
+    update: {
+      nombre: "Ana",
+      apellido: "Demo",
+      rol: "ALUMNO",
+      passwordHash,
+      carreraId: carrera.id,
+      planEstudioId: plan.id,
+    },
+    create: {
+      email: "alumna.demo@alumnos.ucse.edu.ar",
+      nombre: "Ana",
+      apellido: "Demo",
+      rol: "ALUMNO",
+      passwordHash,
+      carreraId: carrera.id,
+      planEstudioId: plan.id,
+    },
+  });
+  const docente = await prisma.usuario.upsert({
+    where: { email: "docente.demo@ucse.edu.ar" },
+    update: {
+      nombre: "María",
+      apellido: "Docente",
+      rol: "DOCENTE",
+      passwordHash,
+    },
+    create: {
+      email: "docente.demo@ucse.edu.ar",
+      nombre: "María",
+      apellido: "Docente",
+      rol: "DOCENTE",
+      passwordHash,
     },
   });
 
@@ -80,6 +120,124 @@ async function main() {
       },
     },
   });
+
+  await prisma.materiaDocente.upsert({
+    where: { materiaId_docenteId: { materiaId: programacion.id, docenteId: docente.id } },
+    update: {},
+    create: { materiaId: programacion.id, docenteId: docente.id },
+  });
+  await prisma.bloqueHorario.updateMany({
+    where: { comisionId: comisionB.id },
+    data: { docenteId: docente.id },
+  });
+  await prisma.inscripcionComision.upsert({
+    where: { alumnoId_comisionId: { alumnoId: alumno.id, comisionId: comisionB.id } },
+    update: {},
+    create: { alumnoId: alumno.id, comisionId: comisionB.id },
+  });
+  const cursada = await prisma.cursada.upsert({
+    where: { alumnoId_materiaId: { alumnoId: alumno.id, materiaId: programacion.id } },
+    update: { estado: "EN_CURSO" },
+    create: { alumnoId: alumno.id, materiaId: programacion.id, estado: "EN_CURSO" },
+  });
+
+  const inicioClases = new Date(Date.UTC(anioActual, 7, 1));
+  const finClases = new Date(Date.UTC(anioActual, 11, 20));
+  const periodoClasesExistente = await prisma.periodoAcademico.findFirst({
+    where: { anio: anioActual, tipo: "CLASES_CUATRIMESTRE_2" },
+  });
+  if (periodoClasesExistente) {
+    await prisma.periodoAcademico.update({
+      where: { id: periodoClasesExistente.id },
+      data: { nombre: "Segundo cuatrimestre", fechaInicio: inicioClases, fechaFin: finClases },
+    });
+  } else {
+    await prisma.periodoAcademico.create({
+      data: {
+        anio: anioActual,
+        tipo: "CLASES_CUATRIMESTRE_2",
+        nombre: "Segundo cuatrimestre",
+        fechaInicio: inicioClases,
+        fechaFin: finClases,
+      },
+    });
+  }
+  const inicioFinales = new Date(Date.UTC(anioActual, 11, 7));
+  const finFinales = new Date(Date.UTC(anioActual, 11, 23));
+  const periodoFinalesExistente = await prisma.periodoAcademico.findFirst({
+    where: { anio: anioActual, tipo: "EXAMENES_FINALES" },
+  });
+  if (periodoFinalesExistente) {
+    await prisma.periodoAcademico.update({
+      where: { id: periodoFinalesExistente.id },
+      data: { nombre: "Turno de diciembre", fechaInicio: inicioFinales, fechaFin: finFinales },
+    });
+  } else {
+    await prisma.periodoAcademico.create({
+      data: {
+        anio: anioActual,
+        tipo: "EXAMENES_FINALES",
+        nombre: "Turno de diciembre",
+        fechaInicio: inicioFinales,
+        fechaFin: finFinales,
+      },
+    });
+  }
+  await prisma.publicacionCalendario.upsert({
+    where: { anio: anioActual },
+    update: { publicado: true },
+    create: { anio: anioActual, publicado: true },
+  });
+
+  const fechaExamen = new Date(Date.UTC(anioActual, 10, 12));
+  const examenExistente = await prisma.fechaExamen.findFirst({
+    where: { materiaId: programacion.id, tipo: "PARCIAL", fecha: fechaExamen },
+  });
+  if (!examenExistente) {
+    await prisma.fechaExamen.create({
+      data: {
+        materiaId: programacion.id,
+        tipo: "PARCIAL",
+        fecha: fechaExamen,
+        hora: "18:00",
+        aulaId: aulaB.id,
+        creadoPorId: docente.id,
+      },
+    });
+  }
+
+  for (const [usuarioId, actividad] of [
+    [alumno.id, {
+      titulo: "Repasar programación",
+      notas: "Resolver ejercicios de funciones y arreglos.",
+      estado: "EN_CURSO",
+      categoria: "ESTUDIO",
+      dia: "JUEVES",
+    }],
+    [docente.id, {
+      titulo: "Preparar clase",
+      notas: "Organizar ejemplos prácticos para la próxima unidad.",
+      estado: "PENDIENTE",
+      categoria: "PREPARACION_CLASE",
+      dia: "MARTES",
+    }],
+  ]) {
+    const existente = await prisma.actividadPersonal.findFirst({
+      where: { usuarioId, titulo: actividad.titulo },
+    });
+    if (!existente) {
+      await prisma.actividadPersonal.create({
+        data: {
+          ...actividad,
+          usuarioId,
+          programacion: "RECURRENTE",
+          duracion: 60,
+          horaInicio: usuarioId === alumno.id ? "16:00" : "10:00",
+          etiquetas: ["Demo"],
+        },
+      });
+    }
+  }
 
   // Comisión de Bases de Datos que se pisa con la Comisión A de Programación I
   // (mismo día y horario), para poder probar el rechazo por superposición.
@@ -118,7 +276,14 @@ async function main() {
     },
   });
 
-  console.log("Seed listo:", { carrera: carrera.nombre, materias: [programacion.codigo, basesDeDatos.codigo] });
+  console.log("Seed listo:", {
+    carrera: carrera.nombre,
+    materias: [programacion.codigo, basesDeDatos.codigo],
+    cuentas: [
+      { rol: "ALUMNO", email: alumno.email, password: "Demo1234!" },
+      { rol: "DOCENTE", email: docente.email, password: "Demo1234!" },
+    ],
+  });
 }
 
 main()
